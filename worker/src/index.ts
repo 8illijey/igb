@@ -197,6 +197,36 @@ export default {
       return Response.json(data, { headers: CORS });
     }
 
+    // KAMIS 프록시 — cert를 서버에서 주입해 클라이언트 키 노출 제거.
+    // 클라이언트는 cert 없이 KAMIS 파라미터만 보내고, 여기서 cert_key/cert_id를 붙여 포워딩한다.
+    if (url.pathname === '/kamis') {
+      const ALLOWED_ACTIONS = new Set(['dailyPriceByCategoryList', 'periodProductList', 'periodEcoPriceList']);
+      if (!ALLOWED_ACTIONS.has(url.searchParams.get('action') ?? '')) {
+        return new Response('bad action', { status: 400, headers: CORS });
+      }
+      if (!env.KAMIS_KEY || !env.KAMIS_ID) {
+        return new Response('not configured', { status: 503, headers: CORS });
+      }
+      const params = new URLSearchParams(url.search);
+      params.set('p_cert_key', env.KAMIS_KEY);
+      params.set('p_cert_id', env.KAMIS_ID);
+      params.set('p_returntype', 'json');
+      const upstream = await fetch(`${KAMIS_BASE}?${params.toString()}`);
+      // KAMIS는 요청 파라미터(cert 포함)를 응답 condition에 echo한다 → 제거해야 키가 안 샌다.
+      let text = await upstream.text();
+      try {
+        const j = JSON.parse(text);
+        delete j.condition;
+        text = JSON.stringify(j);
+      } catch {
+        text = text.split(env.KAMIS_KEY).join('***'); // 비-JSON 응답: 키 문자열만 마스킹
+      }
+      return new Response(text, {
+        status: upstream.status,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=300', ...CORS },
+      });
+    }
+
     // 레시피 조회 (캐시 우선, 없으면 즉시 생성)
     if (url.pathname === '/recipes' || url.pathname === '/') {
       let cached = await env.RECIPES_KV.get(KV_KEY);

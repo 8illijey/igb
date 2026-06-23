@@ -6,9 +6,8 @@
  */
 import type { SignalLevel } from '../theme/tokens';
 
-const BASE = 'https://www.kamis.or.kr/service/price/xml.do';
-const CERT_KEY = process.env.EXPO_PUBLIC_KAMIS_KEY ?? '';
-const CERT_ID = process.env.EXPO_PUBLIC_KAMIS_ID ?? '';
+// KAMIS는 worker 프록시 경유 — cert_key/cert_id는 서버에서 주입되어 클라이언트에 노출되지 않는다.
+const BASE = process.env.EXPO_PUBLIC_KAMIS_URL ?? 'https://igeobissa-recipes.designerxyzi.workers.dev/kamis';
 
 /**
  * 신호 임계값(±1%) — 평년·어제 동일 적용.
@@ -83,8 +82,6 @@ function pct(today: number | null, base: number | null): number | null {
 
 function qs(params: Record<string, string>): string {
   return Object.entries({
-    p_cert_key: CERT_KEY,
-    p_cert_id: CERT_ID,
     p_returntype: 'json',
     ...params,
   })
