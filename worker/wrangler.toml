@@ -9,4 +9,4 @@ crons = ["0 19 * * 1"]
 # 생성 결과 캐시. `wrangler kv namespace create RECIPES_KV` 로 만들고 id를 채운다.
 [[kv_namespaces]]
 binding = "RECIPES_KV"
-id = "PUT_KV_NAMESPACE_ID_HERE"
+id = "9012892bbb7c4e828f07a97d0854c334"
