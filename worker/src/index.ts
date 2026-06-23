@@ -214,16 +214,23 @@ export default {
       const upstream = await fetch(`${KAMIS_BASE}?${params.toString()}`);
       // KAMIS는 요청 파라미터(cert 포함)를 응답 condition에 echo한다 → 제거해야 키가 안 샌다.
       let text = await upstream.text();
+      let parsed = false;
       try {
         const j = JSON.parse(text);
         delete j.condition;
         text = JSON.stringify(j);
+        parsed = true;
       } catch {
-        text = text.split(env.KAMIS_KEY).join('***'); // 비-JSON 응답: 키 문자열만 마스킹
+        // 비-JSON(에러 페이지 등): cert 두 값 모두 마스킹. 검증 못한 본문이므로 캐시 금지.
+        text = text.split(env.KAMIS_KEY).join('***').split(env.KAMIS_ID).join('***');
       }
       return new Response(text, {
         status: upstream.status,
-        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=300', ...CORS },
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': parsed ? 'public, max-age=300' : 'no-store',
+          ...CORS,
+        },
       });
     }
 
