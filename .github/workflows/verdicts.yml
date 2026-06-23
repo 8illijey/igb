@@ -1,0 +1,35 @@
+name: Build verdicts
+
+# 평년+최근1년 두 기준 판정을 하루 1회 사전계산해 verdicts.json 커밋.
+# (GitHub 러너는 KAMIS 접속 가능 — 로컬/CI 외 환경은 차단됨)
+on:
+  schedule:
+    - cron: '5 7 * * *' # 매일 16:05 KST (07:05 UTC) — KAMIS 오후 4시 갱신 직후
+  workflow_dispatch: {} # 수동 실행 버튼
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # verdicts.json 커밋용
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build verdicts.json
+        working-directory: mobile
+        env:
+          KAMIS_KEY: ${{ secrets.KAMIS_KEY }}
+          KAMIS_ID: ${{ secrets.KAMIS_ID }}
+        run: |
+          printf 'EXPO_PUBLIC_KAMIS_KEY=%s\nEXPO_PUBLIC_KAMIS_ID=%s\n' "$KAMIS_KEY" "$KAMIS_ID" > .env
+          node scripts/build-verdicts.mjs
+          rm -f .env
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mobile/public/verdicts.json
+          git commit -m "chore: update verdicts $(date -u +%F)" || { echo "변동 없음"; exit 0; }
+          git push
