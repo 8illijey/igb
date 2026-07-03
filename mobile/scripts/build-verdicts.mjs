@@ -16,6 +16,9 @@ const BASE = 'https://www.kamis.or.kr/service/price/xml.do';
 const CATEGORIES = ['100', '200', '400', '500'];
 const THRESHOLD = 0.01; // 앱 kamis.ts와 동일(±1%)
 const FULL_YEAR_MIN = 10; // 대표 품종이 이만큼 달이 차면 병합 불필요
+// 대표 품종이 이 미만(연중 절반 미만)일 때만 = '진짜 계절 품종'일 때만 다른 계절품종과 병합.
+// 파(대파/쪽파)·고춧가루(국산/중국)처럼 연중 조사되는 '다른 품목'은 자기 흐름만 쓰고 섞지 않는다.
+const SEASONAL_MAX = 6;
 
 const qs = (p) =>
   Object.entries({ p_cert_key: KEY, p_cert_id: ID, p_returntype: 'json', ...p })
@@ -23,6 +26,16 @@ const qs = (p) =>
     .join('&');
 const fmtDate = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// timeout 있는 fetch — 느린 KAMIS 요청 하나가 빌드 전체를 영영 막는 hang 방지.
+const fetchT = async (url, ms = 15000) => {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  try {
+    return await fetch(url, { signal: ac.signal });
+  } finally {
+    clearTimeout(t);
+  }
+};
 const parsePrice = (v) => {
   if (typeof v !== 'string' || v === '-' || v === '' || v === '0') return null;
   const n = Number(v.replace(/,/g, ''));
@@ -49,7 +62,8 @@ const pct = (a, b) => (a == null || b == null ? null : Math.round(((a - b) / b) 
 //  "봄(1포기)"→"봄배추",  "수미(노지)(100g)"→"수미(노지)감자" (노지/시설 구분 유지),  "여름(고랭지)(1포기)"→"여름(고랭지)배추"
 const varietyName = (kindName, itemName) => {
   const v = String(kindName).replace(/\([^)]*\)\s*$/, '').trim();
-  return !v || v === itemName ? itemName : `${v}${itemName}`;
+  // 변종명이 이미 품목명을 포함/끝나면(대파·쪽파→파) 그대로. 아니면(봄→무) 붙인다.
+  return !v || v === itemName ? itemName : v.endsWith(itemName) ? v : `${v}${itemName}`;
 };
 
 // ---- 당일 카테고리 시세 (앱 fetchCategory와 동일 파싱) ----
@@ -62,7 +76,7 @@ async function fetchCategory(categoryCode, regday) {
     p_convert_kg_yn: 'N',
     p_item_category_code: categoryCode,
   })}`;
-  const res = await fetch(url);
+  const res = await fetchT(url);
   if (!res.ok) throw new Error(`KAMIS HTTP ${res.status}`);
   const rows = (await res.json())?.data?.item ?? [];
   if (!Array.isArray(rows)) return [];
@@ -145,29 +159,46 @@ async function fetchAll() {
 }
 
 // ---- 365일 시계열 → 월별 데이터 포인트 (앱 fetchSeries와 동일 rank 후보·파싱) ----
-async function fetchYearPoints(item) {
+async function fetchYearPoints(item, cls = '01') {
   const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - 365);
   const ranks = item.categoryCode === '500' ? ['1', '2'] : [item.rankCode, '04', '05'];
+  // 1년 범위 단일 호출은 ~16s라 fetchT(15s) 타임아웃에 걸려 빈 데이터가 됨(시금치·토마토 등 0개월 원인).
+  // → 분기(92일) 4개로 쪼개 병렬 fetch(각 ~6s). months는 regday 월버킷이라 순서 무관.
+  const per = 92;
+  const ranges = [0, 1, 2, 3].map((i) => {
+    const s = new Date();
+    s.setDate(end.getDate() - Math.min(365, per * (i + 1)));
+    const e = new Date();
+    e.setDate(end.getDate() - per * i);
+    return [s, e];
+  });
   for (const rank of [...new Set(ranks)]) {
-    const url = `${BASE}?${qs({
-      action: 'periodProductList',
-      p_productclscode: '01',
-      p_startday: fmtDate(start),
-      p_endday: fmtDate(end),
-      p_itemcategorycode: item.categoryCode,
-      p_itemcode: item.itemCode,
-      p_kindcode: item.kindCode,
-      p_productrankcode: rank,
-      p_countycode: '1101',
-      p_convert_kg_yn: 'N',
-    })}`;
-    const res = await fetch(url);
-    if (!res.ok) continue;
-    const rows = (await res.json())?.data?.item ?? [];
-    if (!Array.isArray(rows) || rows.length === 0) continue;
-    const pts = rows
+    const parts = await Promise.all(
+      ranges.map(async ([s, e]) => {
+        const url = `${BASE}?${qs({
+          action: 'periodProductList',
+          p_productclscode: cls,
+          p_startday: fmtDate(s),
+          p_endday: fmtDate(e),
+          p_itemcategorycode: item.categoryCode,
+          p_itemcode: item.itemCode,
+          p_kindcode: item.kindCode,
+          p_productrankcode: rank,
+          p_countycode: '1101',
+          p_convert_kg_yn: 'N',
+        })}`;
+        try {
+          const res = await fetchT(url);
+          if (!res.ok) return [];
+          const rows = (await res.json())?.data?.item ?? [];
+          return Array.isArray(rows) ? rows : [];
+        } catch {
+          return [];
+        }
+      }),
+    );
+    const pts = parts
+      .flat()
       .filter((r) => r.countyname === '평균')
       .map((r) => ({ m: parseInt(String(r.regday).split('/')[0], 10) - 1, price: parsePrice(r.price) }))
       .filter((p) => p.price != null && p.m >= 0 && p.m < 12);
@@ -198,6 +229,40 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     const recentAvg = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : null;
     const level = recommendLevel(it.today, it.normal, recentAvg);
 
+    // 도매(cls=02) 최근 1년 평균 + 연간 흐름도 사전계산 — 상세 도매 탭에서 365일 기기 호출 없이 즉시(#4).
+    const wsPts = await fetchYearPoints(it, '02').catch(() => []);
+    const wsPrices = wsPts.map((p) => p.price);
+    const wholesaleRecentAvg = wsPrices.length ? Math.round(wsPrices.reduce((a, b) => a + b, 0) / wsPrices.length) : null;
+    let wholesaleMonths = null;
+    if (wholesaleRecentAvg != null) {
+      const ws = Array(12).fill(0);
+      const wc = Array(12).fill(0);
+      addPts(ws, wc, wsPts);
+      wholesaleMonths = monthlyFrom(ws, wc);
+      // 철별 분할 품목(무·배추 — 도매 단일품종이 일부 달만)만 병합. 비철 다품목(상추 적/청)은 안 섞이게 가드.
+      // 각 달 = 그 달 조사된 도매 품종 중 '가장 싼' 값 (소매 패턴 + 겹치는 달은 더 싼 쪽).
+      if (wc.filter((c) => c > 0).length < FULL_YEAR_MIN) {
+        const wsPer = [{ sums: ws, cnts: wc }]; // 대표 품종
+        const wsSibs = (kindsByItem.get(it.itemCode) || []).filter((k) => k.kindCode !== it.kindCode && k.unit === it.unit);
+        for (const k of wsSibs) {
+          const ks = Array(12).fill(0);
+          const kc = Array(12).fill(0);
+          addPts(ks, kc, await fetchYearPoints(k, '02').catch(() => []));
+          wsPer.push({ sums: ks, cnts: kc });
+        }
+        wholesaleMonths = Array.from({ length: 12 }, (_, m) => {
+          let cheapest = null;
+          for (const pk of wsPer) {
+            if (pk.cnts[m] > 0) {
+              const avg = Math.round(pk.sums[m] / pk.cnts[m]);
+              if (cheapest == null || avg < cheapest) cheapest = avg;
+            }
+          }
+          return cheapest;
+        });
+      }
+    }
+
     // 연간 흐름(months) — 대표 품종 우선, 빈 달은 같은 단위의 다른 품종으로 채움
     const sums = Array(12).fill(0);
     const cnts = Array(12).fill(0);
@@ -206,7 +271,7 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     let spanVarieties = false;
     let variety = null;
     let thisMonthVarieties = null;
-    if (cnts.filter((c) => c > 0).length < FULL_YEAR_MIN) {
+    if (cnts.filter((c) => c > 0).length < SEASONAL_MAX) {
       // 대표 품종(=화면에 뜨는 무)이 조사된 달은 그 값 그대로 — 히어로의 이번 달과 일치.
       // 비는 달만 '그 철 주력(가장 많이 조사된)' 다른 품종으로 채운다(평균으로 섞지 않음 → 정체불명 값 방지).
       const sibs = (kindsByItem.get(it.itemCode) || []).filter((k) => k.kindCode !== it.kindCode && k.unit === it.unit);
@@ -246,6 +311,7 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
       months,
       spanVarieties,
       ...(variety ? { variety, thisMonthVarieties } : {}),
+      ...(wholesaleRecentAvg != null ? { wholesaleRecentAvg, wholesaleMonths } : {}),
     };
     done += 1;
     if (done % 10 === 0) console.log(`  ${done}/${reps.length}`);
