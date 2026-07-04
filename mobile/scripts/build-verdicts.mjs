@@ -7,12 +7,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const env = fs.readFileSync(new URL('../.env', import.meta.url), 'utf8');
-const getEnv = (k) => (env.match(new RegExp(`${k}=(.*)`)) || [])[1]?.trim() || '';
+let envFile = '';
+try {
+  envFile = fs.readFileSync(new URL('../.env', import.meta.url), 'utf8');
+} catch {
+  // CI(GitHub 러너)는 .env 없이 KAMIS_PROXY로 돈다.
+}
+const getEnv = (k) => (envFile.match(new RegExp(`${k}=(.*)`)) || [])[1]?.trim() || '';
 const KEY = getEnv('EXPO_PUBLIC_KAMIS_KEY');
 const ID = getEnv('EXPO_PUBLIC_KAMIS_ID');
 
-const BASE = 'https://www.kamis.or.kr/service/price/xml.do';
+// KAMIS는 해외 IP를 차단할 수 있어 CI에선 워커 프록시 경유(KAMIS_PROXY) — 프록시가 서버측 키를 주입하므로 로컬 키 불필요.
+const BASE = process.env.KAMIS_PROXY || 'https://www.kamis.or.kr/service/price/xml.do';
 const CATEGORIES = ['100', '200', '400', '500'];
 const THRESHOLD = 0.01; // 앱 kamis.ts와 동일(±1%)
 const FULL_YEAR_MIN = 10; // 대표 품종이 이만큼 달이 차면 병합 불필요
@@ -27,14 +33,24 @@ const qs = (p) =>
 const fmtDate = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 // timeout 있는 fetch — 느린 KAMIS 요청 하나가 빌드 전체를 영영 막는 hang 방지.
+// 프록시(KAMIS_PROXY) 경유 시 간헐 실패로 품목이 조용히 빠지는 문제가 있어 3회 재시도.
 const fetchT = async (url, ms = 15000) => {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), ms);
-  try {
-    return await fetch(url, { signal: ac.signal });
-  } finally {
-    clearTimeout(t);
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1000 * attempt));
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), ms);
+    try {
+      const res = await fetch(url, { signal: ac.signal });
+      if (res.status >= 500) throw new Error(`upstream ${res.status}`);
+      return res;
+    } catch (e) {
+      lastErr = e;
+    } finally {
+      clearTimeout(t);
+    }
   }
+  throw lastErr;
 };
 const parsePrice = (v) => {
   if (typeof v !== 'string' || v === '-' || v === '' || v === '0') return null;

@@ -20,12 +20,9 @@ jobs:
       - name: Build verdicts.json
         working-directory: mobile
         env:
-          KAMIS_KEY: ${{ secrets.KAMIS_KEY }}
-          KAMIS_ID: ${{ secrets.KAMIS_ID }}
-        run: |
-          printf 'EXPO_PUBLIC_KAMIS_KEY=%s\nEXPO_PUBLIC_KAMIS_ID=%s\n' "$KAMIS_KEY" "$KAMIS_ID" > .env
-          node scripts/build-verdicts.mjs
-          rm -f .env
+          # KAMIS 직접 호출은 해외 러너 IP에서 막힐 수 있어 워커 프록시 경유 — 키는 워커에 있어 시크릿 불필요.
+          KAMIS_PROXY: https://igeobissa-recipes.designerxyzi.workers.dev/kamis
+        run: node scripts/build-verdicts.mjs
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
