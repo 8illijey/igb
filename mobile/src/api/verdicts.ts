@@ -13,6 +13,9 @@ export interface Verdict {
   normal: number | null;
   /** 12개월 평균(연간 흐름). 계절 품종 분할 품목은 달마다 주력 품종으로 채워짐. */
   months?: (number | null)[];
+  /** 도매(cls=02) 최근 1년 평균 + 연간 흐름 — 상세 도매 탭이 365일 기기 호출 없이 즉시 쓰도록. */
+  wholesaleRecentAvg?: number | null;
+  wholesaleMonths?: (number | null)[];
   /** 연간 흐름이 여러 계절 품종(봄·여름·가을·월동)에 걸쳐 있음 — 안내 표시용 */
   spanVarieties?: boolean;
   /** 대표 품종명 — 분할 품목 히어로에 표시 (예: "봄배추") */

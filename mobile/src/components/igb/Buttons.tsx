@@ -9,10 +9,10 @@ type Size = 'xl' | 'l' | 'm' | 's';
 const HEIGHT: Record<Size, number> = { xl: 56, l: 48, m: 40, s: 32 };
 const RADIUS: Record<Size, number> = { xl: radius.m, l: radius.m, m: radius.s, s: radius.s };
 const LABEL: Record<Size, object> = {
-  xl: type.buttonXl,
-  l: type.buttonL,
-  m: type.buttonM,
-  s: type.buttonS,
+  xl: { ...type.size[17], ...type.w.bold },
+  l: { ...type.size[15], ...type.w.bold },
+  m: { ...type.size[15], ...type.w.semibold },
+  s: { ...type.size[13], ...type.w.semibold },
 };
 
 interface Props {

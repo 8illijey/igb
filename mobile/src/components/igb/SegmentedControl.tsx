@@ -56,5 +56,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgElevated,
     ...shadow.s1, // elevation-1
   },
-  label: { ...type.label } as const, // Figma 실값: 13 SemiBold
+  label: { ...type.size[13], ...type.w.semibold } as const, // Figma 실값: 13 SemiBold
 });

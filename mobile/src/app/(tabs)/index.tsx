@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,11 +21,26 @@ import { Wordmark } from '../../components/igb/Wordmark';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
-import { colors, font, palette, radius, signal, SignalLevel, spacing, tabularNums, type } from '../../theme/tokens';
+import { colors, font, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 
 const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
-// 두 기준 판정 배지 — 상세 rec-card와 동일 어휘
-const BADGE = { cheap: 'BEST', fair: 'FAIR', expensive: 'WAIT' } as const;
+
+// Figma price-right-button (842:4347) 실제 애셋 — 37×37, 굵은 chevron(stroke 3.44).
+function PriceChevron() {
+  return (
+    <Svg width={37} height={37} viewBox="0 0 37 37" fill="none">
+      <Path
+        d="M9.91187 27.1079L18.5198 18.5L9.91187 9.89209"
+        stroke={colors.textPrimary}
+        strokeWidth={3.44316}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+// 카드 배지 = 평년 대비 할인율%. cheap은 항상 음수(싸요)라 "주목할 시세"의 차이를 그대로 보여준다.
+// (전부 BEST면 정보가 0 → 할인율로 카드끼리 구별. 상세 종합판정은 cheap 게이팅이라 모순 안 남)
 
 /** Figma hero-verdict-card 1:1 — level은 사전계산(평년+최근1년) 우선, 없으면 item.level(평년) */
 function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel }) {
@@ -33,6 +48,10 @@ function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel 
   const pct = Math.abs(item.vsNormalPct ?? 0);
   const verdictTail =
     level === 'cheap' ? `${pct}% 싸요` : level === 'expensive' ? `${pct}% 비싸요` : '평소 가격이에요';
+  // 규격 캡션 — kindName에서 품목명 접두어 제거(토마토(1kg)→1kg). 품종명(다다기계통(10개))은 유지.
+  let spec = item.kindName.replace(item.itemName, '').trim();
+  if (spec.startsWith('(') && spec.endsWith(')')) spec = spec.slice(1, -1);
+  if (!spec) spec = item.unit;
   return (
     <Pressable
       style={({ pressed }) => [styles.heroCard, pressed && { opacity: 0.85 }]}
@@ -41,7 +60,7 @@ function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel 
       accessibilityLabel={`${item.itemName} 시세 자세히 보기`}
     >
       <View style={styles.heroTopRow}>
-        <SignalChip level={level} label={CHIP_LABEL[level]} />
+        <SignalChip level={level} label={CHIP_LABEL[level]} showArrow />
         <Text style={styles.captionGrey}>오늘 · KAMIS 소매</Text>
       </View>
 
@@ -59,19 +78,15 @@ function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel 
             <Image source={thumbFor(item)} style={StyleSheet.absoluteFill} contentFit="cover" />
           )}
         </View>
-        {/* 우측 칼럼: 가격·캡션은 위, 자세히보기 링크는 아래 (space-between) */}
+        {/* 우측 칼럼: 가격+chevron 위, 캡션 아래 (space-between) — Figma title-price */}
         <View style={styles.heroPriceCol}>
-          <View style={styles.heroPriceBlock}>
-            <Text style={[styles.heroPrice, tabularNums]}>{won(item.today)}원</Text>
-            <View>
-              <Text style={styles.captionSecondary}>{item.kindName || item.unit}</Text>
-              <Text style={styles.captionSecondary}>평년 평균 {won(item.normal)}원</Text>
-            </View>
+          <View style={styles.heroPriceRow}>
+            <Text style={styles.heroPrice}>{won(item.today)}원</Text>
+            <PriceChevron />
           </View>
-          {/* 전체 카드가 탭 영역 — 시각적 힌트만, 별도 onPress 없음 */}
-          <View style={styles.heroDetailLink}>
-            <Text style={styles.heroDetailLabel}>자세히보기</Text>
-            <ChevronRight size={16} color={palette.brandPrimary} strokeWidth={2} />
+          <View>
+            <Text style={styles.captionSecondary}>{spec}</Text>
+            <Text style={styles.captionSecondary}>예년 평균 {won(item.normal)}원</Text>
           </View>
         </View>
       </View>
@@ -80,12 +95,10 @@ function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel 
 }
 
 /** Figma thumbnail-card 1:1 — 사진(placeholder) + xs solid 칩(%·변동없음) + 품명/규격/가격 */
-function ThumbnailCard({ item, width, level }: { item: PriceItem; width?: number; level: SignalLevel }) {
-  // 이름 아래에는 규격만 — kindName이 "양파(1kg)"처럼 품목명을 포함하므로 제거.
-  // 전체가 괄호로 감싸졌을 때만 벗긴다 ("봄(1포기)"의 닫는 괄호 오절단 방지).
-  let spec = item.kindName.replace(item.itemName, '').trim();
-  if (spec.startsWith('(') && spec.endsWith(')')) spec = spec.slice(1, -1);
-  if (!spec) spec = item.unit;
+function ThumbnailCard({ item, width }: { item: PriceItem; width?: number }) {
+  // 칩 색은 표시한 평년 할인율(%)과 같은 기준으로 묶는다 — 숫자와 색이 따로 놀지 않게(-10%→싸/초록, +53%→비싸/빨강).
+  const pct = item.vsNormalPct ?? 0;
+  const pctLevel: SignalLevel = pct <= -1 ? 'cheap' : pct >= 1 ? 'expensive' : 'fair';
   return (
     <Pressable
       style={[styles.thumbCard, width != null && { width }]}
@@ -96,17 +109,20 @@ function ThumbnailCard({ item, width, level }: { item: PriceItem; width?: number
           <Image source={thumbFor(item)} style={StyleSheet.absoluteFill} contentFit="cover" />
         )}
         <View style={styles.thumbChip}>
-          <SignalChip level={level} size="xs" label={BADGE[level]} />
+          {/* Figma: 화살표 + 무부호 %(fair는 '변동없음'). 방향은 화살표가 표기. */}
+          <SignalChip
+            level={pctLevel}
+            size="xs"
+            showArrow
+            label={pctLevel === 'fair' ? '변동없음' : `${Math.abs(pct)}%`}
+          />
         </View>
       </View>
       <View>
         <Text style={styles.thumbName} numberOfLines={1}>
           {item.itemName}
         </Text>
-        <Text style={styles.captionGrey} numberOfLines={1}>
-          {spec}
-        </Text>
-        <Text style={[styles.thumbPrice, tabularNums]} numberOfLines={1}>
+        <Text style={styles.thumbPrice} numberOfLines={1}>
           {won(item.today)}원<Text style={styles.thumbUnit}> / {item.unit}</Text>
         </Text>
       </View>
@@ -174,13 +190,13 @@ export default function HomeScreen() {
 
             {notable.length > 0 && (
               <View style={styles.outerCard}>
-                <Text style={styles.sectionTitle}>{expanded ? '전체 시세' : '이번 주 주목할 시세'}</Text>
+                <Text style={styles.sectionTitle}>이번 주 주목할 시세</Text>
                 <View
                   style={styles.grid}
                   onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
                 >
                   {notable.map((i) => (
-                    <ThumbnailCard key={itemKey(i)} item={i} width={colW} level={lvlOf(i)} />
+                    <ThumbnailCard key={itemKey(i)} item={i} width={colW} />
                   ))}
                 </View>
                 <Pressable
@@ -235,14 +251,12 @@ const styles = StyleSheet.create({
   // Figma media-row: 120 썸네일 + 우측 칼럼(stretch) — 칼럼이 썸네일 높이를 채워 space-between 동작
   heroMediaRow: { flexDirection: 'row', alignItems: 'stretch', gap: spacing.s3 },
   heroThumb: { width: 120, aspectRatio: 1, borderRadius: radius.m, backgroundColor: colors.bgTertiary, overflow: 'hidden' },
-  heroPriceCol: { flex: 1, justifyContent: 'space-between' },
-  heroPriceBlock: { gap: spacing.s2 },
-  heroDetailLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
-  heroDetailLabel: { ...type.buttonS, color: palette.brandPrimary } as const,
-  verdict: { ...type.signalLead, color: colors.textPrimary } as const,
-  heroPrice: { ...type.priceXl, color: colors.priceNumber } as const,
-  captionGrey: { ...type.caption, color: colors.textTertiary } as const,
-  captionSecondary: { ...type.caption, color: colors.textSecondary } as const,
+  heroPriceCol: { flex: 1, justifyContent: 'space-between', paddingVertical: spacing.s1 }, // Figma title-price py-4
+  heroPriceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s1 },
+  verdict: { ...type.size[22], ...type.w.bold, color: colors.textPrimary } as const,
+  heroPrice: { ...type.size[28], ...type.w.bold, color: colors.priceNumber } as const,
+  captionGrey: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
+  captionSecondary: { ...type.size[13], ...type.w.regular, color: colors.textSecondary } as const,
 
   outerCard: {
     backgroundColor: colors.bgElevated,
@@ -250,7 +264,7 @@ const styles = StyleSheet.create({
     padding: spacing.s4,
     gap: spacing.s3,
   },
-  sectionTitle: { ...type.title, color: colors.textPrimary } as const,
+  sectionTitle: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary } as const,
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.s3 },
   // flexGrow 금지 — 마지막 줄 1~2개일 때 칸이 늘어나지 않고 3칸 너비 유지
   thumbCard: { width: '30.5%', gap: spacing.s2 },
@@ -261,9 +275,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   thumbChip: { position: 'absolute', left: spacing.s2, top: spacing.s2 }, // Figma: (8,8) 좌상단
-  thumbName: { fontSize: 13, fontFamily: font.semibold, color: colors.textPrimary },
-  thumbPrice: { ...type.priceSm, color: colors.priceNumber } as const,
-  thumbUnit: { fontSize: 13, fontFamily: font.regular, color: colors.priceUnit },
+  thumbName: { ...type.size[13], ...type.w.semibold, color: colors.textPrimary } as const,
+  thumbPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
+  thumbUnit: { ...type.size[13], ...type.w.regular, color: colors.priceUnit } as const,
   secondaryBtn: {
     height: 40,
     borderRadius: radius.s,
@@ -273,6 +287,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.s2,
   },
-  secondaryBtnLabel: { ...type.buttonM, color: colors.textPrimary } as const,
-  source: { ...type.caption, color: colors.textTertiary, textAlign: 'center' } as const,
+  secondaryBtnLabel: { ...type.size[15], ...type.w.semibold, color: colors.textPrimary } as const,
+  source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center' } as const,
 });

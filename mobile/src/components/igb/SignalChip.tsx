@@ -15,14 +15,17 @@ interface Props {
   label?: string;
   /** 행 우측 배지 — 라벨 숨기고 화살표만 (Figma price-list-row) */
   iconOnly?: boolean;
+  /** 화살표 아이콘 + 라벨 (Figma 홈 hero·썸네일 칩). 기본은 라벨만(상세·레시피 칩). */
+  showArrow?: boolean;
 }
 
-export function SignalChip({ level, size = 's', label, iconOnly }: Props) {
+export function SignalChip({ level, size = 's', label, iconOnly, showArrow }: Props) {
   const c = signal[level];
   const solid = size === 'xs';
   const Icon = solid ? ICONS_XS[level] : ICONS[level];
   const iconSize = size === 'xs' ? 12 : size === 's' ? 16 : 20;
   const fg = solid ? c.on : c.main;
+  const showIcon = iconOnly || showArrow;
   return (
     <View
       style={[
@@ -31,9 +34,8 @@ export function SignalChip({ level, size = 's', label, iconOnly }: Props) {
         { backgroundColor: solid ? c.main : c.weak },
       ]}
     >
-      {iconOnly ? (
-        <Icon size={iconSize} color={fg} strokeWidth={2} />
-      ) : (
+      {showIcon && <Icon size={iconSize} color={fg} strokeWidth={2} />}
+      {!iconOnly && (
         <Text style={[solid ? styles.xsLabel : styles.label, { color: fg }]}>
           {label ?? DEFAULT_LABEL[level]}
         </Text>
@@ -49,9 +51,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: spacing.s1,
   },
-  xs: { padding: spacing.s1, borderRadius: radius.xs, gap: 0 },
+  xs: { padding: spacing.s1, borderRadius: radius.xs, gap: 2 },
   s: { paddingHorizontal: spacing.s2, paddingVertical: spacing.s1, borderRadius: radius.full },
   m: { paddingHorizontal: spacing.s3, paddingVertical: spacing.s2, borderRadius: radius.full },
-  label: { fontSize: type.label.fontSize, fontFamily: font.semibold },
+  label: { fontSize: type.size[13].fontSize, fontFamily: font.semibold },
   xsLabel: { fontSize: 10, fontFamily: font.semibold },
 });

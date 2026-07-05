@@ -7,18 +7,20 @@ import { PriceItem, won } from '../../api/kamis';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SignalChip } from '../../components/igb/SignalChip';
-import { Ingredient, findItem, recipeImage, useRecipes } from '../../recipes';
+import { Ingredient, findItem, getViewedRecipe, recipeHero, recipeImage, recipeStep, useRecipes } from '../../recipes';
 import { portionPrice } from '../../portion';
 import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
-import { colors, radius, spacing, tabularNums, type } from '../../theme/tokens';
+import { colors, radius, spacing, type } from '../../theme/tokens';
 
-const LEVEL_WORD = { cheap: '싸요', fair: '적정', expensive: '비싸요' } as const;
+const LEVEL_WORD = { cheap: '싸요', fair: '적당해요', expensive: '비싸요' } as const;
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { items } = usePrices();
-  const recipe = useRecipes()[Number(id)];
+  // 목록/검색 화면이 보여준 '현재 목록'을 인덱스로 참조. 없으면(딥링크 등) 기본 목록 폴백.
+  const fallback = useRecipes();
+  const recipe = getViewedRecipe(Number(id)) ?? fallback[Number(id)];
   const { isFavorite, toggle } = useFavorites();
   const favKey = `recipe:${id}`;
   const fav = isFavorite(favKey);
@@ -49,8 +51,8 @@ export default function RecipeDetailScreen() {
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topH }]}>
         {/* 히어로 사진 (없으면 placeholder) */}
         <View style={styles.hero}>
-          {recipeImage(recipe.title) != null && (
-            <Image source={recipeImage(recipe.title)} style={StyleSheet.absoluteFill} contentFit="cover" />
+          {recipeHero(recipe) != null && (
+            <Image source={recipeHero(recipe)!} style={StyleSheet.absoluteFill} contentFit="cover" />
           )}
         </View>
 
@@ -67,7 +69,6 @@ export default function RecipeDetailScreen() {
                 />
               </Pressable>
             </View>
-            {recipe.note ? <Text style={styles.note}>{recipe.note}</Text> : null}
           </View>
           <Text style={styles.meta}>
             {matched.length > 0
@@ -100,7 +101,7 @@ export default function RecipeDetailScreen() {
           {/* 섹션 구분 — 화면 full-width 회색 밴드 */}
           <View style={styles.sectionBand} />
 
-          {/* 만드는 법 */}
+          {/* 만드는 법 — 사진 + 단계 텍스트 */}
           <View style={styles.stepsSection}>
             <Text style={styles.sectionTitle}>만드는 법</Text>
             {recipe.steps.map((s, i) => (
@@ -108,12 +109,8 @@ export default function RecipeDetailScreen() {
                 <Text style={styles.stepNum}>{i + 1}</Text>
                 <Text style={styles.stepText}>{s}</Text>
                 <View style={styles.stepPhoto}>
-                  {recipeImage(recipe.title, i + 1) != null && (
-                    <Image
-                      source={recipeImage(recipe.title, i + 1)}
-                      style={StyleSheet.absoluteFill}
-                      contentFit="cover"
-                    />
+                  {recipeStep(recipe, i) != null && (
+                    <Image source={recipeStep(recipe, i)!} style={StyleSheet.absoluteFill} contentFit="cover" />
                   )}
                 </View>
               </View>
@@ -152,9 +149,9 @@ function IngredientRow({ ing, item, silent }: { ing: Ingredient; item?: PriceIte
       </View>
       <View style={styles.rowRight}>
         <SignalChip level={item.level!} size="s" label={LEVEL_WORD[item.level!]} />
-        {/* 들어가는 분량만큼의 가격(≈). 환산 불가하면 단위 시세로 폴백. */}
-        <Text style={[styles.ingPrice, tabularNums]}>
-          {portion != null ? `≈ ${won(portion)}원` : `${won(item.today)}원`}
+        {/* 들어가는 분량만큼의 가격. 환산 불가하면 단위 시세로 폴백. (물결 ≈ 제거 — 디자인) */}
+        <Text style={styles.ingPrice}>
+          {portion != null ? `${won(portion)}원` : `${won(item.today)}원`}
         </Text>
         <ChevronRight size={20} color={colors.textTertiary} strokeWidth={2} />
       </View>
@@ -186,7 +183,7 @@ const styles = StyleSheet.create({
     gap: spacing.s1,
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, ...type.title, color: colors.textPrimary, textAlign: 'left' } as const,
+  headerTitle: { flex: 1, ...type.size[17], ...type.w.semibold, color: colors.textPrimary, textAlign: 'left' } as const,
   scroll: { paddingBottom: spacing.s16 },
 
   hero: { height: 240, backgroundColor: colors.bgTertiary },
@@ -195,12 +192,11 @@ const styles = StyleSheet.create({
   titleBlock: { gap: spacing.s2 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s2 },
   favBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { ...type.signalLead, color: colors.textPrimary } as const,
-  note: { ...type.body, color: colors.textSecondary } as const,
-  meta: { ...type.caption, color: colors.textSecondary } as const,
+  title: { ...type.size[22], ...type.w.bold, color: colors.textPrimary } as const,
+  meta: { ...type.size[13], ...type.w.regular, color: colors.textSecondary } as const,
 
   section: { gap: spacing.s1 },
-  sectionTitle: { ...type.title, color: colors.textPrimary } as const,
+  sectionTitle: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary } as const,
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -209,10 +205,10 @@ const styles = StyleSheet.create({
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
-  ingName: { ...type.body, color: colors.textPrimary } as const,
-  ingAmount: { ...type.caption, color: colors.textTertiary } as const,
-  ingPrice: { ...type.priceSm, color: colors.priceNumber } as const,
-  noData: { ...type.caption, color: colors.textTertiary } as const,
+  ingName: { ...type.size[15], ...type.w.regular, color: colors.textPrimary } as const,
+  ingAmount: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
+  ingPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
+  noData: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   // 재료모음 사진 — 인셋(콘텐츠 폭), 16:9
   ingredientsPhoto: { aspectRatio: 16 / 9, borderRadius: radius.m, backgroundColor: colors.bgTertiary, overflow: 'hidden' },
   // 섹션 구분 밴드 — 화면 full-width (콘텐츠 패딩 상쇄 위해 음수 마진)
@@ -221,7 +217,7 @@ const styles = StyleSheet.create({
   stepsSection: { gap: spacing.s4 },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s3 },
   // 번호는 덜 강조 — 옅은 회색
-  stepNum: { ...type.body, color: colors.textTertiary, width: 14 } as const,
-  stepText: { flex: 1, ...type.body, color: colors.textSecondary } as const,
+  stepNum: { ...type.size[15], ...type.w.regular, color: colors.textTertiary, width: 14 } as const,
+  stepText: { flex: 1, ...type.size[15], ...type.w.regular, color: colors.textSecondary } as const,
   stepPhoto: { width: 64, height: 64, borderRadius: radius.s, backgroundColor: colors.bgTertiary, overflow: 'hidden' },
 });

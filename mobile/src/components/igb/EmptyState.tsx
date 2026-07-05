@@ -22,6 +22,6 @@ export function EmptyState({ icon: Icon = SearchX, title, description }: Props) 
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', paddingVertical: spacing.s10, gap: spacing.s2 },
-  title: { ...type.body, color: colors.textSecondary, marginTop: spacing.s2 } as const,
-  desc: { ...type.caption, color: colors.textTertiary, textAlign: 'center' } as const,
+  title: { ...type.size[15], ...type.w.regular, color: colors.textSecondary, marginTop: spacing.s2 } as const,
+  desc: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center' } as const,
 });

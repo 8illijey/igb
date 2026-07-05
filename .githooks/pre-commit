@@ -1,0 +1,8 @@
+#!/bin/sh
+# gitleaks: 스테이징된 변경에서 시크릿 스캔. 발견 시 커밋 차단.
+# 우회(비상시): git commit --no-verify
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks 미설치 — 스킵 (brew install gitleaks). 시크릿 스캔 없이 커밋됨." >&2
+  exit 0
+fi
+gitleaks git --pre-commit --staged --redact --no-banner

@@ -67,6 +67,7 @@ export const colors = {
   iconInactive: '#87919c',
   overlayScrim: 'rgba(0,0,0,0.5)',
   overlayPress: 'rgba(0,0,0,0.1)',
+  overlayTooltip: 'rgba(0,0,0,0.74)', // 툴팁 배경 (Figma overlay/tooltip)
   surfaceGlassLight: 'rgba(255,255,255,0.65)',
 } as const;
 
@@ -93,23 +94,34 @@ export const font = {
 /** % letterSpacing → px (RN은 px 단위) */
 const ls = (size: number, pct: number) => size * (pct / 100);
 
-/** Type ramp — Figma 텍스트 스타일 실값 (size/lineHeight/letterSpacing/weight) */
+/**
+ * Type ramp — 사이즈×굵기 2축 (토스식). 역할이 아니라 '사이즈'로 고른 뒤 '굵기'를 얹는다.
+ *  - type.size[n] : fontSize + lineHeight + letterSpacing (Figma 텍스트 스타일 실값, n=폰트 사이즈)
+ *  - type.w.*     : fontFamily(굵기). size와 조합해서 쓴다.
+ *  - 가격 등 자릿수 정렬은 tabularNums를 함께 얹는다.
+ *  예) 본문        [type.size[15], type.w.regular]
+ *      카드 품목명  [type.size[17], type.w.semibold]
+ *      큰 가격      [type.size[28], type.w.bold, tabularNums]
+ */
 export const type = {
-  display:    { fontSize: 32, lineHeight: 40,    letterSpacing: ls(32, -2),   fontFamily: font.bold },
-  signalLead: { fontSize: 22, lineHeight: 28.6,  letterSpacing: ls(22, -1.5), fontFamily: font.bold },
-  h1:         { fontSize: 24, lineHeight: 31.2,  letterSpacing: ls(24, -2),   fontFamily: font.bold },
-  h2:         { fontSize: 20, lineHeight: 27,    letterSpacing: ls(20, -1.5), fontFamily: font.bold },
-  title:      { fontSize: 17, lineHeight: 24.65, letterSpacing: ls(17, -1),   fontFamily: font.semibold },
-  body:       { fontSize: 15, lineHeight: 22.5,  letterSpacing: ls(15, -0.5), fontFamily: font.regular },
-  caption:    { fontSize: 13, lineHeight: 18.85, letterSpacing: 0,            fontFamily: font.regular },
-  label:      { fontSize: 13, lineHeight: 16.25, letterSpacing: 0,            fontFamily: font.semibold },
-  buttonXl:   { fontSize: 17, lineHeight: 21.25, letterSpacing: 0,            fontFamily: font.bold },
-  buttonL:    { fontSize: 15, lineHeight: 18.75, letterSpacing: 0,            fontFamily: font.bold },
-  buttonM:    { fontSize: 15, lineHeight: 18.75, letterSpacing: 0,            fontFamily: font.semibold },
-  buttonS:    { fontSize: 13, lineHeight: 16.25, letterSpacing: 0,            fontFamily: font.semibold },
-  priceXl:    { fontSize: 32, lineHeight: 38.4,  letterSpacing: ls(32, -1),   fontFamily: font.bold },
-  priceLg:    { fontSize: 22, lineHeight: 26.4,  letterSpacing: ls(22, -1),   fontFamily: font.bold },
-  priceSm:    { fontSize: 15, lineHeight: 18,    letterSpacing: 0,            fontFamily: font.semibold },
+  size: {
+    12: { fontSize: 12, lineHeight: 18,    letterSpacing: 0 },
+    13: { fontSize: 13, lineHeight: 19.5,  letterSpacing: 0 },
+    15: { fontSize: 15, lineHeight: 22.5,  letterSpacing: ls(15, -0.5) },
+    16: { fontSize: 16, lineHeight: 24,    letterSpacing: ls(16, -0.5) },
+    17: { fontSize: 17, lineHeight: 25.5,  letterSpacing: ls(17, -1) },
+    20: { fontSize: 20, lineHeight: 29,    letterSpacing: ls(20, -1) },
+    22: { fontSize: 22, lineHeight: 31.02, letterSpacing: ls(22, -2) },
+    24: { fontSize: 24, lineHeight: 33.12, letterSpacing: ls(24, -2) },
+    28: { fontSize: 28, lineHeight: 36.96, letterSpacing: ls(28, -3.5) },
+    32: { fontSize: 32, lineHeight: 40.32, letterSpacing: ls(32, -4) },
+  },
+  w: {
+    regular:   { fontFamily: font.regular },
+    semibold:  { fontFamily: font.semibold },
+    bold:      { fontFamily: font.bold },
+    extrabold: { fontFamily: font.extrabold },
+  },
 } as const;
 
 /** 가격 숫자 전용 — tabular figures */

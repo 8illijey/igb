@@ -44,5 +44,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgSecondary,
     alignSelf: 'flex-start',
   },
-  label: { ...type.label, color: colors.textSecondary } as const,
+  label: { ...type.size[13], ...type.w.semibold, color: colors.textSecondary } as const,
 });

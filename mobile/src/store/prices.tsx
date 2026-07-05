@@ -1,5 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchAllCategories, PriceItem } from '../api/kamis';
+
+// 가격 목록 캐시 — 첫 로드는 KAMIS를 최대 4~28콜(주말 백필) 치므로 10초+. 이전 결과를 즉시 그려
+// (stale-while-revalidate) 체감 로딩을 없앤다. 새로고침은 항상 백그라운드로 돌아 최신으로 교체.
+const CACHE_KEY = 'igb.prices.snapshot';
 
 interface PricesState {
   items: PriceItem[];
@@ -30,7 +35,9 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      setItems(await fetchAllCategories());
+      const fresh = await fetchAllCategories();
+      setItems(fresh);
+      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(fresh)).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : '시세를 불러오지 못했어요');
     } finally {
@@ -39,7 +46,22 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let alive = true;
+    // 캐시 즉시 그리기 — 네트워크보다 먼저 화면을 채운다(빈 스피너 제거). 날짜 무관(stale 허용).
+    AsyncStorage.getItem(CACHE_KEY)
+      .then((raw) => {
+        if (!alive || !raw) return;
+        const cached = JSON.parse(raw) as PriceItem[];
+        if (Array.isArray(cached) && cached.length) {
+          setItems((cur) => (cur.length ? cur : cached)); // 이미 fresh가 왔으면 덮지 않음
+          setLoading(false);
+        }
+      })
+      .catch(() => {});
     refresh();
+    return () => {
+      alive = false;
+    };
   }, [refresh]);
 
   const value = useMemo<PricesState>(

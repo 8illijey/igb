@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,8 +16,17 @@ export function GlassHeader({
   onHeight?: (h: number) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const ref = useRef<View>(null);
+  // RN-web: onLayout(ResizeObserver)는 마운트 후 '크기 변화'에만 발화한다. 정적 헤더(상세=타이틀바만)는
+  // 한 번도 리사이즈되지 않아 onLayout이 안 떠 topH=0 → 콘텐츠가 헤더 밑으로 깔린다. 마운트 시 1회 직접 측정.
+  // 네이티브 View ref엔 getBoundingClientRect가 없어 자동으로 no-op(네이티브는 onLayout이 정상 발화).
+  useEffect(() => {
+    const node = ref.current as unknown as HTMLElement | null;
+    const h = node?.getBoundingClientRect?.().height;
+    if (h) onHeight?.(h);
+  }, [onHeight]);
   return (
-    <View style={styles.fixed} onLayout={(e) => onHeight?.(e.nativeEvent.layout.height)}>
+    <View ref={ref} style={styles.fixed} onLayout={(e) => onHeight?.(e.nativeEvent.layout.height)}>
       <BlurView intensity={24} tint="light" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay} />
       <View style={{ paddingTop: insets.top }}>{children}</View>

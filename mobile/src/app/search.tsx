@@ -164,15 +164,15 @@ const styles = StyleSheet.create({
   },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.s4, paddingBottom: 140 },
-  count: { ...type.caption, color: colors.textTertiary, marginBottom: spacing.s2 } as const,
+  count: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, marginBottom: spacing.s2 } as const,
   divider: { height: 1, backgroundColor: colors.borderDefault },
 
   // 빈 상태
   empty: { gap: spacing.s6 },
   section: { gap: spacing.s3 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { ...type.title, color: colors.textPrimary } as const,
-  sectionCaption: { ...type.caption, color: colors.textTertiary } as const,
+  sectionTitle: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary } as const,
+  sectionCaption: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   rankHead: { gap: 2 },
   // 최근 검색어 칩
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.s2 },
@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: colors.bgSecondary,
   },
-  chipText: { ...type.body, color: colors.textPrimary } as const,
+  chipText: { ...type.size[15], ...type.w.regular, color: colors.textPrimary } as const,
   // TOP10 랭킹 행 — 순위 번호 + price-list-row
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
-  rank: { ...type.label, width: 20, textAlign: 'center' } as const,
+  rank: { ...type.size[13], ...type.w.semibold, width: 20, textAlign: 'center' } as const,
 });

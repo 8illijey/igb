@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
-  focused: { borderColor: colors.borderFocus }, // bg는 그대로 (Figma focused 상태)
+  focused: { borderColor: colors.borderStrong }, // Figma focused: border/strong(#a7b0b9), bg 그대로
   // minWidth:0 — flex:1 입력란이 내용 크기에 묶여 옆 아이콘을 줄이는 것 방지
-  input: { flex: 1, minWidth: 0, ...type.body, color: colors.textPrimary, paddingVertical: 0 } as const,
+  input: { flex: 1, minWidth: 0, ...type.size[15], ...type.w.regular, color: colors.textPrimary, paddingVertical: 0 } as const,
   // 아이콘은 절대 안 줄어들게
   iconBox: { flexShrink: 0, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
 });

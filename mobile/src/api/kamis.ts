@@ -9,6 +9,17 @@ import type { SignalLevel } from '../theme/tokens';
 // KAMIS는 worker 프록시 경유 — cert_key/cert_id는 서버에서 주입되어 클라이언트에 노출되지 않는다.
 const BASE = process.env.EXPO_PUBLIC_KAMIS_URL ?? 'https://igeobissa-recipes.designerxyzi.workers.dev/kamis';
 
+/** 타임아웃 있는 fetch — 병렬 호출(Promise.all)에서 하나가 hang해도 전체가 안 멈추게. */
+async function fetchT(url: string, ms = 12000): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 /**
  * 신호 임계값(±1%) — 평년·어제 동일 적용.
  * 0보다 싸면 싸요/비싸면 비싸요. ±1% 안만 "비슷"으로 흡수(일별 잔진동 노이즈).
@@ -49,6 +60,7 @@ export interface PriceItem {
 
 export interface SeriesPoint {
   date: string; // MM/DD
+  year?: string; // YYYY — 1년 차트에서 작년 날짜에 연도 표기용
   price: number;
 }
 
@@ -200,14 +212,12 @@ export async function fetchAllCategories(): Promise<PriceItem[]> {
  * 축산(500)은 1(상품)/2(중품), 농산은 04/05. daily 계란 rank_code '71'을 그대로 보내면
  * 에러 없이 빈 응답(무음 실패). 후보 코드를 순서대로 시도한다. (2026-06-13 디버깅)
  */
-async function fetchPeriodRows(
+async function fetchPeriodRowsRange(
   item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode' | 'rankCode'>,
-  days: number,
+  start: Date,
+  end: Date,
   cls: MarketCls,
 ): Promise<any[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - days);
   const rankCandidates =
     item.categoryCode === '500' ? ['1', '2'] : [item.rankCode, '04', '05'];
 
@@ -233,11 +243,36 @@ async function fetchPeriodRows(
   return [];
 }
 
+async function fetchPeriodRows(
+  item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode' | 'rankCode'>,
+  days: number,
+  cls: MarketCls,
+): Promise<any[]> {
+  const end = new Date();
+  if (days <= 120) {
+    const start = new Date();
+    start.setDate(end.getDate() - days);
+    return fetchPeriodRowsRange(item, start, end, cls);
+  }
+  // KAMIS는 범위가 클수록 느려짐(1년≈16s) → 분기(약 91일)로 쪼개 병렬 fetch(≈7s). 청크는 아래에서 정렬·중복제거.
+  const chunks = Math.ceil(days / 91);
+  const per = Math.ceil(days / chunks);
+  const ranges = Array.from({ length: chunks }, (_, i) => {
+    const s = new Date();
+    s.setDate(end.getDate() - Math.min(days, per * (i + 1)));
+    const e = new Date();
+    e.setDate(end.getDate() - per * i);
+    return [s, e] as const;
+  });
+  const parts = await Promise.all(ranges.map(([s, e]) => fetchPeriodRowsRange(item, s, e, cls).catch(() => [])));
+  return parts.flat();
+}
+
 function rowsToSeries(rows: any[]): SeriesPoint[] {
   return rows
     .filter((r) => r.countyname === '평균')
-    .map((r) => ({ date: String(r.regday), price: parsePrice(r.price) }))
-    .filter((p): p is SeriesPoint => p.price != null);
+    .map((r) => ({ date: String(r.regday), year: r.yyyy != null ? String(r.yyyy) : undefined, price: parsePrice(r.price) }))
+    .filter((p) => p.price != null) as SeriesPoint[];
 }
 
 export async function fetchSeries(
@@ -245,7 +280,28 @@ export async function fetchSeries(
   days = 28,
   cls: MarketCls = '01',
 ): Promise<SeriesPoint[]> {
-  return rowsToSeries(await fetchPeriodRows(item, days, cls));
+  const series = rowsToSeries(await fetchPeriodRows(item, days, cls));
+  // 병렬 청크는 순서가 섞이므로 연월일로 정렬 + 경계 중복 제거(차트는 시간순 전제).
+  series.sort((a, b) => `${a.year ?? ''}${a.date}`.localeCompare(`${b.year ?? ''}${b.date}`));
+  return series.filter((p, i) => i === 0 || `${p.year ?? ''}${p.date}` !== `${series[i - 1].year ?? ''}${series[i - 1].date}`);
+}
+
+/** 작년 같은 시기 궤적(차트 점선) — 365일 전 ±2~3주 작은 창만 fetch. 365일 전체(≈27s) 대신 빠르게.
+ *  일부 품종(예: 시설 감자)은 작년 이맘때 미조사라 빈다 → 같은 품목의 다른 품종으로 폴백(러프 참조). */
+export async function fetchLastYearSeries(
+  item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode' | 'rankCode'>,
+  cls: MarketCls = '01',
+): Promise<SeriesPoint[]> {
+  const end = new Date();
+  end.setDate(end.getDate() - 365 + 18);
+  const start = new Date();
+  start.setDate(start.getDate() - 365 - 3);
+  const kinds = [...new Set([item.kindCode, '01', '00', '02', '03'])];
+  for (const kindCode of kinds) {
+    const s = rowsToSeries(await fetchPeriodRowsRange({ ...item, kindCode }, start, end, cls));
+    if (s.length >= 4) return s;
+  }
+  return [];
 }
 
 export interface MarketPrice {
@@ -316,12 +372,79 @@ export interface EcoData {
   unit: string | null;
 }
 
+/** regday("MM/DD")만 있고 yyyy가 없는 시계열(친환경)에 연도 추론 부여.
+ *  최신=올해 기준, 뒤로 갈수록 월이 커지면(연말↔연초 wrap) 연도 감소. */
+function assignYears(series: SeriesPoint[]): SeriesPoint[] {
+  let yr = new Date().getFullYear();
+  for (let i = series.length - 1; i >= 0; i--) {
+    if (i < series.length - 1) {
+      const m = parseInt(series[i].date.split('/')[0], 10);
+      const nextM = parseInt(series[i + 1].date.split('/')[0], 10);
+      if (m > nextM) yr -= 1;
+    }
+    series[i].year = String(yr);
+  }
+  return series;
+}
+
 export async function fetchEco(
   item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode'>,
 ): Promise<EcoData | null> {
   const end = new Date();
   const start = new Date();
-  start.setDate(end.getDate() - 180);
+  start.setDate(end.getDate() - 365); // 1년 (친환경 주간 발행 — 가벼움)
+  const kinds = [...new Set([item.kindCode, '00', '01', '02', '03'])];
+  const combos = kinds.flatMap((kind) => ['07', '08'].map((rank) => ({ kind, rank })));
+  // 순차 대신 병렬 — 빈 조합이 많은 품목(사과 등)도 안 느리게.
+  const results = await Promise.all(
+    combos.map(async ({ kind, rank }) => {
+      const url = `${BASE}?${qs({
+        action: 'periodEcoPriceList',
+        p_startday: fmtDate(start),
+        p_endday: fmtDate(end),
+        p_itemcategorycode: item.categoryCode,
+        p_itemcode: item.itemCode,
+        p_kindcode: kind,
+        p_productrankcode: rank,
+        p_convert_kg_yn: 'N',
+      })}`;
+      try {
+        const res = await fetchT(url);
+        if (!res.ok) return null;
+        const rows: any[] = (await res.json())?.data?.item ?? [];
+        if (!Array.isArray(rows) || rows.length === 0) return null;
+        const series = assignYears(rowsToSeries(rows));
+        return series.length ? { rows, series } : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const hit = results.find((r) => r != null); // combos 우선순위(품종 순)로 첫 유효
+  if (!hit) return null;
+  const { rows, series } = hit;
+  const latest = series[series.length - 1]?.price ?? null;
+  const prevWeek = series[series.length - 2]?.price ?? null;
+  return {
+    series,
+    markets: groupMarkets(rows),
+    latest,
+    prevWeek,
+    vsPrevWeekPct:
+      latest != null && prevWeek != null ? Math.round(((latest - prevWeek) / prevWeek) * 100) : null,
+    unit: rows.find((r) => r.unit)?.unit ?? null,
+  };
+}
+
+/** 친환경 작년 같은 시기 +3개월 궤적(차트 점선) — 일반 28일 차트의 '작년 +2주'를 친환경(주간)에 맞춰 확장.
+ *  주간 발행이라 좁은 창은 점이 듬성(±3주 ≈ 3점) → 3개월(≈13점)로 넓혀 궤적이 살게 한다. */
+export async function fetchEcoLastYear(
+  item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode'>,
+): Promise<SeriesPoint[]> {
+  const start = new Date();
+  start.setDate(start.getDate() - 365);
+  const end = new Date();
+  end.setDate(end.getDate() - 365 + 90);
   const kinds = [...new Set([item.kindCode, '00', '01', '02', '03'])];
   for (const kind of kinds) {
     for (const rank of ['07', '08']) {
@@ -338,26 +461,61 @@ export async function fetchEco(
       const res = await fetch(url);
       if (!res.ok) continue;
       const json = await res.json();
-      const rows: any[] = json?.data?.item ?? [];
-      if (!Array.isArray(rows) || rows.length === 0) continue;
-      const series = rowsToSeries(rows);
-      if (series.length === 0) continue;
-      const latest = series[series.length - 1]?.price ?? null;
-      const prevWeek = series[series.length - 2]?.price ?? null;
-      return {
-        series,
-        markets: groupMarkets(rows),
-        latest,
-        prevWeek,
-        vsPrevWeekPct:
-          latest != null && prevWeek != null
-            ? Math.round(((latest - prevWeek) / prevWeek) * 100)
-            : null,
-        unit: rows.find((r) => r.unit)?.unit ?? null,
-      };
+      const series = rowsToSeries(json?.data?.item ?? []);
+      if (series.length >= 2) return series;
     }
   }
-  return null;
+  return [];
+}
+
+/** 친환경 '이맘때 평균' — 평년 자료가 없는 친환경용 대체 기준선.
+ *  최근 2년의 같은 시기(±3주) 친환경 평균가를 모아 평균낸다. 표본 4점 미만이면 null(기준선 숨김).
+ *  ⚠️ KAMIS 평년(5년·이상치 제외 공식통계)과 다른 2년 단순평균 — '평년'이 아니라 '이맘때 평균'으로만 표기. */
+export async function fetchEcoSeasonalBaseline(
+  item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode'>,
+): Promise<{ avg: number; count: number } | null> {
+  const kinds = [...new Set([item.kindCode, '00', '01', '02', '03'])];
+  // 창(작년·재작년) × 품종 × 랭크를 전부 병렬 — 순차면 사과처럼 표본 없는 품목이 ~30s.
+  const windows = await Promise.all(
+    [365, 730].map(async (back) => {
+      const start = new Date();
+      start.setDate(start.getDate() - back - 21);
+      const end = new Date();
+      end.setDate(end.getDate() - back + 21);
+      const combos = kinds.flatMap((kind) => ['07', '08'].map((rank) => ({ kind, rank })));
+      const res = await Promise.all(
+        combos.map(async ({ kind, rank }) => {
+          const url = `${BASE}?${qs({
+            action: 'periodEcoPriceList',
+            p_startday: fmtDate(start),
+            p_endday: fmtDate(end),
+            p_itemcategorycode: item.categoryCode,
+            p_itemcode: item.itemCode,
+            p_kindcode: kind,
+            p_productrankcode: rank,
+            p_convert_kg_yn: 'N',
+          })}`;
+          try {
+            const r = await fetchT(url);
+            if (!r.ok) return { kind, prices: [] as number[] };
+            const series = rowsToSeries((await r.json())?.data?.item ?? []);
+            return { kind, prices: series.map((p) => p.price) };
+          } catch {
+            return { kind, prices: [] as number[] };
+          }
+        }),
+      );
+      // 이 창은 우선순위 첫 유효 품종의 가격만
+      for (const kind of kinds) {
+        const p = res.filter((x) => x.kind === kind).flatMap((x) => x.prices);
+        if (p.length) return p;
+      }
+      return [] as number[];
+    }),
+  );
+  const prices = windows.flat();
+  if (prices.length < 4) return null;
+  return { avg: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length), count: prices.length };
 }
 
 export function won(n: number | null): string {

@@ -1,13 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Heart, Info } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Heart } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Linking, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   EcoData,
   fetchCategory,
   fetchEco,
+  fetchEcoSeasonalBaseline,
   fetchMarketPrices,
   fetchSeries,
   judge,
@@ -16,10 +18,11 @@ import {
   SeriesPoint,
   won,
 } from '../../api/kamis';
+import { coupangUrl, LINKPRICE_MALLS, linkpriceUrl, naverShoppingUrl, trackShoppingClick } from '../../api/shopping';
 import { useVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
-import { SegmentedControl } from '../../components/igb/SegmentedControl';
+import { Tabs } from '../../components/igb/Tabs';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Sparkline } from '../../components/igb/Sparkline';
 import { useFavorites } from '../../store/favorites';
@@ -27,11 +30,17 @@ import { bumpPopularity } from '../../store/popularity';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle, topicParticle, withParticle } from '../../utils/korean';
-import { colors, font, palette, radius, signal, SignalLevel, spacing, tabularNums, type } from '../../theme/tokens';
+import { colors, palette, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 
 type Market = 'retail' | 'eco' | 'wholesale';
 
 const MONTHS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+// kindName "봄(20kg)" → "봄무" (단위 괄호 떼고 품목명 붙임). build-verdicts.mjs와 동일 규칙.
+const varietyName = (kindName: string, itemName: string) => {
+  const v = kindName.replace(/\([^)]*\)\s*$/, '').trim();
+  // 변종명이 이미 품목명을 포함/끝나면(대파·쪽파→파) 그대로. 아니면(봄→무) 붙인다.
+  return !v || v === itemName ? itemName : v.endsWith(itemName) ? v : `${v}${itemName}`;
+};
 const SKEL_BAR_H = [20, 28, 36, 24, 18, 40, 30, 44, 38, 26, 22, 16]; // 작년 흐름 스켈레톤 막대 실루엣
 
 // 영구 캐시 — 같은 날이면 새로고침해도 즉시(메모리 + AsyncStorage). 시계열·판매처 등 일 단위 데이터 공용.
@@ -122,6 +131,7 @@ export default function ItemDetailScreen() {
   const { keys, isFavorite, toggle } = useFavorites();
   const item = find(key) ?? resolve(key);
   const [topH, setTopH] = useState(0);
+  const insets = useSafeAreaInsets(); // content-02(회색)가 하단 safe-area까지 덮도록
 
   // 인기 품목 신호 — 이 상세를 열 때마다 itemCode 조회수 +1 (검색 화면 '인기 품목 TOP')
   useEffect(() => {
@@ -148,10 +158,19 @@ export default function ItemDetailScreen() {
   }, [items, key]);
 
   const [market, setMarket] = useState<Market>('retail');
-  const [yearSeries, setYearSeries] = useState<SeriesPoint[] | null>(null); // 365일 — 28일 차트·최근1년 평균·연간 흐름·작년 궤적 모두 여기서 파생
+  const [chart28, setChart28] = useState<SeriesPoint[] | null>(null); // 28일 — 차트 표시용. 가벼워 빠름(~3s)
+  const [yearSeries, setYearSeries] = useState<SeriesPoint[] | null>(null); // 365일 — 최근1년 평균·연간 흐름 폴백. verdicts 없을 때만(무거움 ≈27s).
   const [markets, setMarkets] = useState<MarketPrice[] | null>(null);
   const [wsItem, setWsItem] = useState<PriceItem | null | undefined>(undefined);
   const [eco, setEco] = useState<EcoData | null | undefined>(undefined);
+  const [ecoBaseline, setEcoBaseline] = useState<{ avg: number; count: number } | null | undefined>(undefined); // 친환경 '이맘때 평균'(최근 2년). undefined=로딩, null=데이터없음
+
+  // 품목이 바뀌면 도매·유기농 상태 초기화 — 안 하면 이전 품목의 옛 화면이 남아 잠깐 뜬다(#5).
+  useEffect(() => {
+    setWsItem(undefined);
+    setEco(undefined);
+    setEcoBaseline(undefined);
+  }, [key]);
 
   useEffect(() => {
     if (market !== 'wholesale' || wsItem !== undefined || !item) return;
@@ -168,24 +187,29 @@ export default function ItemDetailScreen() {
     fetchEco(item)
       .then(setEco)
       .catch(() => setEco(null));
+    fetchEcoSeasonalBaseline(item)
+      .then(setEcoBaseline)
+      .catch(() => setEcoBaseline(null));
   }, [market, eco, item]);
 
   const active = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
   const cls = market === 'wholesale' ? '02' : '01';
 
-  // 365일 1회 + 마켓 1회만 호출 (28일 차트는 연 데이터 끝 28개로 파생 — 중복 fetch 제거로 가속).
+  // 가벼운 호출만 여기서: 마켓·28일 차트. 둘 다 ~3s, 병렬.
+  // 무거운 365일(≈27s)은 verdicts가 최근1년평균을 못 줄 때만 아래 별도 effect에서.
   useEffect(() => {
     if (market === 'eco' || !active) return;
     const ck = `${itemKey(active)}-${cls}`;
     // 같은 날 캐시(메모리+localStorage) — 새로고침/재방문 즉시. 오늘 가격은 item에서 오므로 차트도 캐시 무해.
     setMarkets(null);
+    setChart28(null);
     setYearSeries(null);
     cached(`mk-${ck}`, () => fetchMarketPrices(active, cls))
       .then(setMarkets)
       .catch(() => setMarkets([]));
-    cached(`y-${ck}`, () => fetchSeries(active, 365, cls))
-      .then(setYearSeries)
-      .catch(() => setYearSeries([]));
+    cached(`c28-${ck}`, () => fetchSeries(active, 28, cls))
+      .then(setChart28)
+      .catch(() => setChart28([]));
   }, [key, market, active?.itemCode, active?.kindCode]);
 
   // 평년 대비 신호 (±1% judge) — 차트 한 줄 결론·진입 가드용
@@ -204,54 +228,83 @@ export default function ItemDetailScreen() {
     return out;
   };
 
-  // 28일 — 최근 추이 차트 (연 데이터 끝 28개에서 파생, 오늘가 앵커)
+  // 28일 — 빠른 초기 차트 (가벼운 28일 호출, 오늘가 앵커).
   const chartSeries = useMemo(() => {
-    if (!yearSeries) return null;
-    return anchor(yearSeries.slice(-28), active?.today);
-  }, [yearSeries, active?.today]);
+    if (!chart28) return null;
+    return anchor(chart28.slice(-28), active?.today);
+  }, [chart28, active?.today]);
 
-  // 365일 — 최근 1년 평균(추천 기준) + 월별 평균(연간 흐름) + 작년 궤적 (백그라운드, 늦게 채워짐)
+  // 최근 시세 차트 = 1년 일별. 로딩 중엔 스켈레톤(28일 중간단계 없이), 1년 실패/부족 시에만 28일 폴백.
+  const chartDisplay = useMemo(() => {
+    const ys = anchor(yearSeries, active?.today);
+    if (ys && ys.length >= 30) return ys; // 1년 도착
+    if (yearSeries == null) return null; // 아직 로딩 → 스켈레톤
+    return chartSeries; // 1년 실패/부족 → 28일 폴백
+  }, [yearSeries, chartSeries, active?.today]);
+
+  // 365일 — 최근 1년 평균(추천 기준) + 월별 평균(연간 흐름). verdicts 없을 때만 채워짐.
   const yearDerived = useMemo(() => {
     const ys = anchor(yearSeries, active?.today);
     if (!ys || ys.length < 30 || active?.today == null) return null;
     const prices = ys.map((p) => p.price);
     const recentAvg = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : null;
-    // 작년 같은 시기 궤적(차트 점선) — 1년 시계열 맨 앞(≈작년 오늘)부터 ~2주. 별도 fetch보다 robust(연 데이터에 있음).
-    const k = Math.max(4, Math.round((ys.length * 14) / 365));
-    const overlay = ys.length >= 8 ? ys.slice(0, Math.min(ys.length, k + 1)) : null;
-    return { months: monthlyAverages(ys), recentAvg, overlay };
+    return { months: monthlyAverages(ys), recentAvg };
   }, [yearSeries, active?.today]);
-
-  // 차트 한 줄 결론 (최근 28일 vs 평년)
-  const chartSummary = useMemo(() => {
-    if (!chartSeries || chartSeries.length < 2 || !view) return null;
-    const recent = chartSeries.slice(-28).map((p) => p.price);
-    const today = recent[recent.length - 1];
-    if (today <= Math.min(...recent)) return '최근 28일 중 오늘이 가장 싸요';
-    if (today >= Math.max(...recent)) return '최근 28일 중 오늘이 가장 비싸요';
-    if (view.level === 'cheap') return '평년보다 아래에서 움직이고 있어요';
-    if (view.level === 'expensive') return '평년보다 위에서 움직이고 있어요';
-    return '평년 수준에서 오르내리고 있어요';
-  }, [chartSeries, view]);
 
   // 최근 1년 평균 — 사전계산(서버) 우선, 없으면 365일 기기 계산. 사전계산이 있으면 추천이 즉시 확정.
   const verdicts = useVerdicts();
-  const precomputedRecentAvg = market === 'retail' ? verdicts[key]?.recentAvg ?? null : null;
+  const precomputedRecentAvg =
+    market === 'wholesale'
+      ? verdicts[key]?.wholesaleRecentAvg ?? null
+      : market === 'retail'
+        ? verdicts[key]?.recentAvg ?? null
+        : null;
   const recentAvg = precomputedRecentAvg ?? yearDerived?.recentAvg ?? null;
+
+  // 365일 일별 — 최근 시세 차트가 항상 필요(1년 표시). 같은 날 캐시로 재방문은 즉시.
+  // (추천 판정은 precomputed recentAvg로 이미 즉시 확정 — 이 무거운 호출을 기다리지 않는다.)
+  useEffect(() => {
+    if (market === 'eco' || !active) return;
+    cached(`y2-${itemKey(active)}-${cls}`, () => fetchSeries(active, 365, cls))
+      .then(setYearSeries)
+      .catch(() => setYearSeries([]));
+  }, [key, market, active?.itemCode, active?.kindCode]);
   // 연간 흐름 — 사전계산(다품종 병합) 우선, 없으면 365일 단일 품종에서 파생
-  const annualMonths = (market === 'retail' ? verdicts[key]?.months : null) ?? yearDerived?.months ?? null;
-  const annualSpanVarieties = market === 'retail' ? verdicts[key]?.spanVarieties ?? false : false;
-  const annualThisMonthVarieties = market === 'retail' ? verdicts[key]?.thisMonthVarieties ?? null : null;
-  // 분할 품목은 대표 품종명(봄배추)을 히어로에 — 그 외엔 품목명
-  const heroName = (annualSpanVarieties && verdicts[key]?.variety) || item?.itemName || '';
+  // 도매는 도매 데이터(품종 병합)만. 사전계산 없으면 라이브(yearDerived)로 폴백 — 소매가는 안 빌림.
+  const annualMonths =
+    (market === 'retail' ? verdicts[key]?.months : market === 'wholesale' ? verdicts[key]?.wholesaleMonths : null) ??
+    yearDerived?.months ??
+    null;
+  // 철별 분할 품목인지 — 시장 무관 품목 속성(소매 사전계산). hero 품종명 표시 기준 + 흐름 캡션용.
+  const isSplitItem = verdicts[key]?.spanVarieties ?? false;
+  const annualSpanVarieties = market === 'eco' ? false : isSplitItem;
+  // hero 품종명 — 도매는 '도매 데이터 자체'(보고 있는 wsItem의 kind="봄(20kg)"→봄무), 소매는 대표 품종.
+  // 차트 병합(월동무 데이터)과 무관 — 분할 품목이면 wsItem의 실제 품종을 그대로 표기.
+  const heroVariety =
+    market === 'wholesale' ? (active ? varietyName(active.kindName, active.itemName) : null) : verdicts[key]?.variety ?? null;
+  const heroName = (isSplitItem && heroVariety) || item?.itemName || '';
+  // 연간흐름 '철마다 품종 달라요' 캡션 — 소매는 사전계산(품종별 가격), 도매는 현재 품종명만(가격 캡션은 소매가라 제외).
+  const annualThisMonthVarieties =
+    market === 'retail'
+      ? verdicts[key]?.thisMonthVarieties ?? null
+      : market === 'wholesale' && isSplitItem && heroVariety
+        ? [{ name: heroVariety, price: 0 }]
+        : null;
 
-  // 추천 = 평년 + 최근 1년 평균 두 기준 종합(evalBuy). 히어로 칩·rec-card·verdict가 이걸 따른다.
-  const buy = active?.today != null && recentAvg != null ? evalBuy(active.today, active.normal, recentAvg) : null;
+  // 추천 = 평년 단일 기준(홈 카드와 동일 — 둘이 어긋나지 않게). 최근 1년 평균은 rec-card 보조 설명으로만.
+  // 평년만 필요하므로 recentAvg(365·verdicts) 안 기다리고 즉시 확정 — 칩·헤드라인 바로 뜸.
+  const buy = active?.today != null ? evalBuy(active.today, active.normal) : null;
   const displayLevel: SignalLevel = buy ? buy.level : 'fair';
-  // recReady = 추천 확정(사전계산이면 즉시, 아니면 365 도착 후). chartReady = 차트·연간흐름 데이터 도착.
   const recReady = buy != null;
-  const chartReady = chartSeries != null;
-
+  // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
+  const chartReady = chartDisplay != null;
+  // 유기농·무농약 '이맘때 평균'(최근 2년) 대비 신호 — 일반의 평년 대비와 같은 방식(이맘때 평균이 기준).
+  const ecoSeasonalPct =
+    eco && ecoBaseline && eco.latest != null
+      ? Math.round(((eco.latest - ecoBaseline.avg) / ecoBaseline.avg) * 100)
+      : null;
+  const ecoLevel: SignalLevel =
+    ecoSeasonalPct == null ? 'fair' : ecoSeasonalPct < 0 ? 'cheap' : ecoSeasonalPct > 0 ? 'expensive' : 'fair';
   if (!item) {
     return (
       <View style={styles.screen}>
@@ -269,23 +322,41 @@ export default function ItemDetailScreen() {
         <Header title={item.itemName} fav={isFavorite(favKey)} onFav={() => toggle(favKey)} />
       </GlassHeader>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topH }]}>
-        {/* content-01: 흰 배경 — 세그먼트 + 가격 헤드 */}
-        <View style={styles.content01}>
-          <SegmentedControl
-            value={market}
-            onChange={setMarket}
+        {/* 소매/도매 — 헤더 바로 아래 풀폭 밑줄 탭(content 밖). 헤어라인 full-bleed + 탭 16 인셋 */}
+        <View style={styles.marketTabs}>
+          {/* 풀블리드 하단 디바이더 — Figma처럼 밑줄 바 '뒤'에 깔린다(활성 바가 자기 칸에서 디바이더를 덮음). */}
+          <View style={styles.marketTabsLine} pointerEvents="none" />
+          <Tabs
+            variant="underline"
+            value={market === 'wholesale' ? 'wholesale' : 'retail'}
+            onChange={(v) => setMarket(v as Market)}
             options={[
               { value: 'retail', label: '소매' },
-              { value: 'eco', label: '친환경' },
               { value: 'wholesale', label: '도매' },
             ]}
           />
+        </View>
+        {/* content-01: 흰 배경 — (소매면) 일반/유기농 토글 + 가격 헤드 */}
+        {/* 도매는 일반/유기농 토글이 없어 디자인이 hero 상단 패딩을 20으로 키움(소매=12) */}
+        <View style={[styles.content01, market === 'wholesale' && { paddingTop: spacing.s5 }]}>
+          {/* 재배방식(일반/유기농)은 소매 하위 토글 — hero 바로 위. 도매엔 유기농 데이터 없어 숨김. */}
+          {market !== 'wholesale' && (
+            <Tabs
+              variant="pill"
+              value={market}
+              onChange={setMarket}
+              options={[
+                { value: 'retail', label: '일반' },
+                { value: 'eco', label: '유기농·무농약' },
+              ]}
+            />
+          )}
 
           {market === 'eco' ? (
-            eco === undefined ? (
+            eco === undefined || (eco !== null && ecoBaseline === undefined) ? (
               <ActivityIndicator style={{ marginVertical: spacing.s10 }} color={colors.textTertiary} />
             ) : eco === null ? (
-              <EmptyState title="친환경 시세가 없는 품목이에요" description="소매 기준으로 확인해 보세요" />
+              <EmptyState title="유기농·무농약 시세가 없는 품목이에요" description="일반 기준으로 확인해 보세요" />
             ) : (
               <View style={styles.hero}>
                 <View style={styles.heroBody}>
@@ -295,23 +366,34 @@ export default function ItemDetailScreen() {
                     )}
                   </View>
                   <View style={styles.heroContents}>
-                    <Text style={[styles.price, tabularNums]}>
-                      {won(eco.latest)}
-                      <Text style={styles.unit}> 원 / {eco.unit ?? item.unit} 기준</Text>
-                    </Text>
-                    {perUnitCaption(item.itemCode, eco.latest, eco.unit ?? item.unit) ? (
-                      <Text style={styles.heroSub}>
-                        {perUnitCaption(item.itemCode, eco.latest, eco.unit ?? item.unit)}
+                    <View style={styles.heroNameRow}>
+                      <Text style={styles.heroName} numberOfLines={1}>
+                        {item.itemName}
                       </Text>
-                    ) : null}
-                    <Text style={styles.ecoLead}>
-                      {eco.vsPrevWeekPct == null
-                        ? '지난주 비교 데이터가 없어요'
-                        : eco.vsPrevWeekPct === 0
-                          ? '지난주와 같은 가격이에요'
-                          : `지난주보다 ${eco.vsPrevWeekPct > 0 ? '+' : ''}${eco.vsPrevWeekPct}%`}
-                      {'  ·  매주 화요일 발행'}
-                    </Text>
+                      {ecoBaseline && ecoSeasonalPct != null && (
+                        <SignalChip
+                          level={ecoLevel}
+                          label={
+                            ecoLevel === 'cheap'
+                              ? '저렴해요'
+                              : ecoLevel === 'expensive'
+                                ? '비싼 편이에요'
+                                : '평소 수준이에요'
+                          }
+                        />
+                      )}
+                    </View>
+                    <View style={styles.heroPriceBlock}>
+                      <Text style={styles.price}>
+                        {won(eco.latest)}원
+                        <Text style={styles.unit}> / {eco.unit ?? item.unit}</Text>
+                      </Text>
+                      {perUnitCaption(item.itemCode, eco.latest, eco.unit ?? item.unit) ? (
+                        <Text style={styles.heroSub}>
+                          {perUnitCaption(item.itemCode, eco.latest, eco.unit ?? item.unit)}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
               </View>
@@ -352,125 +434,66 @@ export default function ItemDetailScreen() {
                       <Skeleton style={styles.skelChip} />
                     )}
                   </View>
-                  <Text style={[styles.price, tabularNums]}>
-                    {won(active.today)}
-                    <Text style={styles.unit}> 원 / {active.unit} 기준</Text>
-                  </Text>
-                  {perUnitCaption(active.itemCode, active.today, active.unit) ? (
-                    <Text style={styles.heroSub}>
-                      {perUnitCaption(active.itemCode, active.today, active.unit)}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-              {/* 오늘·최근 1년 평균·평년 3값 비교 + 한 줄 판정 — 라벨은 즉시, 값은 칸별 스켈레톤 */}
-              <View style={styles.compareRow}>
-                <View style={styles.compareCol}>
-                  <Text style={styles.compareLabel}>오늘</Text>
-                  {recReady ? (
-                    <Text style={[styles.compareValue, tabularNums, { color: signal[displayLevel].main }]}>
+                  <View style={styles.heroPriceBlock}>
+                    <Text style={styles.price}>
                       {won(active.today)}원
+                      <Text style={styles.unit}> / {active.unit}</Text>
                     </Text>
-                  ) : (
-                    <Skeleton style={styles.skelValue} />
-                  )}
-                </View>
-                <View style={styles.compareCol}>
-                  <Text style={styles.compareLabel}>최근 1년 평균</Text>
-                  {recReady ? (
-                    <Text style={[styles.compareValue, tabularNums]}>{won(recentAvg)}원</Text>
-                  ) : (
-                    <Skeleton style={styles.skelValue} />
-                  )}
-                </View>
-                <View style={styles.compareCol}>
-                  <Text style={styles.compareLabel}>평년</Text>
-                  {recReady ? (
-                    <Text style={[styles.compareValue, tabularNums]}>{won(active.normal)}원</Text>
-                  ) : (
-                    <Skeleton style={styles.skelValue} />
-                  )}
+                    {perUnitCaption(active.itemCode, active.today, active.unit) ? (
+                      <Text style={styles.heroSub}>
+                        {perUnitCaption(active.itemCode, active.today, active.unit)}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               </View>
-              {recReady && buy ? (
-                <Text style={[styles.verdict, { color: signal[buy.verdictLevel].main }]}>
-                  {buy.verdict}
-                  {buy.check ? ' ✓' : ''}
-                </Text>
-              ) : (
-                <Skeleton style={styles.skelLine} />
-              )}
             </View>
           )}
         </View>
 
         {/* content-02: grey-50 무대 */}
-        {market === 'eco' && eco ? (
-          <View style={styles.content02}>
+        {market === 'eco' && eco && ecoBaseline !== undefined ? (
+          <View style={[styles.content02, { paddingBottom: insets.bottom + spacing.s10 }]}>
             <View style={styles.chartCard}>
-              <Text style={styles.chartTitle}>최근 6개월</Text>
-              <Sparkline series={eco.series} baseline={null} level="fair" neutral />
-              <Text style={styles.chartFootnote}>
-                친환경은 평년 가격 자료가 없어서, 싼지 비싼지 대신 가격 흐름을 보여드려요
-              </Text>
+              <View style={styles.chartLabelRow}>
+                <Text style={styles.chartTitle}>최근 시세</Text>
+                {ecoBaseline && (
+                  <Text style={styles.chartBaseline}>이맘때 평균 {won(ecoBaseline.avg)}원</Text>
+                )}
+              </View>
+              <Sparkline series={eco.series} baseline={ecoBaseline?.avg ?? null} level={ecoLevel} />
             </View>
             <BuySection markets={eco.markets} reference={eco.latest} />
-            <Text style={styles.source}>자료 출처 · KAMIS {new Date().toISOString().slice(0, 10)} 기준</Text>
+            <ShopSection itemCode={item.itemCode} />
+            <Text style={styles.source}>
+              자료 출처 · KAMIS {new Date().toISOString().slice(0, 10)} 기준{'\n'}유기농·무농약은 주 1회 화요일에 업데이트
+            </Text>
           </View>
         ) : active && view ? (
-          <View style={styles.content02}>
+          <View style={[styles.content02, { paddingBottom: insets.bottom + spacing.s10 }]}>
             {/* when-buy 그룹 — rec-card·차트·연간흐름을 16px로 묶는다 (마켓까지는 32px) */}
             <View style={styles.whenBuy}>
-              {/* 언제 살까요? — 평년·최근 1년 평균 두 기준 비교로 정직하게 */}
-              <WhenToBuyCard
-                level={displayLevel}
-                prose={buy ? buyProse(buy, active.normal, recentAvg) : ''}
-                loading={!recReady}
-              />
-
-              {/* 최근 가격 추이 (실측 + 평년 기준선 + 작년 점선) */}
+              {/* 최근 시세 — 실측 추이 + 이맘때 평균 기준선 + 오늘 시세 툴팁 */}
               <View style={styles.chartCard}>
-                <Text style={styles.chartTitle}>{chartReady ? (chartSummary ?? '최근 추이') : '최근 추이'}</Text>
-                {/* 차트 데이터(365 도착) 전엔 스켈레톤. 색은 이미 확정된 추천(displayLevel)을 따른다 */}
+                <View style={styles.chartLabelRow}>
+                  <Text style={styles.chartTitle}>최근 시세</Text>
+                  {active.normal != null && (
+                    <Text style={styles.chartBaseline}>이맘때 평균 {won(active.normal)}원</Text>
+                  )}
+                </View>
+                {/* 차트 데이터(28일 도착) 전엔 스켈레톤. 색은 이미 확정된 추천(displayLevel)을 따른다 */}
                 {!chartReady ? (
                   <Skeleton style={styles.skelChart} />
                 ) : (
                   <Sparkline
-                    series={chartSeries.slice(-28)}
+                    series={chartDisplay!}
                     baseline={active.normal}
-                    baselineLabel="평년"
                     level={recReady ? displayLevel : 'fair'}
-                    overlay={yearDerived?.overlay ?? undefined}
                   />
-                )}
-                {/* 범례 — 차트 데이터 준비 후 표시 */}
-                {chartReady && (
-                <View style={styles.chartLegend}>
-                  <View style={styles.legendRow}>
-                    <View style={[styles.legendLine, { borderTopWidth: 2, borderColor: signal[displayLevel].main }]} />
-                    <Text style={styles.chartFootnote}>최근 28일</Text>
-                  </View>
-                  <View style={styles.legendRow}>
-                    <View
-                      style={[styles.legendLine, { borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: colors.textTertiary }]}
-                    />
-                    <Text style={styles.chartFootnote}>
-                      작년 같은 시기 궤적{'\n'}작년 기록이라 올해는 다를 수 있어요
-                    </Text>
-                  </View>
-                  {/* 평년 용어 설명 — KAMIS 평년 정의(최근 5년 중 최고·최저 제외), 같은 날짜 무렵 기준 */}
-                  <View style={styles.legendRow}>
-                    <Info size={12} color={colors.textTertiary} strokeWidth={2} style={{ marginTop: 4 }} />
-                    <Text style={styles.chartFootnote}>
-                      평년: 최근 5년({new Date().getFullYear() - 5}~{new Date().getFullYear() - 1}) 중 최고·최저를 뺀,
-                      {'\n'}매년 이맘때의 평균 가격
-                    </Text>
-                  </View>
-                </View>
                 )}
               </View>
 
-              {/* 작년 가격 흐름 — 계산 중에도 타이틀 + '흐름 파악 중' (섹션 안 사라짐) */}
+              {/* 연간 가격 흐름 — 계산 중에도 타이틀 + '흐름 파악 중' (섹션 안 사라짐) */}
               <AnnualFlow
                 months={annualMonths}
                 name={item.itemName}
@@ -481,6 +504,8 @@ export default function ItemDetailScreen() {
 
             <BuySection markets={markets} reference={active.today} />
 
+            <ShopSection itemCode={item.itemCode} />
+
             <Text style={styles.source}>자료 출처 · KAMIS {new Date().toISOString().slice(0, 10)} 기준</Text>
           </View>
         ) : null}
@@ -490,118 +515,14 @@ export default function ItemDetailScreen() {
 }
 
 /**
- * 언제 살까요? — 평년·최근 1년 평균 두 기준 비교(evalBuy) 결과.
- * BEST(둘 다보다 쌈) / FAIR(엇갈림) / WAIT(둘 다보다 비쌈) 배지 + 헤드라인 + 안내문(둘 다 봐야 하는 이유 포함).
+ * 추천 판정 = 평년(=이맘때) 단일 기준 (오늘 vs 이맘때 평균). 홈 카드와 같은 기준이라 어긋나지 않는다.
+ * level이 히어로 칩·차트 색을 끌고 간다.
  */
-function WhenToBuyCard({ level, prose, loading }: { level: SignalLevel; prose: string; loading: boolean }) {
-  // 추천 확정 전(최근 1년 데이터 도착 전)엔 판정이 뒤집히므로 — 스켈레톤만 보여준다.
-  if (loading) {
-    return (
-      <View style={styles.whenSection}>
-        <Text style={styles.sectionTitle}>언제 살까요?</Text>
-        <View style={styles.recCard}>
-          <View style={styles.recTopLeft}>
-            <Skeleton style={styles.skelBadge} />
-            <Skeleton style={styles.skelHeadline} />
-          </View>
-          <Skeleton style={styles.skelLine} />
-        </View>
-      </View>
-    );
-  }
-  const c = signal[level];
-  const badge = level === 'cheap' ? 'BEST' : level === 'fair' ? 'FAIR' : 'WAIT';
-  const headline = level === 'cheap' ? '지금 사기 좋아요' : level === 'fair' ? '지금 사도 괜찮아요' : '조금 기다려도 좋아요';
-  return (
-    <View style={styles.whenSection}>
-      <Text style={styles.sectionTitle}>언제 살까요?</Text>
-      <View style={styles.recCard}>
-        <View style={styles.recTopLeft}>
-          <View style={[styles.recBadge, { backgroundColor: c.main }]}>
-            <Text style={styles.recBadgeText}>{badge}</Text>
-          </View>
-          <Text style={[styles.recHeadline, { color: c.main }]}>{headline}</Text>
-        </View>
-        <Text style={styles.recProse}>{prose}</Text>
-      </View>
-    </View>
-  );
-}
-
-/**
- * 추천 판정 = 평년 + 최근 1년 평균 두 기준 종합 (단순·투명, 낡은 평년도 자연 처리).
- * 둘 다보다 싸면 BEST(cheap) / 둘 다보다 비싸면 WAIT(expensive) / 엇갈리면 FAIR(fair).
- * 히어로 칩·차트·rec-card가 이 level을 따르고, verdict/check는 히어로 한 줄 판정에 쓴다.
- */
-function evalBuy(today: number, normal: number | null, recentAvg: number | null) {
-  const nv = judge(today, normal); // vs 평년
-  const rv = recentAvg != null ? judge(today, recentAvg) : null; // vs 최근 1년
-  const belowN = nv === 'cheap';
-  const aboveN = nv === 'expensive';
-  const belowR = rv === 'cheap';
-  const aboveR = rv === 'expensive';
-
-  let level: SignalLevel;
-  if (rv == null) level = nv ?? 'fair';
-  else if (belowN && belowR) level = 'cheap';
-  else if (aboveN && aboveR) level = 'expensive';
-  else level = 'fair';
-
-  let verdict: string;
-  let verdictLevel: SignalLevel;
-  let check = false;
-  if (rv == null) {
-    verdict = nv === 'cheap' ? '역대 기준으로 저렴해요' : nv === 'expensive' ? '역대 기준으론 비싼 편이에요' : '역대 기준과 비슷해요';
-    verdictLevel = nv ?? 'fair';
-  } else if (belowN && belowR) {
-    verdict = '역대 기준·요즘 기준 모두에서 저렴해요';
-    verdictLevel = 'cheap';
-    check = true;
-  } else if (aboveN && aboveR) {
-    verdict = '역대 기준·요즘 기준 모두에서 비싼 편이에요';
-    verdictLevel = 'expensive';
-  } else if ((belowN || belowR) && !aboveN && !aboveR) {
-    verdict = `${belowN ? '역대' : '요즘'} 기준으론 저렴한 편이에요`;
-    verdictLevel = 'cheap';
-  } else if ((aboveN || aboveR) && !belowN && !belowR) {
-    verdict = `${aboveN ? '역대' : '요즘'} 기준으론 비싼 편이에요`;
-    verdictLevel = 'expensive';
-  } else if (belowN && aboveR) {
-    verdict = '역대 기준보단 싸지만 요즘보단 비싼 편이에요';
-    verdictLevel = 'fair';
-  } else if (aboveN && belowR) {
-    verdict = '역대 기준보단 비싸지만 요즘보단 싼 편이에요';
-    verdictLevel = 'fair';
-  } else {
-    verdict = '역대·요즘 기준과 비슷해요';
-    verdictLevel = 'fair';
-  }
-  return { level, verdict, verdictLevel, check, belowN, aboveN, belowR, aboveR };
-}
-
-/** rec-card 안내문 — 두 기준 비교(숫자) + 상황별 해석. 케이스마다 결론 문장이 다르다. */
-function buyProse(e: ReturnType<typeof evalBuy>, normal: number | null, recentAvg: number | null): string {
-  const r = won(recentAvg);
-  const n = won(normal);
-  let s1: string;
-  let s2: string;
-  if (e.belowN && e.belowR) {
-    s1 = `최근 1년 평균(${r}원)과 평년(${n}원) 모두보다 낮아요`;
-    s2 = '오늘이 두 기준 모두보다 낮으니, 지금이 진짜 싼 때예요.';
-  } else if (e.aboveN && e.aboveR) {
-    s1 = `최근 1년 평균(${r}원)과 평년(${n}원) 모두보다 높아요`;
-    s2 = '두 기준 모두보다 높으니, 급하지 않다면 조금 기다려도 좋아요.';
-  } else if (e.belowN && e.aboveR) {
-    s1 = `평년(${n}원)보단 싸지만, 최근 1년 평균(${r}원)보단 비싸요`;
-    s2 = '요즘 시세가 평년보다 낮아진 품목이라, 지금이 특별히 싼 건 아니에요.';
-  } else if (e.aboveN && e.belowR) {
-    s1 = `평년(${n}원)보단 비싸지만, 최근 1년 평균(${r}원)보단 싸요`;
-    s2 = '요즘 오른 품목이라, 최근 흐름 기준으론 살 만한 편이에요.';
-  } else {
-    s1 = `최근 1년 평균(${r}원)·평년(${n}원)과 비슷한 수준이에요`;
-    s2 = '두 기준 모두와 비슷해, 평소 수준이에요.';
-  }
-  return `${s1}. ${s2}`;
+function evalBuy(today: number, normal: number | null) {
+  // 홈 카드와 '완전히 같은' 판정: 반올림된 평년 대비 %(=item.vsNormalPct)에 ±1% 임계.
+  const pctN = normal != null && normal > 0 ? Math.round(((today - normal) / normal) * 100) : null;
+  const level: SignalLevel = pctN == null ? 'fair' : pctN <= -1 ? 'cheap' : pctN >= 1 ? 'expensive' : 'fair';
+  return { level };
 }
 
 /** 스켈레톤 — 펄스(opacity) 애니메이션. children을 주면 그 묶음 전체가 한 단위로 펄스(차트 실루엣 등). */
@@ -708,33 +629,28 @@ function AnnualFlow({
       </View>
     );
   }
-  const thisMonthAvg = ready && months![thisMonth] != null ? months![thisMonth]! : null;
-
   return (
     <View style={styles.flowCard}>
       <View style={styles.flowTitleRow}>
-        <Text style={styles.sectionTitle}>작년 가격 흐름</Text>
-        {thisMonthAvg != null ? (
-          <Text style={styles.flowThisMonth}>
-            {thisMonth + 1}월 평균 <Text style={tabularNums}>{won(Math.round(thisMonthAvg))}</Text>원
-          </Text>
-        ) : null}
+        <Text style={styles.sectionTitle}>연간 가격 흐름</Text>
       </View>
       {ready ? (
         <>
           {bars}
-          {varietyCaption ? (
-            <Text style={styles.flowCaption}>{varietyCaption}</Text>
-          ) : (
-            <Text style={styles.flowCaption}>{seasonText}.</Text>
-          )}
-          {valid.length < 12 && (
-            <Text style={styles.flowCaption}>· 자료가 없는 달은 비워뒀어요 (KAMIS 미조사)</Text>
-          )}
+          <View style={styles.flowCaptions}>
+            {varietyCaption ? (
+              <Text style={styles.flowCaption}>{varietyCaption}</Text>
+            ) : (
+              <Text style={styles.flowCaption}>{seasonText}.</Text>
+            )}
+            {valid.length < 12 && (
+              <Text style={styles.flowCaption}>자료가 없는 달은 비워뒀어요.</Text>
+            )}
+          </View>
         </>
       ) : insufficient ? (
         <Text style={styles.flowCaption}>
-          이 품목은 철마다 다른 품종으로 조사돼, 한 해 흐름을 보여줄 자료가 부족해요.
+          이 품목은 제철에만 조사돼, 한 해 흐름을 보여줄 자료가 부족해요.
         </Text>
       ) : (
         <>
@@ -776,7 +692,7 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
               <View style={styles.buyRow}>
                 <View style={[styles.buyDot, { backgroundColor: signal[level].main }]} />
                 <Text style={styles.buyName}>{m.market}</Text>
-                <Text style={[styles.buyPrice, tabularNums]}>{won(m.price)}원</Text>
+                <Text style={styles.buyPrice}>{won(m.price)}원</Text>
               </View>
             </View>
           );
@@ -785,6 +701,43 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
       <Text style={styles.buyCaption}>
         현재 가격보다 싼 곳은 초록, 비싼 곳은 빨강이에요. 최근 조사가라 매장마다 다를 수 있어요.
       </Text>
+    </View>
+  );
+}
+
+/**
+ * "지금 온라인에서 사기" — 제휴 아웃링크. 가격 숫자는 표시하지 않는다(실시간 조회 불가 → 오정보 방지).
+ * 제휴 설정이 안 된 몰 행은 숨김 — 네이버(무수익 검색 링크)는 항상 있어 섹션이 비지 않는다.
+ */
+function ShopSection({ itemCode }: { itemCode: string }) {
+  const rows = [
+    ...LINKPRICE_MALLS.map((m) => ({ id: m.id, name: m.name, url: linkpriceUrl(m, itemCode) })),
+    { id: 'coupang', name: '쿠팡', url: coupangUrl(itemCode) },
+    { id: 'naver', name: '네이버쇼핑', url: naverShoppingUrl(itemCode) },
+  ].filter((r): r is { id: string; name: string; url: string } => r.url != null);
+  if (rows.length === 0) return null;
+  return (
+    <View style={styles.buySection}>
+      <Text style={styles.sectionTitle}>지금 온라인에서 사기</Text>
+      <View style={styles.buyCard}>
+        {rows.map((r, idx) => (
+          <View key={r.id}>
+            {idx > 0 && <View style={styles.buyDivider} />}
+            <Pressable
+              style={styles.buyRow}
+              onPress={() => {
+                trackShoppingClick(r.id, itemCode);
+                Linking.openURL(r.url);
+              }}
+            >
+              <Text style={styles.buyName}>{r.name}</Text>
+              <ChevronRight size={20} color={colors.iconInactive} strokeWidth={2} />
+            </Pressable>
+          </View>
+        ))}
+      </View>
+      {/* 공정위 표시의무 — 제휴 링크로 수수료를 받을 수 있음을 고지 */}
+      <Text style={styles.buyCaption}>구매로 이어지면 앱에 수수료가 지급될 수 있어요. 가격은 판매처에서 확인하세요.</Text>
     </View>
   );
 }
@@ -808,7 +761,7 @@ function Header({ title, fav, onFav }: { title: string; fav: boolean; onFav: () 
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bgSecondary },
+  screen: { flex: 1, backgroundColor: colors.bgCanvas }, // 03 상세 fill = bg/canvas (content-02만 secondary)
   header: {
     height: 44,
     flexDirection: 'row',
@@ -817,49 +770,76 @@ const styles = StyleSheet.create({
     gap: spacing.s1,
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, ...type.title, color: colors.textPrimary, textAlign: 'left' } as const,
-  scroll: { paddingBottom: spacing.s16 },
-  content01: { padding: spacing.s4, gap: spacing.s6, backgroundColor: colors.bgCanvas },
+  headerTitle: { flex: 1, ...type.size[17], ...type.w.semibold, color: colors.textPrimary, textAlign: 'left' } as const,
+  scroll: { flexGrow: 1 }, // 짧아도 content-02(회색)가 화면 끝까지 늘어나게(안 그러면 흰 배경 드러남)
+  // 소매/도매 탭 — 헤더 바로 아래 풀폭. 패딩 안쪽으로 탭, 보더는 박스 풀폭(=full-bleed 헤어라인).
+  marketTabs: {
+    backgroundColor: colors.bgCanvas,
+    paddingHorizontal: spacing.s4,
+  },
+  // 풀블리드 디바이더 — 2px 밑줄 바의 수직 '정중앙'에 맞춤(Figma: 바 48~50, 디바이더 48.75).
+  // 바는 컨테이너 맨 아래 2px에 붙으므로 bottom=(바두께-라인두께)/2 로 바 중앙에 위치. borderBottom처럼 1px 안 더해지게 절대배치.
+  marketTabsLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: (2 - StyleSheet.hairlineWidth) / 2,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.bgTertiary,
+  },
+  // content01: 상단 12 / 좌우 16 / 하단 12, 자식 간격 12(일반·유기농 토글 → hero)
+  content01: {
+    paddingHorizontal: spacing.s4,
+    paddingVertical: spacing.s3,
+    gap: spacing.s3,
+    backgroundColor: colors.bgCanvas,
+  },
   content02: { padding: spacing.s4, gap: spacing.s8, backgroundColor: colors.bgSecondary, flexGrow: 1 },
   whenBuy: { gap: spacing.s4 }, // rec-card·차트·연간흐름 묶음 (16px)
   hero: { gap: spacing.s3 },
   heroBody: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s3 },
   heroThumb: { width: 100, aspectRatio: 1, borderRadius: radius.m, backgroundColor: colors.bgTertiary, overflow: 'hidden' },
-  heroContents: { flex: 1, alignItems: 'flex-start', gap: spacing.s2 },
+  // Figma hero-top: 이름행(위)·가격블록(아래) space-between으로 썸네일(100) 높이 채움
+  heroContents: { flex: 1, alignSelf: 'stretch', alignItems: 'flex-start', justifyContent: 'space-between' },
+  heroPriceBlock: { alignItems: 'flex-start' },
   heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2, maxWidth: '100%' },
-  heroName: { ...type.title, color: colors.textPrimary, flexShrink: 1 } as const,
-  heroSub: { ...type.caption, color: colors.textSecondary } as const,
-  price: { ...type.priceXl, color: colors.priceNumber } as const,
-  unit: { fontSize: 13, fontFamily: font.regular, color: colors.priceUnit } as const,
-  ecoLead: { ...type.body, color: colors.textSecondary } as const,
+  heroName: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary, flexShrink: 1 } as const,
+  heroSub: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
+  price: { ...type.size[28], ...type.w.bold, color: colors.priceNumber } as const,
+  unit: { ...type.size[15], ...type.w.regular, color: colors.priceUnit } as const,
+  ecoLead: { ...type.size[15], ...type.w.regular, color: colors.textSecondary } as const,
   // 오늘·최근1년·평년 3값 비교행 + 한 줄 판정
   compareRow: { flexDirection: 'row', gap: spacing.s4, width: '100%' },
   compareCol: { flex: 1, gap: 2 },
-  compareLabel: { ...type.caption, color: colors.textTertiary } as const,
-  compareValue: { ...type.priceSm, color: colors.textSecondary } as const,
-  verdict: { ...type.caption } as const,
+  compareLabel: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
+  compareValue: { ...type.size[15], ...type.w.semibold, color: colors.textSecondary } as const,
+  verdict: { ...type.size[13], ...type.w.regular } as const,
   skelValue: { width: 58, height: 18, borderRadius: radius.xs, backgroundColor: colors.bgTertiary },
 
-  sectionTitle: { ...type.title, color: colors.textPrimary } as const,
+  sectionTitle: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary } as const,
 
   // 언제 살까요? rec-card
   whenSection: { gap: spacing.s2 },
   recCard: { backgroundColor: colors.bgElevated, borderRadius: radius.l, padding: spacing.s5, gap: spacing.s3 },
   recTopLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2, flexShrink: 1 },
   recBadge: { paddingHorizontal: spacing.s2, paddingVertical: spacing.s1, borderRadius: radius.full },
-  recBadgeText: { ...type.label, color: '#ffffff' } as const,
-  recHeadline: { ...type.title, flexShrink: 1 } as const,
-  recProse: { ...type.body, color: colors.textSecondary } as const,
+  recBadgeText: { ...type.size[13], ...type.w.semibold, color: '#ffffff' } as const,
+  recHeadline: { ...type.size[17], ...type.w.semibold, flexShrink: 1 } as const,
+  recProse: { ...type.size[15], ...type.w.regular, color: colors.textSecondary } as const,
   // 스켈레톤 — 추천 확정 전 자리 채움(뒤집힘 방지)
   skelChip: { width: 84, height: 26, borderRadius: radius.full, backgroundColor: colors.bgTertiary },
   skelBadge: { width: 46, height: 24, borderRadius: radius.full, backgroundColor: colors.bgTertiary },
   skelHeadline: { width: 150, height: 22, borderRadius: radius.s, backgroundColor: colors.bgTertiary },
   skelLine: { width: '85%', height: 16, borderRadius: radius.s, backgroundColor: colors.bgTertiary },
   skelChart: { height: 140, borderRadius: radius.m, backgroundColor: colors.bgTertiary },
+  skelTitle: { width: 210, height: 25, borderRadius: radius.s, backgroundColor: colors.bgTertiary },
 
-  chartCard: { backgroundColor: colors.bgElevated, borderRadius: radius.m, padding: spacing.s5, gap: spacing.s4 },
-  chartTitle: { ...type.title, color: colors.textPrimary } as const,
-  chartFootnote: { ...type.caption, color: colors.textTertiary } as const,
+  chartCard: { backgroundColor: colors.bgElevated, borderRadius: radius.l, padding: spacing.s5, gap: spacing.s4 },
+  // 최근 시세 라벨 — 제목 + '이맘때 평균 X원' 서브타이틀 세로 스택 (Figma label-row, gap 0)
+  chartLabelRow: {},
+  chartTitle: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary } as const,
+  chartBaseline: { ...type.size[13], ...type.w.regular, color: colors.textSecondary } as const,
+  chartFootnote: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   // 차트 범례 — 라인 샘플(12px) + 라벨
   chartLegend: { gap: 2 },
   legendRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s2 },
@@ -868,14 +848,15 @@ const styles = StyleSheet.create({
   // 연간 가격 흐름
   flowCard: { backgroundColor: colors.bgElevated, borderRadius: radius.l, padding: spacing.s5, gap: spacing.s4 },
   flowTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.s2 },
-  flowThisMonth: { ...type.caption, color: colors.textSecondary } as const,
+  flowThisMonth: { ...type.size[13], ...type.w.regular, color: colors.textSecondary } as const,
   flowBars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 60, paddingHorizontal: spacing.s2 },
   flowCol: { alignItems: 'center', gap: spacing.s1 },
   flowBar: { width: 12, borderRadius: 4 },
-  flowLabel: { ...type.caption, color: colors.textTertiary } as const,
-  flowCaption: { ...type.caption, color: colors.textTertiary } as const,
+  flowLabel: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
+  flowCaptions: { gap: 2 }, // 시즌 캡션 + '자료 없는 달' 줄을 붙여서(Figma anual-contents)
+  flowCaption: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
 
-  source: { ...type.caption, color: colors.textTertiary, textAlign: 'center' } as const,
+  source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center' } as const,
   buySection: { gap: spacing.s2 },
   buyCard: { borderRadius: radius.l, backgroundColor: colors.bgElevated, overflow: 'hidden' },
   buyRow: {
@@ -886,8 +867,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.s3,
   },
   buyDot: { width: 8, height: 8, borderRadius: radius.full },
-  buyName: { ...type.body, color: colors.textPrimary, flex: 1 } as const,
-  buyPrice: { ...type.priceSm, color: colors.priceNumber } as const,
+  buyName: { ...type.size[15], ...type.w.regular, color: colors.textPrimary, flex: 1 } as const,
+  buyPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
   buyDivider: { height: 1, backgroundColor: colors.borderDefault },
-  buyCaption: { ...type.caption, color: colors.textTertiary } as const,
+  buyCaption: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
 });

@@ -3,7 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { won } from '../../api/kamis';
 import { thumbFor } from '../../thumbnails';
-import { colors, radius, SignalLevel, spacing, tabularNums, type } from '../../theme/tokens';
+import { colors, radius, SignalLevel, spacing, type } from '../../theme/tokens';
 import { SignalChip } from './SignalChip';
 
 interface Props {
@@ -41,7 +41,7 @@ export function PriceListRow({ name, price, unit, level, itemCode, kindCode, onP
       </View>
       <View style={styles.right}>
         <View style={styles.priceRow}>
-          <Text style={[styles.price, tabularNums]}>{won(price)}</Text>
+          <Text style={styles.price}>{won(price)}</Text>
           <Text style={styles.unit}>원 / {unit}</Text>
         </View>
         {level && <SignalChip level={level} size="s" iconOnly />}
@@ -66,9 +66,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.s,
     backgroundColor: colors.borderDefault,
   },
-  name: { ...type.body, color: colors.textPrimary, flexShrink: 1 } as const,
+  name: { ...type.size[15], ...type.w.regular, color: colors.textPrimary, flexShrink: 1 } as const,
   right: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.s1 },
-  price: { ...type.body, color: colors.textPrimary } as const,
-  unit: { ...type.body, color: colors.priceUnit } as const,
+  price: { ...type.size[15], ...type.w.regular, color: colors.textPrimary } as const,
+  unit: { ...type.size[15], ...type.w.regular, color: colors.priceUnit } as const,
 });

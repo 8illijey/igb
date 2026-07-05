@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { PriceListRow } from '../../components/igb/PriceListRow';
 import { Wordmark } from '../../components/igb/Wordmark';
-import { recipeImage, useRecipes } from '../../recipes';
+import { recipeHero, useRecipes } from '../../recipes';
 import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
@@ -93,9 +93,9 @@ export default function FavoritesScreen() {
                       onPress={() => router.push(`/recipe/${id}` as Href)}
                     >
                       <View style={styles.recipeThumb}>
-                        {recipeImage(recipe!.title) != null && (
+                        {recipeHero(recipe!) != null && (
                           <Image
-                            source={recipeImage(recipe!.title)}
+                            source={recipeHero(recipe!)!}
                             style={StyleSheet.absoluteFill}
                             contentFit="cover"
                           />
@@ -137,12 +137,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.s2,
   },
-  sectionTitle: { ...type.h2, color: colors.textPrimary } as const,
-  count: { ...type.caption, color: colors.textTertiary } as const,
+  sectionTitle: { ...type.size[20], ...type.w.bold, color: colors.textPrimary } as const,
+  count: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   // Figma favorites: 행 사이 8px 간격 + 1px divider
   divider: { height: 1, backgroundColor: colors.borderDefault, marginVertical: spacing.s2 },
   source: {
-    ...type.caption,
+    ...type.size[13], ...type.w.regular,
     color: colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.s6,
@@ -150,5 +150,5 @@ const styles = StyleSheet.create({
   // 관심 레시피 행 — 40 썸네일 + 제목 + chevron
   recipeRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.s3 },
   recipeThumb: { width: 40, height: 40, borderRadius: radius.s, backgroundColor: colors.bgTertiary, overflow: 'hidden' },
-  recipeName: { flex: 1, ...type.body, color: colors.textPrimary } as const,
+  recipeName: { flex: 1, ...type.size[15], ...type.w.regular, color: colors.textPrimary } as const,
 });
