@@ -232,7 +232,8 @@ const addPts = (sums, cnts, pts) => {
 const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round(s / cnts[m]) : null));
 
 (async () => {
-  if (!KEY || !ID) throw new Error('KAMIS 키 없음 (.env EXPO_PUBLIC_KAMIS_KEY / _ID)');
+  // 프록시 모드는 워커가 키를 주입하므로 로컬 키 불필요.
+  if (!process.env.KAMIS_PROXY && (!KEY || !ID)) throw new Error('KAMIS 키 없음 (.env EXPO_PUBLIC_KAMIS_KEY / _ID)');
   const { reps, kindsByItem } = await fetchAll();
   console.log(`대표 품목 ${reps.length}개 — 연간 흐름·최근 1년 평균 계산 중...`);
 
