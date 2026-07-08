@@ -3,7 +3,7 @@ name: 이거비싸?
 design_system_name: IGB Design System (IGBDS)
 slug: igb
 category: utility / price-signal
-last_updated: "2026-05-29"
+last_updated: "2026-07-05"   # 코드(tokens.ts·components/igb)·Figma ver.0.2(853:4125) 실측 동기화
 sources:
   - product.md (이거비싸? Product Context)
   - toss design.md (절제·신뢰 톤, 무채색 캔버스, OKLCH 토큰 구조 참조)
@@ -15,7 +15,7 @@ related_services:
   - line-design-system
   - gmarket
 lang: ko
-logo: null
+logo: 'Wordmark "이거비싸?" (mobile/src/components/igb/Wordmark.tsx — JJZukinie 20px, tracking -0.8px, text-active)'
 ---
 
 # 이거비싸? (IGB) — design.md
@@ -53,7 +53,7 @@ IGBDS 컬러는 **2축 구조**다 — (1) 신호등 축(Signal): 제품의 의�
 **신호등 멘탈 모델(good/fair/poor)** 기반.
 
 - **cheap (green, `#007a17`)**: 사용자에게 좋은 값. 사면 좋은 자리.
-- **fair (warm-grey, `#61564d`, L=0.46)**: 평년 수준, 신호로서 의미 없는 중립. 채도 0.020(warm 60°)으로 stage 쿨톤(247°)과 hue 분리. 명도는 cheap·expensive와 비슷하게 맞춰 strong type 자리에서 흰 텍스트 대비 확보(7.13). 회색 채도가 0에 가까워 명도 변화로 "중립" 의미가 안 바뀐다.
+- **fair (neutral-grey, `#616060`, 2026-06-13 중립화)**: 평년 수준, 신호로서 의미 없는 중립. warm tint를 제거한 완전 중립(C≈0.001)으로, stage 회색과의 분리는 hue가 아니라 문맥·형태(칩/점/화살표 표면 한정)가 담당한다. strong type 자리 흰 텍스트 대비 6.27:1(AA+). 회색 채도가 0에 가까워 명도 변화로 "중립" 의미가 안 바뀐다.
 - **expensive (orange, `#b83d00`)**: 사용자에게 주의 자리. 빨강보다 부드러운 톤으로 '위험' 아닌 '주의'.
 
 세 멘탈 모델 변천 — 초기 자연 모델(`cheap=초록`) → 금융 모델(`cheap=파랑`, 2026.06 첫째 주) → 신호등/평가 모델(현재). 사용자 일상 경험과 가장 가까운 모델로 정착.
@@ -79,7 +79,7 @@ signal-expensive-on:       oklch(1.000 0.000 0)     # 강한 표면 위 텍스�
 
 ### Brand (무대에 양보하는 포인트)
 
-무채색 stage 톤(grey-900 기반). 신호 3색이 무대를 차지하도록 강조색을 자제. CTA·tab 활성·search focus·wordmark "?" 같은 인터랙티브·정체성 자리에 사용. **가격 판단 자리에는 절대 등장하지 않음.** 브랜드를 무채색으로 둠으로써 화면 안의 어떤 신호 컬러(green/warm-grey/orange)와도 hue 경쟁이 발생하지 않는다.
+무채색 stage 톤(grey-900 기반). 신호 3색이 무대를 차지하도록 강조색을 자제. CTA·tab 활성·워드마크 같은 인터랙티브·정체성 자리에 사용. **가격 판단 자리에는 절대 등장하지 않음.** 브랜드를 무채색으로 둠으로써 화면 안의 어떤 신호 컬러(green/neutral-grey/orange)와도 hue 경쟁이 발생하지 않는다.
 
 ```yaml
 brand-primary:     oklch(0.234 0.030 254)   # CTA·tab 활성·focus (= stage/grey-900)
@@ -110,23 +110,27 @@ product-facing 색은 시맨틱 alias로 호출하고, base 팔레트는 새 rol
 ```yaml
 # Surface
 bg-canvas:        white            # 전체 앱 기본 배경
-bg-secondary:     grey-50          # 카드·시트 표면
-bg-elevated:      white            # floating 표면
+bg-secondary:     grey-50          # 카드·시트 표면, 검색필드, 회색 밴드
+bg-tertiary:      grey-200         # 썸네일 placeholder·연간 차트 기본 막대 (#dee3e7)
+bg-elevated:      white            # floating 표면·상세 카드
+bg-primary:       brand-primary    # 탭 활성 언더바·연간 차트 현재월 막대
 
-# Semantic alias — Favorite
-favorite-active:   brand-primary    # 별 채움 (무채색, 신호와 분리)
-favorite-inactive: border-strong    # 미즐겨찾기 외곽선
+# Semantic alias — Icon / Favorite
+icon-active:       brand-primary    # 활성 아이콘·하트 채움 (무채색, 신호와 분리)
+icon-inactive:     grey-500         # 비활성 아이콘·미즐겨찾기 하트 (#87919c)
 
 # Text
 text-primary:     grey-900         # 품목명·제목·본문
 text-secondary:   grey-700         # 부가 설명
 text-tertiary:    grey-500         # 캡션·비활성
+text-active:      brand-primary    # 워드마크·탭바 활성 라벨
 text-on-signal:   (각 signal-*-on) # 신호 표면 위 텍스트
 
 # Border
 border-default:   grey-200         # 기본 헤어라인 디바이더
-border-strong:    grey-400
-border-focus:     brand-primary    # 입력 포커스 (1.5px)
+border-strong:    grey-400         # 입력 포커스 실사용 (SearchField focus)
+border-primary:   brand-primary
+border-focus:     brand-primary    # 정의만 존재 — 실사용 없음 (focus는 border-strong, Known Gaps 참조)
 
 # Price / number — KAMIS 가격 숫자 전용
 price-number:     grey-900         # 가격 숫자 본체
@@ -135,6 +139,7 @@ price-unit:       grey-500         # 단위('원'·'/kg')는 한 단계 약하�
 # State (신호 의미가 아닌 시스템 상태)
 overlay-scrim:        oklch(0 0 0 / 0.50)   # 시트·다이얼로그 딤
 overlay-press:        oklch(0 0 0 / 0.10)   # pressed tint
+overlay-tooltip:      rgba(0, 0, 0, 0.74)   # 차트 스크럽 툴팁 배경 (Tooltip.tsx)
 disabled-opacity:     0.40                  # 일반 표면 위 컴포넌트 disabled
 disabled-glass-opacity: 0.30                # glass 표면 위 컴포넌트 disabled (별도 토큰)
 
@@ -144,7 +149,7 @@ surface-glass-light:  rgba(255, 255, 255, 0.65)   # 라이트 모드 glass pill 
                                                   # 단독 사용 금지 — Glass pill recipe와 함께만.
 ```
 
-- **{colors.signal-expensive} / {colors.signal-fair} / {colors.signal-cheap}**: 이 시스템에서 채도(또는 warm tint)를 가진 유일한 의미 컬러. "지금 사면 비싼가/싼가" 판단을 나른다. cheap·expensive는 채도 있는 hue, fair는 채도 거의 없는 warm-grey — 셋 다 동일한 3토큰 구조(`X` / `X-weak` / `X-on=white`).
+- **{colors.signal-expensive} / {colors.signal-fair} / {colors.signal-cheap}**: 이 시스템의 유일한 의미 컬러. "지금 사면 비싼가/싼가" 판단을 나른다. cheap·expensive는 채도 있는 hue, fair는 완전 중립 neutral-grey — 셋 다 동일한 3토큰 구조(`X` / `X-weak` / `X-on=white`).
 - **State 처리**: 신호등 컬러 자체는 상태에 따라 새 hex를 만들지 않고, 라인(LDSG)식으로 `{colors.overlay-press}`를 얹거나 opacity로 처리한다.
 - **fair와 stage 분리 (2026-06-13 개정)**: fair를 완전 중립(#616060, C≈0.001)으로 바꾸면서 v3.1의 "warm hue 미세 분리" 논리는 폐기됐다. 이제 fair와 stage 회색의 분리는 색이 아니라 **문맥과 형태**가 담당한다 — fair는 항상 칩/점/화살표(−·→) 같은 신호 표면 안에서만 등장하고, stage 회색은 텍스트·보더로만 쓰인다. "신호 없음 = 무채색"이라는 의미는 오히려 더 정직해졌다. 대비 검산: fair 위 흰 텍스트 6.27:1(AA+, 구 7.13), fair on fair-weak 5.32:1(AA).
 - **Disabled 두 종**: `disabled-opacity`(0.40)는 일반 표면 위 컴포넌트, `disabled-glass-opacity`(0.30)는 glass 표면 위 컴포넌트 전용이다. glass는 자체 투명도가 있어 0.40을 곱하면 비활성이 거의 사라져 보이므로 한 단계 진하게(=0.30) 잡는다.
@@ -153,7 +158,7 @@ surface-glass-light:  rgba(255, 255, 255, 0.65)   # 라이트 모드 glass pill 
 
 ## Typography
 
-본문/UI 서체는 **Pretendard Variable**을 기본으로 둔다. 토스(TPS)·지마켓(Gmarket Sans)처럼 자체 서체를 만들 자원이 없는 단계의 서비스이므로, 한+영 neogrotesque의 사실상 표준인 Pretendard를 1차로 채택한다. KAMIS 가격 숫자는 tabular figure로 정렬해 리스트에서 자릿수가 흔들리지 않게 한다.
+본문/UI 서체는 **Pretendard**를 기본으로 둔다(Figma는 Variable, RN 코드는 static OTF 4종 — Regular/SemiBold/Bold/ExtraBold — 을 로드). 토스(TPS)·지마켓(Gmarket Sans)처럼 자체 서체를 만들 자원이 없는 단계의 서비스이므로, 한+영 neogrotesque의 사실상 표준인 Pretendard를 1차로 채택한다. KAMIS 가격 숫자는 tabular figure로 정렬해 리스트에서 자릿수가 흔들리지 않게 한다. 워드마크 "이거비싸?"만 예외적으로 JJZukinie를 쓴다.
 
 ```yaml
 font-family-sans: >
@@ -168,30 +173,33 @@ font-feature-numeric-proportional: "proportional-nums"  # 단일 강조 가격
 
 마트 앞 한 손·짧은 시선 환경을 고려해, **신호 판단 라인은 일반 본문보다 크고 굵게** 잡는다. "지금 비싼 편이에요" 같은 판단 문장이 가장 먼저 읽혀야 한다.
 
+램프는 **사이즈 × 굵기 2축**(토스식)이다 — 역할(role)이 아니라 '사이즈'로 고른 뒤 '굵기'를 얹는다. 아래 값은 Figma 텍스트 스타일과 `tokens.ts` `type.size[n]`의 실값 1:1이다(2026-07-05 실측 동기화). letterSpacing은 Figma엔 %(-0.5 ~ -4), 코드엔 px로 저장 — 아래엔 둘 다 기재.
+
 ```yaml
-display:     { size: 32, line-height: 1.25, tracking: -0.02em,  weight: 700 }  # 단일 품목 상세 헤드 가격
-signal-lead: { size: 22, line-height: 1.30, tracking: -0.015em, weight: 700 }  # 판단 문장 ("비싼 편이에요")
-h1:          { size: 24, line-height: 1.30, tracking: -0.02em,  weight: 700 }  # 페이지 타이틀
-h2:          { size: 20, line-height: 1.35, tracking: -0.015em, weight: 700 }  # 섹션 타이틀
-title:       { size: 17, line-height: 1.45, tracking: -0.01em,  weight: 600 }  # 카드/리스트 품목명
-body:        { size: 15, line-height: 1.50, tracking: -0.005em, weight: 400 }  # 본문 (한글 가독성 1.5)
-caption:     { size: 13, line-height: 1.45, tracking: 0,        weight: 400 }  # 평년 대비·출처·날짜
-label:       { size: 13, line-height: 1.25, tracking: 0,        weight: 600 }  # 칩 라벨 (button size=s와 동일 스펙)
-button-label-xl: { size: 17, line-height: 1.25, tracking: 0,    weight: 700 }  # button size=xl 전용
-button-label-l:  { size: 15, line-height: 1.25, tracking: 0,    weight: 700 }  # button size=l 전용
-button-label-m:  { size: 15, line-height: 1.25, tracking: 0,    weight: 600 }  # button size=m 전용
-button-label-s:  { size: 13, line-height: 1.25, tracking: 0,    weight: 600 }  # button size=s 전용 (= label 동일)
-price-lg:    { size: 22, line-height: 1.20, tracking: -0.01em,  weight: 700 }  # 리스트 행 가격 (tabular)
-price-sm:    { size: 15, line-height: 1.20, tracking: 0,        weight: 600 }  # 보조 가격 (tabular)
+# size[n]: { line-height(px), tracking(%→px) }         # 주 사용처 (weight는 조합)
+size-12: { line-height: 18,    tracking: 0 }
+size-13: { line-height: 19.5,  tracking: 0 }            # 캡션·출처·칩 라벨(600)·placeholder 보조
+size-15: { line-height: 22.5,  tracking: -0.5% -0.075px } # 본문·리스트 품목명/가격(400)·버튼 라벨·보조 가격(600)
+size-16: { line-height: 24,    tracking: -0.5% -0.08px }  # 세그먼트(Tabs l) 라벨 (600)
+size-17: { line-height: 25.5,  tracking: -1%   -0.17px }  # 카드/섹션 제목·헤더 타이틀·품목명 (600)
+size-20: { line-height: 29,    tracking: -1%   -0.2px }   # 섹션 대제목 (700)
+size-22: { line-height: 31.02, tracking: -2%   -0.44px }  # 판단 문장(verdict 타이틀)·레시피 상세 제목 (700)
+size-24: { line-height: 33.12, tracking: -2%   -0.48px }
+size-28: { line-height: 36.96, tracking: -3.5% -0.98px }  # 헤드 가격 (히어로·상세, 700 + tabular)
+size-32: { line-height: 40.32, tracking: -4%   -1.28px }
+
+# weight 축 — static OTF 4종
+weight: [400 Regular, 600 SemiBold, 700 Bold, 800 ExtraBold]
 ```
 
-- 판단 문장은 `{typography.signal-lead}`(22/700) — 숫자보다 먼저 읽히도록 가격보다 크거나 같게 둔다(H1 직접 반영).
-- 가격 숫자는 `{typography.price-lg/sm}` + `{typography.font-feature-numeric-tabular}` 고정.
+- 판단 문장은 **22/700** — 숫자보다 먼저 읽히도록 배치상 가격보다 위에 둔다(H1 직접 반영). 헤드 가격은 **28/700**으로 판단 문장보다 크지만 아래에 온다.
+- 가격 숫자는 28/700(헤드)·15/600(보조)·15/400(리스트 행) + `{typography.font-feature-numeric-tabular}` 고정.
 - "원"·"/kg" 같은 단위는 `{colors.price-unit}`로 한 단계 약하게(지마켓의 가격/단위 분리 차용).
+- 예외 스케일: 사진 오버레이 칩 라벨 10/600, 탭바 라벨 10(SF Pro 590) — 램프 밖 컴포넌트 로컬 값.
 
-### 판단 강조 패턴 (signal-lead + range emphasis)
+### 판단 강조 패턴 (판단 문장 22/700 + range emphasis)
 
-`{typography.signal-lead}` 판단 문장 안의 **핵심 % 또는 판단 단어 한 묶음**에 신호색 + underline을 함께 적용해, 한 문장 안에서 시선이 멈출 자리를 명시한다. 토큰이 아니라 패턴이며, signal-lead 본문 한 자리에서만 발동한다.
+판단 문장(**22/700**) 안의 **핵심 % 또는 판단 단어 한 묶음**에 신호색 + underline을 함께 적용해, 한 문장 안에서 시선이 멈출 자리를 명시한다. 토큰이 아니라 패턴이며, 판단 문장 본문 한 자리에서만 발동한다. 실구현: 홈 HeroVerdictCard 타이틀 2줄째("12% 싸요") — 신호색 + underline(decoration-from-font).
 
 ```
 "오늘은 양파가 평소보다 [12% 싸요]."
@@ -199,9 +207,9 @@ price-sm:    { size: 15, line-height: 1.20, tracking: 0,        weight: 600 }  #
 ```
 
 - 강조 범위는 **숫자 + 신호 단어** 한 묶음만(예: "12% 싸요" / "18% 비싸요" / "평소 가격"). 문장 전체에 색을 깔지 않는다 — 신호의 강도가 분산된다.
-- 강조 색은 같은 행/카드의 신호 컬러와 같은 토큰: `{colors.signal-expensive}`(orange) / `{colors.signal-cheap}`(green) / `{colors.signal-fair}`(warm-grey).
+- 강조 색은 같은 행/카드의 신호 컬러와 같은 토큰: `{colors.signal-expensive}`(orange) / `{colors.signal-cheap}`(green) / `{colors.signal-fair}`(neutral-grey).
 - Figma에서는 텍스트 노드에 `setRangeFills`로 신호 변수를 bind하고, `setRangeTextDecoration`을 `UNDERLINE`로 설정한다. text style 자체에는 underline이 없다 — 패턴이 문장의 의미 단위에만 적용되기 때문.
-- "평소 가격"(fair)처럼 % 가 없는 경우에도 같은 패턴 — 단 fair는 warm-grey 자체가 cheap/expensive보다 시선 강도가 약하므로(신호 없음 의미와 일치), 같은 행의 신호 chip 또는 dot으로 보강 권장.
+- "평소 가격"(fair)처럼 % 가 없는 경우에도 같은 패턴 — 단 fair는 neutral-grey 자체가 cheap/expensive보다 시선 강도가 약하므로(신호 없음 의미와 일치), 같은 행의 신호 chip 또는 dot으로 보강 권장.
 - 본 패턴은 **판단 문장 1개당 1회**가 표준. 한 문장에 강조 두 곳 이상은 신호 분산을 유발한다.
 - Hero Verdict Card·시세 요약 헤드라인 등 "위임형 판단" 어휘 자리 한정 — 일반 본문/캡션에는 사용 금지.
 
@@ -223,21 +231,25 @@ space-10: 40
 space-16: 64
 ```
 
-룰 오브 섬 — **16px** 화면 outer padding, **16px** 리스트 행 간격, **8px** 밀접 결합(품목명+단위), **24px** 섹션 구분. 마트 환경의 한 손 사용을 위해 리스트 행 자체 높이는 넉넉히(최소 64px) 잡아 터치 타깃을 확보한다.
+룰 오브 섬 — **16px** 화면 outer padding, **16px** 리스트 행 간격, **8px** 밀접 결합(품목명+단위), **24px** 섹션 구분. 리스트 행 자체 높이는 **48px**이고, 행 간 여백·divider 영역이 합쳐져 실효 터치 높이를 확보한다(Figma price-list-row 컴포넌트 정의와 동일).
 
 ### Safe-area (iOS 화면 템플릿)
 
-iOS Status Bar(62) · Tab Bar(91) 안전영역 위에 home 콘텐츠를 정렬하기 위한 layout-driven 상수. 화면 템플릿마다 반복되는 magic number를 토큰화.
+iOS Status Bar · Tab Bar(91) 안전영역 위에 콘텐츠를 정렬하기 위한 layout-driven 상수. **RN 코드와 Figma가 다른 방식을 쓴다** — 코드가 정본.
 
 ```yaml
-safe-area-top:    64    # Status Bar(62) + 2 breathing
-safe-area-bottom: 120   # Tab Bar(91) + 24 floating gap + ~5 home indicator
+# RN 코드 (실구현)
+safe-area-top:    (동적) useSafeAreaInsets().top    # 디바이스별 실측값
+safe-area-bottom: 140                                # 각 화면 paddingBottom 하드코딩 (Tab Bar 91 + floating gap + indicator)
+
+# Figma ver.0.2 (화면 템플릿 상수 — 코드와 불일치, Known Gaps 참조)
+figma-safe-area-top:    44
+figma-safe-area-bottom: 120
 ```
 
-- 화면 외곽 wrapper의 paddingTop = `{spacing.safe-area-top}`, paddingBottom = `{spacing.safe-area-bottom}`.
-- 일반 spacing 사다리(`space-1..16`)와 **분리**된 별도 그룹 — 4 그리드는 만족하지만 "디자인 의도의 간격"이 아니라 "디바이스 호환 영역"이다. spacing 룰 오브 섬에 끼우지 말 것.
-- Figma Primitives 컬렉션에 FLOAT/GAP scope로 정의. design.md ↔ Figma 동기화 시 raw 숫자 그대로(× 1, 단위 변환 없음).
-- `main-header` 컴포넌트 내부의 status bar 영역 높이 **44는 의도된 값** — 화면 템플릿 safe-area(Status Bar 62 기준)와 별개. 교정 대상 아님.
+- 일반 spacing 사다리(`space-1..16`)와 **분리**된 별도 그룹 — "디자인 의도의 간격"이 아니라 "디바이스 호환 영역"이다. spacing 룰 오브 섬에 끼우지 말 것.
+- 코드에는 safe-area 토큰이 없다 — top은 `react-native-safe-area-context` 동적 insets, bottom은 화면마다 `paddingBottom: 140` 리터럴. 토큰화하려면 tokens.ts에 추가 후 4개 화면 치환.
+- `main-header` 컴포넌트 내부의 status bar 영역 높이 **44는 의도된 값** — 화면 템플릿 safe-area와 별개. 교정 대상 아님.
 
 ---
 
@@ -254,21 +266,21 @@ radius-xl:  20    # 대형 카드·hero
 radius-full: 999  # 신호 점(dot)·원형 칩·아바타
 ```
 
-- 버튼·품목 카드 기본 `{rounded.radius-m}`(12px).
-- 시그널 칩은 `{rounded.radius-s}`(8px) 또는 full pill 중 선택 — 단독 신호 점은 full.
-- 시트·다이얼로그 `{rounded.radius-l}`(16px).
+- 카드(hero-verdict·차트·buy-card·surface 계열)와 검색필드는 `{rounded.radius-l}`(16px). 레시피 카드·썸네일 media는 `{rounded.radius-m}`(12px).
+- 버튼은 XL/L `{rounded.radius-m}`(12px), M/S `{rounded.radius-s}`(8px). 40px 썸네일·토글·전체보기 버튼은 `{rounded.radius-s}`(8px).
+- 시그널 칩 표준형은 **full pill**(999), 사진 오버레이형(xs)만 `{rounded.radius-xs}`(4px). 단독 신호 점은 full.
 
 ### Border Width
 
 ```yaml
-border-width-100: 1px      # 기본 헤어라인 (가장 널리 사용)
+border-width-100: 1px      # 기본 헤어라인 (가장 널리 사용 — divider·recipe-card 테두리)
 border-width-150: 1.5px    # 입력 포커스 강조
-border-width-200: 2px      # 신호 카드 좌측 accent rail (신호색 전용)
+border-width-200: 2px      # 강조 라인 (Tabs 활성 언더바)
 ```
 
 두께는 `border-width`(CSS 속성명 정합), 색은 `border`로 분리. Figma의 Weight 필드엔 `border-width` 변수가, Stroke 필드엔 `border` 색이 들어간다.
 
-신호 카드는 좌측 2px accent rail에만 신호색을 허용한다(나머지 보더는 무채색 헤어라인).
+~~신호 카드 좌측 2px accent rail~~ (2026-07-05 폐기 확인): rail 패턴은 현행 코드·Figma ver.0.2 어디에도 없다 — 신호는 chip/dot/밑줄 강조가 전담하고 카드 보더는 무채색 헤어라인만 쓴다.
 
 ---
 
@@ -285,8 +297,8 @@ shadow-glass-floating: 0 8px 40px rgba(0, 0, 0, 0.12)                           
 glass-blur-soft: GLASS effect, radius 7                                                        # iOS 26 호환 신규 효과 타입 (BACKGROUND_BLUR 아님)
 ```
 
-- pressed state는 그림자가 아니라 `{colors.overlay-press}` overlay로 처리한다(토스식).
-- skeleton shimmer 대신 3-dot 또는 신호색 펄스 로더를 쓴다.
+- pressed state는 그림자가 아니라 색 전환/opacity로 처리한다 — 실구현: primary 버튼은 `brand-primary-alt`로 배경 스왑, 그 외는 opacity 0.85 (`{colors.overlay-press}`는 정의만 존재).
+- 로딩은 **무채색 opacity 펄스 스켈레톤**(상세 차트·연간 흐름) — 신호색을 로더에 쓰지 않는다. (구 "3-dot·신호색 펄스" 지침은 2026-07-05 실구현 기준으로 대체.)
 - `glass-blur-soft`는 Figma의 **GLASS** effect 타입(iOS 26 호환). 기존 BACKGROUND_BLUR와 다른 노드 효과이며, floating UI 작업 시 GLASS만 쓴다(BACKGROUND_BLUR 사용 금지).
 - `shadow-glass-floating`은 일반 cool-navy shadow(`shadow-1/2/3`)와 분리한다 — glass는 채도 없는 순수 black low-alpha를 깔아야 컬러 시프트 없이 떠 보인다.
 
@@ -368,7 +380,8 @@ signal-icon-cheap:      "arrow-down"    # ↓ 쌈   — 평년보다 낮음, cur
 
 - 세 아이콘 모두 Lucide 기본 아이콘이라 일반 아이콘과 stroke·코너가 자동으로 통일된다(자체 화살표를 섞을 때 생기는 시각 불일치 회피).
 - 신호 아이콘은 `currentColor`로 같은 행의 신호색을 상속한다 — 아이콘에 색을 직접 박지 않는다.
-- "−"(적정)은 흰 배경 대비를 위해 `{colors.signal-fair}`(warm-grey, L=0.46)를 상속한다 — 흰 배경 대비 7.13:1 통과.
+- "−"(적정)은 흰 배경 대비를 위해 `{colors.signal-fair}`(neutral-grey #616060)를 상속한다 — 흰 배경 대비 6.27:1 통과.
+- 예외(2026-07-05 실측): 코드의 signal-chip **xs(오버레이형) fair 아이콘은 `arrow-right`** — 표준형 `minus`와 불일치, 의도 확정 필요(Known Gaps).
 
 #### 자주 쓰는 일반 아이콘 (Lucide 키)
 
@@ -389,84 +402,76 @@ empty:         "search-x"        # 빈 상태 (검색 결과 없음)
 
 핵심 표면은 셋이다 — **품목 시세 카드**(판단의 단위), **신호 칩/점**(H1의 신호등), **게스트 검색 동선**(H4의 마찰 제거). 토큰은 prose에서 `{group.name}`으로 호출한다.
 
-### signal-chip
+### signal-chip — `SignalChip.tsx`
 
-신호등의 최소 단위. 비쌈/적정/쌈 3상태, Small·Medium 2사이즈. 색만으로 의미를 전달하지 않도록 **아이콘(↑/−/↓) + 라벨**을 항상 동반한다(색맹 접근성).
+신호등의 최소 단위. 비쌈/적정/쌈 3상태. 색만으로 의미를 전달하지 않도록 **아이콘(↑/−/↓) + 라벨**을 항상 동반한다(색맹 접근성).
 
 ```tsx
 <SignalChip
   level="expensive"        // 'expensive' | 'fair' | 'cheap'
-  size="m"                 // 's' | 'm'
-  showLabel={true}         // 라벨 텍스트 동반 (기본 true, 색 단독 사용 금지)
->
-  비싼 편
-</SignalChip>
-```
-
-- expensive: `{colors.signal-expensive-weak}` 배경 + `{colors.signal-expensive}` 텍스트/아이콘.
-- fair: `{colors.signal-fair-weak}` 배경 + `{colors.signal-fair}` 텍스트(대비 6.13:1).
-- cheap: `{colors.signal-cheap-weak}` 배경 + `{colors.signal-cheap}` 텍스트/아이콘.
-
-**size=xs는 사진/이미지 overlay 전용 강조 형식**이다. weak type(옅은 배경)이 아닌 strong type(진한 신호색 배경 + `signal-on` 흰 텍스트). 세 level(cheap·fair·expensive) **모두 동일 구조** — fair 명도가 cheap·expensive와 맞춰진 v3.1 정착으로 가능해진 통일이다. 의도: 이미지 위 시각 대비 확보. xs 사양: padding 2/6, gap 2, icon 12px, label 11/SemiBold raw, cornerRadius pill. 색 매핑: cheap=`{signal-cheap}` bg + `{signal-cheap-on}` text(흰), fair=`{signal-fair}` bg + `{signal-fair-on}` text(흰), expensive=`{signal-expensive}` bg + `{signal-expensive-on}` text(흰). 일반 텍스트 컨텍스트(카드 안, list 안)에선 size=s 또는 size=m을 쓰고, **xs는 photo overlay 자리에만** 사용한다.
-
-### signal-dot
-
-라벨 없는 초소형 신호 표시. 리스트 행 좌측·가격 옆에서 스캔용으로 쓴다. `{rounded.radius-full}`. **단독으로는 의미를 확정하지 못하므로 항상 같은 행의 텍스트 신호와 함께** 둔다.
-
-```tsx
-<SignalDot level="cheap" size={8} />
-```
-
-### price-item-card
-
-판단의 핵심 단위. KAMIS 품목 하나의 시세를 "판단 문장 → 가격 → 평년 대비"의 위계로 보여준다. 좌측 2px 신호 accent rail이 카드의 유일한 신호색이며, 나머지 표면은 무채색이다.
-
-구조: 신호 칩 → 판단 문장(`{typography.signal-lead}`) → 현재 가격(`{typography.price-lg}`, tabular) → 평년 대비 캡션(`{typography.caption}`).
-
-```tsx
-<PriceItemCard
-  name="오이"
-  level="expensive"
-  lead="지금은 비싼 편이에요"
-  price={4500}
-  unit="개"
-  vsNormal="+12%"          // 평년 대비 (product.md H2: '현재 vs 평년')
-  source="KAMIS 2026.05.29"
+  size="s"                 // 's'(표준 pill, 기본) | 'xs'(사진 오버레이 전용)
+  label="비싼 편"           // 라벨 텍스트
+  iconOnly={false}         // price-list-row 우측용 아이콘 단독형
+  showArrow={true}         // 화살표 표시 (텍스트만 쓰는 자리에서 false)
 />
 ```
 
-- 판단 문장이 가격보다 **위에, 같거나 큰 크기**로 온다(H1).
-- 비교 기준은 '현재 vs 평년'이 기본(H2) — '현재 vs 어제'는 보조.
-- 출처·날짜 캡션은 `{colors.text-tertiary}`로 신뢰성 근거를 항상 노출한다.
+- **size=s (표준 pill)**: padding 8/4, 내부 gap 4, `{rounded.radius-full}` — 렌더 높이 28. 아이콘 16, 라벨 **13/600/ls 0**. 배경 `{colors.signal-*-weak}` + 텍스트/아이콘 강색(`{colors.signal-*}`) — fair on fair-weak 대비 5.32:1(AA).
+- 변형: `iconOnly`(리스트 행 우측, 라벨 없음) / 텍스트만(showArrow=false — 상세 히어로 "비싼 편이에요", 레시피 재료칩 "싸요").
 
-### price-list-row
+**size=xs는 사진/이미지 overlay 전용 강조 형식**이다. weak type(옅은 배경)이 아닌 strong type(진한 신호색 배경 + `signal-on` 흰 텍스트). 세 level **모두 동일 구조**. 의도: 이미지 위 시각 대비 확보. xs 사양(2026-07-05 실측): **padding 4 균일, icon 12, label 10/600, cornerRadius `{rounded.radius-xs}`(4)** — pill 아님. 위치: media 좌상단 8/8. 색 매핑: `{signal-*}` bg + `{signal-*-on}` 흰 텍스트. 코드의 xs fair 아이콘은 `arrow-right`(표준형 `minus`와 다름 — Iconography 참조). **xs는 photo overlay 자리에만** 사용한다.
 
-여러 품목을 스캔하는 리스트 단위. 한 화면에 신호 3색이 공존할 수 있는 유일한 표면이다. 최소 높이 64px(터치 타깃). 좌측 40×40 썸네일(`{rounded.radius-s}`, placeholder `{colors.bg-tertiary}`) + 품목명 + 우측 가격/신호 칩. 신호는 우측 칩이 전달하므로 좌측에 signal-dot을 중복하지 않는다(2026-06-12, dot → thumbnail 교체).
+### signal-dot (패턴 — 독립 컴포넌트 없음)
+
+라벨 없는 초소형 신호 표시. **8×8, `{rounded.radius-full}`, `{colors.signal-*}` 채움.** 별도 컴포넌트로 추출돼 있지 않고 두 자리에서 인라인 구현된다 — (1) 상세 buy-card 행 좌측(`item/[key].tsx` buyDot), (2) 차트 현재점(`Sparkline.tsx` SVG Circle). **단독으로는 의미를 확정하지 못하므로 항상 같은 행의 텍스트 신호와 함께** 둔다. 세 번째 사용처가 생기면 컴포넌트로 추출.
+
+### hero-verdict-card (홈 판단 카드 — `(tabs)/index.tsx` 인라인)
+
+판단의 핵심 단위. KAMIS 품목 하나의 시세를 "신호 칩 → 판단 문장 → 가격"의 위계로 보여준다. 구 `price-item-card` 스펙(accent rail 포함)을 대체한 실구현(2026-07-05 실측).
+
+- 카드: `{colors.bg-canvas}`, padding 16, `{rounded.radius-l}`(16), 내부 gap 8.
+- top-row: signal-chip(표준형) + 출처 캡션 13/400 `{colors.text-tertiary}`, justify-between.
+- 판단 문장: 2줄, **22/700** — 2줄째 핵심 구("12% 싸요")에 신호색 + underline(판단 강조 패턴).
+- media-row: gap 12 — 썸네일 **120×120 `{rounded.radius-m}`(12)** + 가격 **28/700 tabular** + 이동 버튼 37×37 + 캡션 2줄 13/400 `{colors.text-secondary}`.
+- 판단 문장이 가격보다 **위에** 온다(H1). 출처·날짜 캡션으로 신뢰성 근거를 항상 노출한다.
+
+### thumbnail-card (홈 그리드 — `(tabs)/index.tsx` 인라인)
+
+"이번 주 주목할 시세" 3열 그리드의 단위. 카드 간 gap 12.
+
+- media: 높이 **96**, `{rounded.radius-m}`(12), overflow clip, placeholder `{colors.bg-tertiary}`. 좌상단 8/8에 **signal-chip xs**(strong 오버레이형).
+- info: 품목명 13/600 `{colors.text-primary}` (+옵션 규격 13/400 tertiary) → 가격 **15/600 tabular** + 단위 13/400 `{colors.price-unit}`, gap 4 baseline.
+
+### price-list-row — `PriceListRow.tsx`
+
+여러 품목을 스캔하는 리스트 단위. 한 화면에 신호 3색이 공존할 수 있는 유일한 표면이다. 행 높이 **48**(실효 터치 높이는 행+divider 여백이 담당). 좌측 40×40 썸네일(`{rounded.radius-s}`, placeholder `{colors.bg-tertiary}`) + 품목명 **15/400** + 우측 가격 **15/400 tabular**(단위 `{colors.price-unit}`) + **signal-chip iconOnly**. 행 사이 1px `{colors.border-default}` divider. 신호는 우측 칩이 전달하므로 좌측에 signal-dot을 중복하지 않는다(2026-06-12, dot → thumbnail 교체).
 
 ```tsx
 <PriceListRow
-  left={<Thumbnail src={item.image} size={40} />}
   name="양파"
   price={1980}
   unit="kg"
-  right={<SignalChip level="cheap" size="s">싼 편</SignalChip>}
+  level="cheap"            // 우측 iconOnly chip에 매핑
+  itemCode="245" kindCode="00"
+  onPress={goDetail}
 />
 ```
 
-### comparison-toggle
+### comparison-toggle — `ComparisonToggle.tsx` **[미탑재 — 컴포넌트만 존재, 화면 미사용]**
 
-비교 기준 전환. '평년 대비' ↔ '어제 대비'를 토글한다(H2 검증 동선). **배치 규칙(2026-06-13): 토글은 자기가 바꾸는 범위의 머리에 둔다** — 상세 화면에서 hero 판단문·차트 기준선·스탯이 모두 전환되므로 차트 내부가 아니라 hero 첫 행(신호 칩 우측)에 배치. 차트에는 "평년 기준선" 범례만 남긴다. **어휘 결정(2026-06-22 정정): 비교 기준은 '평년'** — 2026-06-12엔 일상어 '예년'을 택했으나, 평년값이 단순 평균이 아니라 **KAMIS 정의(최근 5년 중 최고·최저를 뺀 같은 시기 평균)**라서 정확한 기술용어 '평년'으로 회귀. UI 카피 전체 '평년'으로 통일하고, 상세 차트 범례에 평년 정의를 info 캡션으로 명시한다. 라인(LDSG) switch처럼 즉시 영향을 미치는 컨텍스트에만 쓴다 — 토글 즉시 신호와 % 가 `{motion.dur-base}`로 전환된다.
+비교 기준 전환. '평년 대비' ↔ '어제 대비'를 토글한다(H2 검증 동선). **현행 상세 화면은 이 토글을 탑재하지 않고 기준선을 '이맘때 평균' 고정으로 둔다** — vsYesterday 동선 전체가 미구현(2026-07-05 확인). 탑재 시 배치 규칙(2026-06-13): 토글은 자기가 바꾸는 범위의 머리에 둔다 — hero 첫 행(신호 칩 우측), 차트에는 기준선 범례만.
+
+**어휘 결정(2026-06-22 정정): 비교 기준은 '평년'** — 평년값이 단순 평균이 아니라 **KAMIS 정의(최근 5년 중 최고·최저를 뺀 같은 시기 평균)**라서 정확한 기술용어 '평년'으로 회귀. ⚠️ 단 실제 UI 카피는 아직 '이맘때 평균'(상세·buy-card)·'예년 평균'(홈)이 혼재 — **전수 치환 미완**(Known Gaps 참조).
+
+**어휘 결정(2026-07-09 최종): UI 카피는 '이맘때 평균'으로 전수 통일 완료** — '평년'은 소비자가 뜻을 모르는 기술용어라 화면에는 사용자 언어 '이맘때 평균'을 쓴다(7/1 기준 통일 피드백의 잔여 반영). 홈 hero '평소보다/예년 평균' → '이맘때 평균(보다)', 레시피 목록·상세 '평년보다' → '이맘때 평균보다', ComparisonToggle 라벨 '평년 대비' → '이맘때 대비' 치환, 잔여 검색 0 확인(남은 '평년'은 코드 주석·내부 변수뿐). '평년'은 문서·코드 내부 용어로만 유지.
 
 ```tsx
-<ComparisonToggle
-  value="vsNormal"         // 'vsNormal' | 'vsYesterday'
-  onChange={handleChange}
-/>
+<ComparisonToggle value="vsNormal" onChange={handleChange} />  // 'vsNormal' | 'vsYesterday'
 ```
 
-### search-field
+### search-field — `SearchField.tsx`
 
-게스트 우선 동선의 입구. 로그인 없이 바로 품목을 검색한다(H4). `{rounded.radius-s}`, `{colors.bg-secondary}` resting, 포커스 시 1.5px `{colors.border-focus}`. 높이는 **size 2단**(2026-06-12, 인스턴스 수동 축소 규칙 대체):
+게스트 우선 동선의 입구. 로그인 없이 바로 품목을 검색한다(H4). **`{rounded.radius-l}`(16)**, `{colors.bg-secondary}` resting, padding-x 12, 내부 gap 8, 아이콘 20. 포커스 시 보더는 **`{colors.border-strong}`**(`border-focus`는 정의만 존재, 미사용 — Known Gaps). 텍스트/placeholder 15/400. 높이는 **size 2단**(2026-06-12, 인스턴스 수동 축소 규칙 대체):
 
 | size | height | 자리 |
 |---|---|---|
@@ -477,103 +482,98 @@ empty:         "search-x"        # 빈 상태 (검색 결과 없음)
 <SearchField placeholder="오이, 양파, 계란…" autoFocus />
 ```
 
-### guest-cta
+### guest-cta — `Buttons.tsx` 내 `GuestCTA` **[미사용 — 홈 진입은 search-field가 담당]**
 
-게스트가 가입 없이 핵심 가치를 경험하게 하는 1차 액션. `{colors.brand-primary}` 배경 + 흰 텍스트. **신호색을 쓰지 않는다** — 게스트 동선은 판단(신호)이 아니라 진입이므로 무대 색(brand)을 쓴다.
+게스트가 가입 없이 핵심 가치를 경험하게 하는 1차 액션. `{colors.brand-primary}` 배경 + 흰 텍스트(대비 16.64:1 AAA). **신호색을 쓰지 않는다.** IGButton l/primary를 감싼 시맨틱 래퍼(size 고정) — 컴포넌트는 존재하나 현행 화면 어디에도 마운트되지 않는다(2026-07-05 확인). 홈 진입 동선이 search-field 직행으로 정리되면서 용도 소멸 — 온보딩/랜딩 표면이 생기기 전까지 데드 후보.
 
-```tsx
-<GuestCTA size="l">바로 시세 보기</GuestCTA>
-```
-
-- Figma 구현(2026-06-12): 별도 스타일이 아니라 **button size=l/variant=primary 인스턴스를 감싼 시맨틱 래퍼 컴포넌트** — 시각 캐논은 button 한 곳에서 관리한다. brand-primary(#141f2c) 위 흰 텍스트 대비 16.64:1(AAA).
-
-### button
+### button — `Buttons.tsx` 내 `IGButton`
 
 XL/L/M/S 4단. height·radius·label이 함께 변한다(토스 패턴). 신호 판단에는 쓰지 않고, 일반 액션(검색·저장·공유)에만 쓴다.
 
 | 사이즈 | height | radius | label |
 |---|---|---|---|
-| XL | 56 | `{rounded.radius-m}` (12) | `{typography.label}` 17/700 |
-| L  | 48 | `{rounded.radius-m}` (12) | `{typography.label}` 15/700 |
-| M  | 40 | `{rounded.radius-s}` (8)  | `{typography.label}` 15/600 |
-| S  | 32 | `{rounded.radius-s}` (8)  | `{typography.label}` 13/600 |
+| XL | 56 | `{rounded.radius-m}` (12) | 17/700 |
+| L  | 48 | `{rounded.radius-m}` (12) | 15/700 |
+| M  | 40 | `{rounded.radius-s}` (8)  | 15/600 |
+| S  | 32 | `{rounded.radius-s}` (8)  | 13/600 |
 
 - primary: `{colors.brand-primary}` 배경 + 흰 텍스트.
-- secondary: `{colors.bg-secondary}` 배경 + `{colors.text-primary}`.
+- secondary: `{colors.bg-secondary}` 배경 + `{colors.text-primary}` — "전체보기" 버튼(M, full width)이 대표 사용처.
 - ghost: 투명 + `{colors.brand-primary}` 라벨.
-- pressed = `{colors.overlay-press}` overlay, disabled = 전체 노드 `{colors.disabled-opacity}`(0.40).
+- quiet: 코드 전용 변형(검색 화면) — 문서화된 3변형 외 추가분.
+- pressed 실구현: primary는 `{colors.brand-primary-alt}`로 배경 스왑, 그 외 변형은 opacity 0.85. disabled = 전체 노드 `{colors.disabled-opacity}`(0.40).
 
-### bottom-cta
+### bottom-cta **[미구현 — 스펙만 존재]**
 
-화면 최하단 고정 56pt 액션. 좌우 16px padding, 위쪽 `white → transparent` 보호 그라디언트, `env(safe-area-inset-*)` 자동 인식(토스 차용).
+화면 최하단 고정 56pt 액션. 좌우 16px padding, 위쪽 `white → transparent` 보호 그라디언트, `env(safe-area-inset-*)` 자동 인식(토스 차용). 코드·Figma ver.0.2 모두 부재 — 하단 고정 요소는 glass-tab-bar가 유일하다. 필요해지는 시점에 구현.
 
-### bottom-sheet
+### bottom-sheet **[미구현 — 스펙만 존재]**
 
-dialog의 1차 모바일 대체. `{elevation.shadow-sheet}`, `{colors.overlay-scrim}` 딤, 상단 `{rounded.radius-l}`(16). 사용처가 정의된 동선에만 배치한다(예: 관심 품목 옵션, 단위·등급 선택). **'비교 기준 선택'은 사용처가 아니다** — 기준이 2개뿐이라 comparison-toggle의 즉시 전환이 담당(2026-06-12 역할 정리).
+dialog의 1차 모바일 대체. `{elevation.shadow-sheet}`, `{colors.overlay-scrim}` 딤, 상단 `{rounded.radius-l}`(16). 사용처가 정의된 동선에만 배치한다(예: 관심 품목 옵션, 단위·등급 선택). **'비교 기준 선택'은 사용처가 아니다** — 기준이 2개뿐이라 comparison-toggle의 즉시 전환이 담당(2026-06-12 역할 정리). 현행 앱에 시트/모달 표면 없음.
 
-### toast
+### toast **[미구현 — 스펙만 존재]**
 
-`{colors.grey-900}` 표면 + 흰 라벨, `{rounded.radius-m}`, `{elevation.shadow-3}`. "관심 품목에 추가했어요" 같은 짧은 확인.
+`{colors.grey-900}` 표면 + 흰 라벨, `{rounded.radius-m}`, `{elevation.shadow-3}`. "관심 품목에 추가했어요" 같은 짧은 확인. 현행 관심 품목 추가는 무피드백(하트 상태 전환만) — toast 도입 여부는 실사용 피드백으로 결정.
 
-### empty-state
+### empty-state — `EmptyState.tsx`
 
-검색 결과 없음·KAMIS 데이터 미수집 품목 안내. 판단 도구이므로 **데이터가 없을 때 추측하지 않고 솔직히 부재를 알린다**(product.md의 신뢰성 원칙). 신호색을 쓰지 않는 무채색 일러스트 + 안내 문구.
+검색 결과 없음·KAMIS 데이터 미수집 품목 안내. 판단 도구이므로 **데이터가 없을 때 추측하지 않고 솔직히 부재를 알린다**(product.md의 신뢰성 원칙). **신호색 금지.** 사양: column center, py 40, gap 8 — 아이콘 `search-x` 32(기본, 교체 가능) + 제목 15/400 `{colors.text-secondary}` + 본문 13/400 `{colors.text-tertiary}` 중앙 정렬.
 
-### segmented-control
-화면 내 상호배타 뷰 전환. track 위에 선택 pill이 이동하는 형식.
+### tabs — `Tabs.tsx` (소매/도매 · 일반/유기농 전환의 실컨트롤)
 
-- track: {colors.bg-secondary} 배경, cornerRadius pill.
-- 선택 pill: {colors.bg-elevated} 배경, 그림자 최소(elevation-1).
-- 라벨 selected: {colors.text-primary} / unselected: {colors.text-tertiary}.
-- clipsContent 기본 true → track 라운드 위해 명시 처리.
+화면 내 상호배타 뷰 전환. **underline형 2사이즈** — 구 segmented-control(pill 이동형) 스펙을 대체한 실구현이다(`SegmentedControl.tsx`는 컴포넌트만 남은 데드 — Known Gaps).
 
-<SegmentedControl
-  value="retail"                    // 선택 세그먼트 key
-  options={['retail','wholesale','eco']}   // 소매 | 도매 | 친환경
-  fullWidth                         // 라벨 균등 분할
-/>
+- **size l (소매/도매)**: 전폭, 하단 0.5px 트랙 `{colors.bg-tertiary}`, 컨테이너 px 16 · 아이템 gap 16 · flex 등분. 라벨 행 높이 44(py 12), 텍스트 **16/600**. active: `{colors.text-primary}` + 언더바 2px `{colors.bg-primary}` radius full / inactive: `{colors.text-tertiary}`.
+- **size s (일반/유기농·무농약 토글)**: 그룹 gap 8, 각 항목 padding 8 · `{rounded.radius-s}`(8), selected `{colors.bg-secondary}` 배경. 텍스트 **13/600**.
 
-### detail-chart
-상세 화면 추세 표시. sparkline 확장형(상단 라벨·기준선·끝점 동반). 
-**`{component.surface-card}`에 담아** 단독 표면이 아니라 카드 블록으로 둔다.
+```tsx
+<Tabs value="retail" options={[{key:'retail',label:'소매'},{key:'wholesale',label:'도매'}]} onChange={setMode} />
+```
 
-- 컨테이너: `{component.surface-card}` (bg-elevated, radius-m 12, shadow-1, clipsContent false). 
-  padding은 기본 16이 아니라 `{spacing.space-5}`(20)로 오버라이드 — 차트 시각 요소가 숨 쉴 공간 확보.
-- 라인: {colors.signal-cheap}.
-- area fill: {colors.signal-cheap} 직접 RGBA(저채도). alias+alpha 미지원 → 직접 RGBA.
-- 기준선: {colors.border-strong} 점선 + 라벨 슬롯.
-- 끝점: signal-dot 인스턴스(라인과 동일 level).
-- 상단 라벨: 좌 periodLabel {colors.text-primary} / 우 "평년 = 100" {colors.text-tertiary}.
-- 하단 캡션: "평년 = 여러 해 같은 시기의 평균이에요" {colors.text-tertiary} {typography.caption}.
-- strokeWeight·아이콘 width는 setBoundVariable 무음 실패 → raw 값.
-- clipsContent 카드 false 명시.
+### detail-chart — `Sparkline.tsx` + `Tooltip.tsx`
+상세 화면 "최근 시세" 추세 표시. sparkline 확장형(기준선·현재점·스크럽 툴팁 동반). surface-card 패턴 컨테이너(아래)에 담는다.
 
-<DetailChart
-  data={prices14d}                  // 최근 14일
-  baseline={normalYear}             // 평년 = 100 기준선
-  level="cheap"                     // 라인·끝점 신호 매핑
-  periodLabel="최근 14일"
-  baselineLabel="평년"
-/>
+- 컨테이너: 카드 인라인 스타일 (bg-elevated, `{rounded.radius-l}` 16, `{spacing.space-5}` 20 padding).
+- 카드 label-row: 좌 "최근 시세" 17/600 / 우 "이맘때 평균 N원" 13/400 `{colors.text-secondary}`.
+- 라인 + area fill: `{colors.signal-*}` level 매핑, area는 직접 RGBA(저채도).
+- 기준선: 라벨("평균") 13/400 `{colors.text-secondary}` + 전폭 라인. 축 라벨(날짜·"오늘") 13/400 `{colors.text-tertiary}`.
+- 현재점: 8×8 signal-dot 패턴(라인과 동일 level).
+- **스크럽 툴팁**(`Tooltip.tsx`, 6방향 포인터): 배경 `{colors.overlay-tooltip}`, radius 8(포인터 쪽 모서리 0), padding 좌12/우8/상하8 — "오늘 시세" 13/400 흰색 + 가격 13/600 흰색.
+- 로딩: 무채색 opacity 펄스 스켈레톤.
 
-### surface-card
+```tsx
+<Sparkline series={prices14d} baseline={seasonAvg} level="cheap" height={140} />
+```
 
-통계 그리드·detail-chart 등 **무채색 정보 블록을 담는 범용 컨테이너**. 
-price-item-card(신호 판단 전용, 좌측 accent rail 있음)와 분리된, 신호색 없는 중립 카드다. 
-이름 붙은 recipe로 두어 화면마다 배경·radius·padding을 손으로 조합하지 않게 한다.
+### surface-card (패턴 — 독립 컴포넌트 없음)
 
-| 속성 | 토큰 |
+통계·차트 등 **무채색 정보 블록을 담는 범용 컨테이너 패턴**. 독립 컴포넌트로 추출돼 있지 않고 화면마다 인라인 스타일(chartCard/flowCard/buyCard 등)로 반복된다 — 반복이 더 늘면 컴포넌트 추출 후보.
+
+| 속성 | 실값 (2026-07-05 실측) |
 |---|---|
-| 배경 | `{colors.bg-elevated}` (white) |
-| radius | `{rounded.radius-m}` (12) |
-| shadow | `{elevation.shadow-1}` |
-| padding | `{spacing.space-4}` (16, 기본) |
-| 내부 행 간격 | `{spacing.space-4}` (16) |
+| 배경 | `{colors.bg-elevated}` (white) — 회색 밴드(`bg-secondary`) 위에서 대비로 분리 |
+| radius | `{rounded.radius-l}` (16) |
+| shadow | 없음 (플랫 — 분리는 밴드 대비가 담당. Figma엔 shadow-1 정의 존재, Known Gaps) |
+| padding | `{spacing.space-5}` (20, 차트·상세 카드) / `{spacing.space-4}` (16, 홈 히어로) |
+| 카드 간 간격 | `{spacing.space-4}` (16) / 섹션 간 `{spacing.space-8}` (32, 상세 content) |
 
 - 신호색을 쓰지 않는다 — 신호는 카드 *안의* chip/dot/차트 라인이 나르고, 컨테이너 자체는 무채색 무대다.
-- clipsContent 기본 true → 차트 끝점·라벨이 잘리지 않도록 **false 명시**.
-- 카드끼리의 외부 간격은 `{spacing.space-6}`(24, 섹션 구분).
-- padding은 기본 16이며, 시각 요소가 숨 쉴 공간이 필요한 경우(detail-chart) 인스턴스에서 `{spacing.space-5}`(20)로 오버라이드한다.
+
+### annual-flow (연간 가격 흐름 — `item/[key].tsx` 인라인)
+
+12개월 막대 차트 카드. surface-card 패턴 + 제목 17/600. 차트 높이 60, px 8, justify-between — 막대 w 12 · radius 4, 기본 `{colors.bg-tertiary}` + 라벨 13/400 `{colors.text-tertiary}`, **현재월만 막대·라벨 `{colors.bg-primary}`**. 하단 코멘트 13/400 tertiary. 신호색을 쓰지 않는 무채색 차트다(연간 흐름은 판단이 아니라 맥락). 로딩 스켈레톤 동반. 유기농 상세에는 이 카드가 없다(주 1회 갱신 데이터 특성).
+
+### buy-section (이렇게 사면 좋아요 — `item/[key].tsx` 인라인)
+
+시장/마트별 상대 신호 행 리스트. 제목 17/600 + surface-card 패턴(자체 padding 없음) — 행: px 16 / py 12, gap 12, **signal-dot 8** + 라벨 15/400 + 가격 **15/600 tabular** `{colors.price-number}`. 행 사이 1px `{colors.border-default}` divider, 하단 도움말 13/400 tertiary.
+
+### recipe-card (레시피 목록 — `(tabs)/recipes.tsx`)
+
+**1px `{colors.border-default}` 테두리 + `{rounded.radius-m}`(12)** — 그림자·밴드 없이 보더로 분리되는 유일한 카드. media 높이 140(placeholder `bg-tertiary`) + body padding 12 · gap 8 — 제목 17/600, 재료 signal-chip(텍스트형) gap 4, 캡션 13/400 tertiary.
+
+### glass-header — `GlassHeader.tsx` / glass-tab-bar — `GlassTabBar.tsx`
+
+모든 화면의 크롬. 높이 44 헤더 3변형 — logo형(Wordmark), search형(back 44 + search-field s), detail형(중앙 타이틀 17/600 + back·favorite 버튼 44×44, 하트 아이콘 24). 탭바는 Glass pill recipe 소비자: `{colors.surface-glass-light}` + blur + `{elevation.shadow-glass-floating}`, 탭 아이콘 24(`TabIcons.tsx` 커스텀 SVG — 활성 filled/비활성 stroke) + 라벨 10, **비활성 = 전체 opacity 0.4**(`{colors.disabled-opacity}`), 활성 selection pill `{colors.bg-secondary}`. RN에선 Figma의 GLASS/블렌드를 `expo-blur` BlurView + 화이트 오버레이로 근사한다.
 
 ---
 
@@ -582,14 +582,14 @@ price-item-card(신호 판단 전용, 좌측 accent rail 있음)와 분리된, �
 ### Do
 
 - 신호 판단 자리에는 **신호등 3색만** 쓴다 — `{colors.signal-expensive}`(비쌈) / `{colors.signal-fair}`(적정) / `{colors.signal-cheap}`(쌈). 다른 색을 판단색으로 승격시키지 않는다.
-- 판단 문장(`{typography.signal-lead}`)을 가격 숫자보다 **위에, 같거나 큰 크기**로 둔다 — H1("숫자보다 신호등이 먼저")의 직접 구현이다.
+- 판단 문장(22/700)을 가격 숫자보다 **위에** 둔다 — H1("숫자보다 신호등이 먼저")의 직접 구현이다. (헤드 가격 28이 판단 문장보다 크지만, 읽기 순서는 배치가 보장한다.)
 - 비교 기준은 **'현재 vs 평년'을 기본**으로 둔다(H2) — '현재 vs 어제'는 보조 옵션.
   ('평년' = 여러 해 같은 시기 평균. KAMIS 검증상 주간 평균은 신호 반전이 잦아 
   평년을 베이스라인으로 확정. 화면 라벨은 '평년'으로 통일하고 뜻은 차트 캡션이 푼다.)
 - 신호는 **색 + 아이콘(↑/−/↓) + 라벨** 셋을 함께 쓴다 — 색맹 접근성과 옥외 시인성을 위해 색 단독 사용을 금지한다. 신호 방향은 Lucide의 `arrow-up`(비쌈) / `minus`(적정) / `arrow-down`(쌈)으로 고정한다.
 - 아이콘은 Lucide를 쓰고 `{colors.icon-color}`(currentColor)를 상속하게 둔다 — 신호 자리(신호색 상속)를 제외하고 색 직접 주입을 금지한다.
 - 가격 숫자는 `{typography.font-feature-numeric-tabular}`로 정렬하고, 단위('원'·'/kg')는 `{colors.price-unit}`로 한 단계 약하게 둔다.
-- KAMIS 출처·기준일을 `{component.price-item-card}`에 항상 노출한다 — 판단의 근거가 신뢰성을 만든다.
+- KAMIS 출처·기준일을 `{component.hero-verdict-card}` 등 판단 표면에 항상 노출한다 — 판단의 근거가 신뢰성을 만든다.
 - 게스트 진입 동선(`{component.guest-cta}`·`{component.search-field}`)은 로그인 없이 도달 가능하게 유지한다(H4).
 - product 카피는 **해요체 + 위임형**으로 쓴다 — "지금은 비싼 편이에요"처럼 판단을 대신 내리되 근거를 함께 말한다.
 - 캔버스·크롬은 `{colors.bg-canvas}`(무채색 화이트)로 조용히 둔다 — 신호등에 무대를 양보한다.
@@ -600,7 +600,7 @@ price-item-card(신호 판단 전용, 좌측 accent rail 있음)와 분리된, �
 - 캔버스·크롬에 채도 높은 포인트색을 깔지 않는다 — 신호등이 배경에 묻혀 H1이 무너진다(지마켓식 라우드 캔버스 회피).
 - 신호 색을 hex/rgba로 새로 정의하지 않는다 — `{colors.signal-*}` 토큰으로만 참조한다.
 - 신호 점(`{component.signal-dot}`)을 텍스트 신호 없이 단독으로 의미 확정에 쓰지 않는다.
-- `{colors.signal-fair}` raw를 흰 배경 위 본문 글자에 올린 뒤 가독성 점검 없이 두지 않는다 — L=0.46이라 흰 배경 대비 7.13:1로 통과하지만, body 글자가 stage `text-secondary`(grey-700)와 명도가 거의 같아 의미가 뭉친다. 신호의 의미가 있는 자리(칩·점·강조)에만 쓰고, 본문 글자는 stage 텍스트 토큰에 위임.
+- `{colors.signal-fair}` raw를 흰 배경 위 본문 글자에 올린 뒤 가독성 점검 없이 두지 않는다 — 흰 배경 대비 6.27:1로 통과하지만, body 글자가 stage `text-secondary`(grey-700)와 명도가 거의 같아 의미가 뭉친다. 신호의 의미가 있는 자리(칩·점·강조)에만 쓰고, 본문 글자는 stage 텍스트 토큰에 위임.
 - KAMIS 데이터가 없는 품목에 신호를 추측해 띄우지 않는다 — `{component.empty-state}`로 부재를 솔직히 알린다.
 - 가입을 검색·판단 앞에 강제로 끼우지 않는다(H4).
 - 마케팅 과장("초특가", "역대급")·챗봇 톤("~해보세요!")·단정형 `-다` 카피를 쓰지 않는다 — 해요체 위임형이 표준이다.
@@ -615,18 +615,28 @@ price-item-card(신호 판단 전용, 좌측 accent rail 있음)와 분리된, �
 
 | Context | Key Changes |
 |---|---|
-| Mobile (≤ 640px) | 기본 환경 — 단일 컬럼, `{component.bottom-cta}`로 최하단 액션, `{component.bottom-sheet}`를 dialog 1차 대체로 사용 |
-| Tablet/Desktop (> 640px) | 부수적 surface — 단일 컬럼 유지 권장, 리스트 폭만 확장 |
+| Mobile (≤ 640px) | 기본 환경 — 단일 컬럼. 하단 고정 요소는 glass-tab-bar가 유일 (bottom-cta·bottom-sheet 미구현) |
+| Web/Desktop | `_layout.tsx` 웹 거터 — 프레임을 **minWidth 375 / maxWidth 480**으로 클램핑해 모바일 레이아웃 유지 |
 
-- **터치 타깃**: 모든 인터랙티브 표면 최소 44×44px (iOS HIG 표준, 헤더 바 높이 44와 정합). `{component.price-list-row}`는 행 전체(최소 64px)가 hit area. 헤더 아이콘 버튼은 아이콘 24 + 44×44 hit area.
-- **신호 대비**: v3.1 색 체계의 6개 핵심 짝(weak 배경 위 텍스트 + strong 표면 위 on-텍스트)이 모두 WCAG AA(4.5:1)를 통과한다 — cheap-text on cheap-weak 4.84 / cheap-on(white) on cheap 5.53 / fair on fair-weak 6.13 / fair-on(white) on fair 7.13 / expensive-text on expensive-weak 4.77 / expensive-on(white) on expensive 5.67. 세 level 모두 strong 표면 위는 흰 텍스트로 통일(`X-on` = `#ffffff` 일관). 실측값은 토큰 산출 단계에서 culori + coloraide 양쪽으로 cross-validate.
-- **한 손 도달성**: 1차 액션은 `{component.bottom-cta}`로 화면 하단 엄지 영역에 둔다.
+- **터치 타깃**: 모든 인터랙티브 표면 최소 44×44px (iOS HIG 표준, 헤더 바 높이 44와 정합). `{component.price-list-row}`는 행 48 + 행간 여백이 hit area를 구성. 헤더 아이콘 버튼은 아이콘 24 + 44×44 hit area.
+- **신호 대비** (2026-07-05 재검산): 6개 핵심 짝(weak 배경 위 텍스트 + strong 표면 위 on-텍스트)이 모두 WCAG AA(4.5:1)를 통과한다 — cheap on cheap-weak 4.84 / white on cheap 5.53 / **fair on fair-weak 5.32 / white on fair 6.27** (2026-06-13 fair 중립화 후 값) / expensive on expensive-weak 4.77 / white on expensive 5.67. 세 level 모두 strong 표면 위는 흰 텍스트로 통일(`X-on` = `#ffffff` 일관).
+- **한 손 도달성**: 주요 이동은 하단 glass-tab-bar 엄지 영역에서 시작한다.
 
 ---
 
 ## Known Gaps
 
 다운스트림 구현 시 별도 근거 위에서 확정해야 하는 항목이다.
+
+### 2026-07-05 실측 감사에서 발견된 드리프트 (미해결)
+
+- ~~**용어 '평년' 전수 치환 미완**~~ → **2026-07-09 해소**: UI 카피를 '이맘때 평균'으로 전수 통일(comparison-toggle 섹션의 어휘 결정 참조).
+- **데드 컴포넌트 4종**: `SegmentedControl.tsx`(실컨트롤은 Tabs)·`ComparisonToggle.tsx`(vsYesterday 동선 미구현)·`GuestCTA`(홈 진입이 search-field 직행)·`border-focus` 토큰(focus는 border-strong 사용). 유지할 근거가 생기지 않으면 삭제 후보.
+- **safe-area 3자 불일치**: Figma ver.0.2 top 44 / bottom 120 ↔ 코드 동적 insets.top / bottom **140** 하드코딩(4개 화면 리터럴). 토큰화 + 값 통일 필요.
+- **카드 그림자**: Figma 상세 카드 스타일 목록에 shadow-1 존재, 코드 카드는 전부 플랫(밴드 대비 분리). 어느 쪽이 의도인지 확정 필요 — 현 문서는 코드(플랫) 기준.
+- **Figma ver.0.2 내부 바인딩 드리프트**: (a) 레시피 상세 nav-bar 타이틀 색 raw `#000000` — `text/primary` 미바인딩, (b) Tabs s selected 텍스트가 `text/tertiary`로 캡처됨(스펙 확인 필요), (c) 관심 품목 "관심 레시피" 섹션 타이포가 leading normal·tracking 미적용 raw 인스턴스, (d) 유기농 상세 hero gap 12 vs 일반/도매 16, (e) 도매 화면 프레임명 "03 상세 - 소매 일반" 오기, (f) 일부 auto-layout gap이 spacing 변수 바인딩인데 실효값 0.
+- **xs chip fair 아이콘 불일치**: 표준형 fair는 `minus`, 코드 xs(오버레이) fair는 `arrow-right` — 의도인지 확정 필요.
+- **surface-card·signal-dot 미추출**: 패턴으로만 존재(화면 인라인 반복). 사용처 증가 시 컴포넌트 추출.
 
 - ~~**신호 임계값(threshold) 정의**~~ (2026-06-19 확정): "비쌈/적정/쌈"을 가르는 경계는 **평년·어제 공통 ±1%**로 확정. 0보다 싸면 "싸요"/비싸면 "비싸요", ±1% 안만 "비슷"(일별 잔진동 흡수). 초기값 ±10%는 −9%(예: 소고기 갈비 7,904 vs 평년 8,675)까지 "평소"로 묻어 거의 모든 품목이 fair로 떨어지는 검증 실패가 있었다 — 1%로 좁혀 신호가 실제로 뜨게 함. 디자인 토큰이 아니라 제품 로직이라 향후 데이터로 재조정 가능. (구현: `api/kamis.ts` THRESHOLD, 평년·어제 모두 `judge()` 단일 경로)
 - ~~**brand-primary 대비**~~ (2026-06-12 해소): "흰 텍스트 4.02 미달"은 brand가 파랑이던 시절 기록. 현 brand-primary(= grey-900 `#141f2c`)는 흰 텍스트 대비 **16.64:1 (AAA)** — culori 검증 완료. "색 재편 시 prose 동기화 별도" 함정의 실례로 남겨둔다.
@@ -641,15 +651,15 @@ price-item-card(신호 판단 전용, 좌측 accent rail 있음)와 분리된, �
 - **BOOLEAN component property의 바인딩 한계**: Figma `componentPropertyReferences`로 BOOLEAN이 직접 바인딩할 수 있는 노드 필드는 `visible`·`characters`·`mainComponent` 셋뿐. `layoutSizingHorizontal`(fullWidth 같은 가변 사이징), `opacity`(disabled 페이드), `layoutGrow` 등 layout/visual 토글은 BOOLEAN으로 직결 불가. **fullWidth는 컴포넌트가 아니라 인스턴스 단계에서 수동으로 `layoutSizingHorizontal = 'FILL'` 적용** 규칙. **disabled는 VARIANT로 승격**해 disabled=true variant 자체에 opacity 0.40을 박는 패턴.
 - **Button height 토큰 raw 유지**: button size=s/m/l/xl의 height(32/40/48/56)는 4-grid 사다리 안에 들어가지만 spacing(GAP scope) 토큰의 의미와 어긋나 별도 height 토큰 시리즈를 만들지 않고 size variant별 raw로 유지한다. 추후 컨트롤 height 토큰 체계가 필요하면 재검토.
 - **fair(neutral-grey) 색맹·환경 검증** (2026-06-13 개정): `signal-fair`는 완전 중립(#616060)으로, stage 회색과의 구분은 hue가 아니라 문맥·형태(칩/점/화살표 표면 한정 사용)에 의존한다. 마트 옥외 밝은 조명·노안 사용자 조건에서 이 문맥 분리가 충분한지 실사용 테스트 필요. cheap(green)/expensive(orange) 짝은 적록 색맹 가장 까다로운 분리이므로 화살표 아이콘(↑/−·→/↓) 동반 규칙이 색맹 보조의 1차 수단이다.
-- **중립 색의 명도 ≠ 의미**: 채도가 0에 가까운 토큰(warm-grey `signal/fair`, stage `grey/*`)은 채도가 의미를 정의하므로 명도는 자유 변수다. fair 명도를 0.62→0.46으로 낮춰도 "중립" 의미는 유지된다(채도 0.020 그대로). 반면 채도 있는 토큰(cheap green, expensive orange)은 명도 변경이 채도 인지에 영향을 주므로 보수적으로 — 명도 ↓ 시 채도가 ↓ 보이는 OKLCH 인지 효과를 고려.
+- **중립 색의 명도 ≠ 의미**: 채도가 0에 가까운 토큰(neutral-grey `signal/fair`, stage `grey/*`)은 채도가 의미를 정의하므로 명도는 자유 변수다. fair 명도를 낮춰도 "중립" 의미는 유지된다(채도 ≈0 유지). 반면 채도 있는 토큰(cheap green, expensive orange)은 명도 변경이 채도 인지에 영향을 주므로 보수적으로 — 명도 ↓ 시 채도가 ↓ 보이는 OKLCH 인지 효과를 고려.
 - **토큰 진화의 부수효과 (우회 토큰 자연 삭제)**: 캐논(`X-on` 흰색 일관 같은)으로 한 차원이 정착하면, 그 차원을 우회하기 위해 만든 보조 토큰이 자연스럽게 redundant가 된다 — 시스템 단순화 신호. v3.1에서 fair 명도가 cheap·expensive와 맞춰지자 옛 우회 토큰 `signal/fair-text`(어두운 warm-grey 텍스트 전용)가 `signal/fair` 자체와 같은 자리를 차지해 삭제됐다. 단, 우회 토큰 삭제는 모든 참조(alias·paint·componentPropertyReference 세 자리)에서 재바인딩이 완료된 후에만.
 - **dead variable 정의 확장**: "dead"는 단순 "이름이 안 쓰임"이 아니라 세 자리 모두 0이어야 한다 — (1) 다른 변수의 alias로 참조 0건, (2) 노드의 `boundVariables`(paint·opacity·padding 등)에 0건, (3) 컴포넌트 `componentPropertyReferences`(VARIANT/BOOLEAN/TEXT 바인딩)에 0건. 한 자리만 확인 후 삭제하면 hanging reference 발생 — 이번 세션 fair xs text가 dead var `220:2633`에 hanging하여 fallback white(#ffffff)로 표시된 게 그 예. 삭제 전 세 자리를 Plugin API로 모두 스캔하는 audit이 안전선.
 - **scroll container의 padding 패턴**: 가로 scroll 자식을 갖는 카드는 outer wrapper에 horizontal padding을 두면 scroll 시 첫·마지막 카드만 빈 공간이 남는다. wrapper padding=0으로 하고 자식 list에 양끝 padding을 위임하는 게 표준(scroll 끝에서 자연스러운 페이딩). wrapper에 `clipsContent=true`로 잘려 보이는 부분을 마스킹하면서 자식이 padding을 책임지는 분업.
 - **padding 변수 바인딩 신뢰 가능 (반증)**: spacing/* 변수를 Auto Layout frame의 `paddingLeft/Right/Top/Bottom`에 바인딩하면 silent reject 없이 정상 적용된다 — `strokeWeight`·icon `width`의 무음 거부와 대비된다. 신뢰성 우선순위: 색·투명도·padding은 신뢰 가능, 선 두께·치수 필드는 의심. 새 함정 후보 식별 시 이 분류로 우선 의심.
 - **다크 모드**: 본 문서는 라이트 모드 전용이다. 마트 환경이 주로 실내 조명이라 우선순위가 낮지만, 다크 대응 시 신호 3색의 명도·채도를 다크 캔버스 기준으로 재매핑해야 한다.
 - **자체 서체**: 현재 Pretendard로 출발한다. 토스(TPS)·지마켓(Gmarket Sans)처럼 브랜드 서체를 만들 단계가 되면 가격 숫자 tabular figure 품질을 1차 기준으로 검토한다.
-- **타이포 line-height·tracking 미세값**: Type ramp의 값은 권장 출발점이며, 실제 Pretendard 렌더링에서 한글 가독성 기준으로 재측정이 필요하다.
-- **로고**: 브랜드 로고는 아직 없다 — 워드마크/심볼 정의가 필요하다. (아이콘 세트는 Iconography 섹션에서 Lucide로 확정됨)
+- ~~**타이포 line-height·tracking 미세값**~~ (2026-07-05 해소): Type ramp를 Figma 텍스트 스타일 · `tokens.ts` `type.size[n]` 실값으로 교체 완료 — 문서·코드·Figma 3자 일치. 이후 변경은 Figma 스타일 → tokens.ts → 본 문서 순서로 동기화.
+- ~~**로고**~~ (해소): 워드마크 "이거비싸?" 확정 — `Wordmark.tsx`, JJZukinie 20px / lh 31.2 / tracking -0.8px, `{colors.text-active}`. 심볼(앱 아이콘 외 단독 심볼)은 여전히 미정의.
 - **신호 아이콘 커스터마이징 여지**: 현재 신호 방향은 Lucide의 `arrow-up`/`minus`/`arrow-down`을 그대로 쓴다. 브랜드 정체성이 성숙하면 신호 화살표만 자체 제작해 시그니처화할 수 있으나, 그 경우에도 Lucide의 24그리드·2px stroke·round cap 사양을 유지해 나머지 아이콘과의 통일성을 깨지 않는다.
 - **Figma의 `GLASS` 효과 타입은 `BACKGROUND_BLUR`와 다른 신규 노드 효과**: iOS 26 호환 표면용으로 도입된 별개 타입이며, `radius` 외에 `refraction`·`depth`·`lightAngle`·`lightIntensity`·`dispersion`·`splay` 6개 필드가 모두 필수다. Plugin API는 누락 시 validation error로 에러를 명확히 던진다(다른 무음 거부 함정들과 달리 즉시 잡힘). floating UI 작업 시 항상 `GLASS`를 쓰고 `BACKGROUND_BLUR` 사용 금지 — 시각적으로 비슷해 보여도 굴절·디스퍼젼·라이트 처리가 달라 결과가 다르다. 신규 GLASS 효과를 만들 때는 기존 GLASS 노드의 effect 구조를 그대로 복제하는 게 가장 안전하다.
 - **`createEffectStyle()` 비-트랜잭션 함정**: `figma.createEffectStyle()`는 빈 스타일을 즉시 생성하고, 이후 `style.effects = [...]`가 throw하면 스타일이 빈 채로 남는다. 재시도 시 이름 충돌 발생. 우회: 실패 후 `getLocalEffectStylesAsync()`로 빈 스타일을 찾아 다시 effects만 설정. shadow·overlay alias+α 미지원과 다른 결의 트랜잭션성 함정.

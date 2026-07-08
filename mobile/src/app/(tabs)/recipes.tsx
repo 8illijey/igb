@@ -87,7 +87,7 @@ export default function RecipesScreen() {
         <Text style={styles.intro}>
           {searching
             ? `'${query.trim()}'(으)로 레시피 ${cards.length}개를 찾았어요`
-            : '평년보다 싼 재료로 만들 수 있는 레시피를 골라봤어요'}
+            : '이맘때 평균보다 싼 재료로 만들 수 있는 레시피를 골라봤어요'}
         </Text>
         {cards.map((r, idx) => (
           <Pressable
@@ -114,7 +114,7 @@ export default function RecipesScreen() {
               <Text style={styles.caption}>
                 {r.matched.length > 0
                   ? r.cheapCount > 0
-                    ? `재료 ${r.matched.length}개 중 ${r.cheapCount}개가 평년보다 싸요`
+                    ? `재료 ${r.matched.length}개 중 ${r.cheapCount}개가 이맘때 평균보다 싸요`
                     : '지금 담으면 무난한 가격이에요'
                   : '재료 시세를 불러오는 중이에요'}
               </Text>

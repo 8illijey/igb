@@ -6,7 +6,7 @@ import { colors, radius, spacing, type } from '../../theme/tokens';
 export type ComparisonBasis = 'vsNormal' | 'vsYesterday';
 
 const LABEL: Record<ComparisonBasis, string> = {
-  vsNormal: '평년 대비',
+  vsNormal: '이맘때 대비',
   vsYesterday: '어제 대비',
 };
 

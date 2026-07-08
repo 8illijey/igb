@@ -67,7 +67,7 @@ function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel 
       {/* Figma: 평가문구는 카드 상단 풀폭 */}
       <Text style={styles.verdict}>
         오늘은 {item.itemName}
-        {subjectParticle(item.itemName)} 평소보다{'\n'}
+        {subjectParticle(item.itemName)} 이맘때 평균보다{'\n'}
         <Text style={{ color: c.main, textDecorationLine: 'underline' }}>{verdictTail}</Text>
       </Text>
 
@@ -86,7 +86,7 @@ function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel 
           </View>
           <View>
             <Text style={styles.captionSecondary}>{spec}</Text>
-            <Text style={styles.captionSecondary}>예년 평균 {won(item.normal)}원</Text>
+            <Text style={styles.captionSecondary}>이맘때 평균 {won(item.normal)}원</Text>
           </View>
         </View>
       </View>

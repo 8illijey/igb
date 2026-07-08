@@ -72,7 +72,7 @@ export default function RecipeDetailScreen() {
           </View>
           <Text style={styles.meta}>
             {matched.length > 0
-              ? `재료 ${matched.length}개 중 ${cheapCount}개가 평년보다 싸요`
+              ? `재료 ${matched.length}개 중 ${cheapCount}개가 이맘때 평균보다 싸요`
               : '재료 시세를 불러오는 중이에요'}
           </Text>
 
