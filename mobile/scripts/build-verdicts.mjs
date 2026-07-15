@@ -334,6 +334,11 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     if (done % 10 === 0) console.log(`  ${done}/${reps.length}`);
   }
 
+  // KAMIS 장애 시 빈 verdicts가 기존 데이터를 덮어쓰는 사고 방지 (2026-07-15 실제 발생)
+  if (Object.keys(out).length === 0) {
+    console.error('판정 0건 — KAMIS 장애로 보고 기존 verdicts.json 보존, 실패 처리');
+    process.exit(1);
+  }
   const payload = { generatedAt: new Date().toISOString(), date: fmtDate(new Date()), items: out };
   const dir = new URL('../public/', import.meta.url);
   fs.mkdirSync(dir, { recursive: true });
