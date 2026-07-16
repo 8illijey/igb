@@ -1,0 +1,47 @@
+name: Health check
+
+# 프로덕션 상시 감시 — 실패하면 GitHub이 자동으로 메일 알림.
+# 잡는 것: 앱 다운 / 시세 전무(라이브·stale 모두 없음) / stale 5일 초과(상류 장기 장애) / verdicts CI 침묵.
+# 2026-07-15~17 KAMIS 방화벽 UA 차단 장애(백지 사이트를 사람이 발견) 재발 방지.
+on:
+  schedule:
+    - cron: '23 * * * *' # 매시
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check production
+        run: |
+          fail=0
+          today=$(date -u -d '+9 hours' +%F)  # KST
+
+          # 1) 앱 HTML
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 https://igeobissa.vercel.app)
+          [ "$code" = 200 ] || { echo "::error::앱 HTTP $code"; fail=1; }
+
+          # 2) 홈 시세 4개 부류 — 라이브든 stale이든 행이 있어야 함. stale이 5일 넘게 묵으면 실패.
+          for cat in 100 200 400 500; do
+            body=$(curl -s -m 25 -D /tmp/hdr-$cat "https://igeobissa-recipes.designerxyzi.workers.dev/kamis?action=dailyPriceByCategoryList&p_product_cls_code=01&p_item_category_code=$cat&p_country_code=1101&p_regday=$today&p_convert_kg_yn=N")
+            rows=$(echo "$body" | jq -r '.data.item | length' 2>/dev/null || echo 0)
+            if [ "${rows:-0}" -eq 0 ]; then echo "::error::부류 $cat 시세 0행 (라이브·stale 모두 없음)"; fail=1; continue; fi
+            if grep -qi 'x-igb-stale' /tmp/hdr-$cat; then
+              day1=$(echo "$body" | jq -r '.data.item[0].day1' | grep -o '[0-9]*/[0-9]*' || true)
+              echo "::warning::부류 $cat stale 모드 (데이터 날짜 $day1)"
+              if [ -n "$day1" ]; then
+                y=$(date -u -d '+9 hours' +%Y)
+                age=$(( ( $(date -u -d '+9 hours' +%s) - $(date -u -d "$y-${day1/\//-}" +%s) ) / 86400 ))
+                # 연말 롤오버(음수)면 작년으로 재계산
+                [ "$age" -lt 0 ] && age=$(( ( $(date -u -d '+9 hours' +%s) - $(date -u -d "$((y-1))-${day1/\//-}" +%s) ) / 86400 ))
+                [ "$age" -le 5 ] || { echo "::error::부류 $cat stale ${age}일 경과 — 상류 장기 장애"; fail=1; }
+              fi
+            fi
+          done
+
+          # 3) verdicts 신선도 — 매일 갱신, 49시간(한 번 건너뜀 허용) 넘으면 실패
+          gen=$(curl -s -m 20 https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json | jq -r .generatedAt)
+          age_h=$(( ( $(date +%s) - $(date -d "$gen" +%s) ) / 3600 ))
+          [ "$age_h" -lt 49 ] || { echo "::error::verdicts ${age_h}시간 묵음 — CI 확인 필요"; fail=1; }
+
+          exit $fail
