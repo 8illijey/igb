@@ -41,7 +41,11 @@ const fetchT = async (url, ms = 15000) => {
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort(), ms);
     try {
-      const res = await fetch(url, { signal: ac.signal });
+      // UA 필수: KAMIS 방화벽이 브라우저 UA 없는 요청을 차단(2026-07-17 확인). 프록시 경유든 직접이든 무해.
+      const res = await fetch(url, {
+        signal: ac.signal,
+        headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36' },
+      });
       if (res.status >= 500) throw new Error(`upstream ${res.status}`);
       return res;
     } catch (e) {
