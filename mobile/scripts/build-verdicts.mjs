@@ -343,6 +343,32 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     console.error('판정 0건 — KAMIS 장애로 보고 기존 verdicts.json 보존, 실패 처리');
     process.exit(1);
   }
+  // 부분 장애 보전 (2026-07-19 실제 발생: 판정은 되고 연간 시계열만 전멸) —
+  // 새 months가 비었으면 직전 verdicts의 연간 흐름 필드를 물려받는다. 대표 품종이 바뀌었으면 같은 품목으로 폴백.
+  try {
+    const prev = JSON.parse(fs.readFileSync(new URL('../public/verdicts.json', import.meta.url), 'utf8')).items ?? {};
+    let carried = 0;
+    for (const [k, v] of Object.entries(out)) {
+      if ((v.months ?? []).some(Boolean)) continue;
+      const code = k.split('-')[0];
+      const p = prev[k] ?? prev[Object.keys(prev).find((pk) => pk.startsWith(`${code}-`)) ?? ''];
+      if (!p || !(p.months ?? []).some(Boolean)) continue;
+      v.months = p.months;
+      if (v.wholesaleRecentAvg == null && p.wholesaleRecentAvg != null) {
+        v.wholesaleRecentAvg = p.wholesaleRecentAvg;
+        v.wholesaleMonths = p.wholesaleMonths;
+      }
+      if (p.spanVarieties) {
+        v.spanVarieties = p.spanVarieties;
+        v.variety ??= p.variety;
+        v.thisMonthVarieties ??= p.thisMonthVarieties;
+      }
+      carried += 1;
+    }
+    if (carried) console.log(`연간 흐름 결손 ${carried}건을 직전 verdicts에서 보전`);
+  } catch {
+    // 직전 파일 없음(첫 실행) — 보전 생략
+  }
   const payload = { generatedAt: new Date().toISOString(), date: fmtDate(new Date()), items: out };
   const dir = new URL('../public/', import.meta.url);
   fs.mkdirSync(dir, { recursive: true });
