@@ -49,18 +49,31 @@ const ymd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(
 
 // 미러엔 평년(원본 dpr7)이 없다 → verdicts(CI 사전계산)의 normal을 daily 변환 시 dpr7에 주입.
 // 그래야 앱 홈/상세의 '평년 대비' 판정이 무변경으로 복구된다. 1시간 메모리 캐시(isolate 단위).
-const VERDICTS_URL = 'https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json';
+// 소스 2개를 순서대로 시도. 1순위는 배포된 사이트(Vercel CDN), 2순위가 GitHub raw.
+// raw를 1순위로 둔 것이 2026-08-18 새벽 장애의 직접 원인이었다 — raw가 429를 지속해서
+// 이 함수가 빈 맵을 돌려주었고, 그러면 아래 dpr7 주입이 전부 '-'가 돼 앱 홈 목록이 통째로 비었다.
+// 사이트 사본도 CI 푸시마다 자동 배포돼(2026-08-17 Git 연동) 매일 최신이다.
+const VERDICTS_URLS = [
+  'https://igeobissa.com/verdicts.json',
+  'https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json',
+];
 let verdictsCache: { t: number; v: Record<string, any> } | null = null;
 async function getVerdicts(): Promise<Record<string, any>> {
   if (verdictsCache && Date.now() - verdictsCache.t < 3600_000) return verdictsCache.v;
-  try {
-    const r = await fetch(VERDICTS_URL, { signal: AbortSignal.timeout(5000) });
-    const v = ((await r.json()) as any)?.items ?? {};
-    verdictsCache = { t: Date.now(), v };
-    return v;
-  } catch {
-    return verdictsCache?.v ?? {};
+  for (const url of VERDICTS_URLS) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) continue;
+      const v = ((await r.json()) as any)?.items ?? {};
+      if (Object.keys(v).length === 0) continue; // 빈 응답은 쓸모없다 — 다음 소스로
+      verdictsCache = { t: Date.now(), v };
+      return v;
+    } catch {
+      // 다음 소스로
+    }
   }
+  // 전부 실패 — 만료된 캐시라도 있으면 그걸 쓴다(평년 없는 응답보다 묵은 평년이 낫다).
+  return verdictsCache?.v ?? {};
 }
 
 /** data.go.kr price 조회 — cond[...] 필터 배열, 최근→과거 정렬. 실패 시 null. */
