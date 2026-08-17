@@ -53,27 +53,60 @@ const ymd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(
 // raw를 1순위로 둔 것이 2026-08-18 새벽 장애의 직접 원인이었다 — raw가 429를 지속해서
 // 이 함수가 빈 맵을 돌려주었고, 그러면 아래 dpr7 주입이 전부 '-'가 돼 앱 홈 목록이 통째로 비었다.
 // 사이트 사본도 CI 푸시마다 자동 배포돼(2026-08-17 Git 연동) 매일 최신이다.
-const VERDICTS_URLS = [
-  'https://igeobissa.com/verdicts.json',
-  'https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json',
+const SOURCES = (file: string) => [
+  `https://igeobissa.com/${file}`,
+  `https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/${file}`,
 ];
-let verdictsCache: { t: number; v: Record<string, any> } | null = null;
-async function getVerdicts(): Promise<Record<string, any>> {
-  if (verdictsCache && Date.now() - verdictsCache.t < 3600_000) return verdictsCache.v;
-  for (const url of VERDICTS_URLS) {
+const jsonCache = new Map<string, { t: number; v: Record<string, any> }>();
+async function getJson(file: string): Promise<Record<string, any>> {
+  const hit = jsonCache.get(file);
+  if (hit && Date.now() - hit.t < 3600_000) return hit.v;
+  for (const url of SOURCES(file)) {
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!r.ok) continue;
       const v = ((await r.json()) as any)?.items ?? {};
       if (Object.keys(v).length === 0) continue; // 빈 응답은 쓸모없다 — 다음 소스로
-      verdictsCache = { t: Date.now(), v };
+      jsonCache.set(file, { t: Date.now(), v });
       return v;
     } catch {
       // 다음 소스로
     }
   }
-  // 전부 실패 — 만료된 캐시라도 있으면 그걸 쓴다(평년 없는 응답보다 묵은 평년이 낫다).
-  return verdictsCache?.v ?? {};
+  return hit?.v ?? {}; // 전부 실패 — 만료된 캐시라도 있으면 그걸 쓴다
+}
+
+/**
+ * 평년(dpr7) 주입 소스.
+ * baselines.json = scripts/build-baselines.mjs가 미러 5년치 원천 가격으로 KAMIS 정의대로
+ * 계산한 날짜별 평년(365칸). verdicts를 쓰던 이전 방식은 순환이었다 — verdicts가
+ * 다시 이 워커를 거쳐 만들어졌기 때문에, 사실상 자체 최근 1년 평균을 '평년'으로
+ * 되돌려주고 있었다(2026-08-18 확인: 56종 중 50종에서 normal === months[이번달]).
+ * baselines는 원천 가격만으로 만들어져 순환이 없다.
+ */
+const CUM_DAYS = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+function dayIndex(d = new Date()): number {
+  return Math.min(364, CUM_DAYS[d.getMonth()] + (d.getDate() - 1));
+}
+/**
+ * 해당 품목·시장의 오늘자 평년. baselines에 없으면 verdicts로 폴백한다.
+ * 폴백이 필요한 이유: 미러가 축산 도매 시계열을 안 준다(2026-08-18 확인: 소·돼지·닭·계란·우유
+ * 17종 도매 수집 실패). 폴백 없이 바로 전환하면 그 품목들이 평년을 잃어 홈에서 사라진다.
+ * 폴백값은 순환 출신이라 정확도가 떨어지지만, 없는 것보다는 낫다.
+ */
+function baselineOf(
+  bl: Record<string, any>,
+  verd: Record<string, any>,
+  key: string,
+  cls: string,
+): number | null {
+  const v = bl[key];
+  const arr = cls === '02' ? v?.wsDays : v?.days;
+  const n = Array.isArray(arr) ? arr[dayIndex()] : null;
+  if (typeof n === 'number' && n > 0) return n;
+  const f = verd[key];
+  const fb = cls === '02' ? f?.wholesaleMonths?.[new Date().getMonth()] : f?.months?.[new Date().getMonth()];
+  return typeof fb === 'number' && fb > 0 ? fb : null;
 }
 
 /** data.go.kr price 조회 — cond[...] 필터 배열, 최근→과거 정렬. 실패 시 null. */
@@ -125,7 +158,7 @@ async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promi
     // last-good KV의 정상 데이터를 오염시키므로 가격 없는 행은 버리고, 전부 껍데기면 폴백(null).
     const priced = rows.filter((r) => r.exmn_dd_avg_prc && r.exmn_dd_avg_prc !== '0');
     if (priced.length === 0) return null;
-    const verd = await getVerdicts();
+    const [base, verd] = await Promise.all([getJson('baselines.json'), getJson('verdicts.json')]);
     // 품목+품종별로 조사일 내림차순 → 사다리(dpr1=최근, dpr2~4=이전 조사일). 원본 dpr1~4 자리를 채운다.
     const byKind = new Map<string, any[]>();
     for (const r of priced) {
@@ -137,10 +170,8 @@ async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promi
       list.sort((a, b) => String(b.exmn_ymd).localeCompare(String(a.exmn_ymd)));
       const top = list[0];
       const prices = list.map((r) => r.exmn_dd_avg_prc || '-');
-      // 평년(dpr7) = verdicts의 '이맘때 평균'. verdict.normal은 원본 dpr7 유래라 미러 빌드 시 비어 순환 →
-      // 대신 months[현재월](최근 1년 그달 평균)을 쓴다. 없으면 recentAvg 폴백.
-      const v = verd[`${top.item_cd}-${top.vrty_cd}`];
-      const normal = v?.months?.[new Date().getMonth()] ?? v?.recentAvg;
+      // 평년(dpr7) = baselines의 오늘자 값. 원천 가격만으로 계산돼 순환이 없다.
+      const normal = baselineOf(base, verd, `${top.item_cd}-${top.vrty_cd}`, sp.get('p_product_cls_code') ?? '01');
       item.push({
         item_name: top.item_nm,
         item_code: top.item_cd,

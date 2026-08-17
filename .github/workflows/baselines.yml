@@ -1,0 +1,49 @@
+name: Build baselines
+
+# 평년(이맘때 평균)을 KAMIS 정의대로 미러 5년치 원천 가격에서 직접 계산해 baselines.json 커밋.
+#
+# 왜 CI인가: KAMIS 원본이 데이터센터 IP를 막아 워커가 미러로 도는데, 미러엔 평년(dpr7)이 없다.
+# 임시로 워커가 verdicts를 주입해왔으나 verdicts도 워커를 거쳐 만들어져 순환이었다
+# (2026-08-18: 56종 중 50종에서 normal === months[이번달] — 사실상 자체 1년 평균).
+# baselines는 원천 가격만으로 만들어 순환을 끊는다.
+#
+# 왜 주 1회인가: 과거 5년 기반이라 하루 사이 거의 안 변한다. 요청이 ~900회라 매일 돌 이유가 없다.
+on:
+  schedule:
+    - cron: '40 19 * * 0' # 매주 월요일 04:40 KST (일 19:40 UTC) — verdicts(매일 16:05)와 안 겹치게
+  workflow_dispatch: {} # 수동 실행 버튼
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # baselines.json 커밋용
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build baselines.json
+        working-directory: mobile
+        env:
+          # 러너(해외 IP)에서 KAMIS 직접 호출은 막힌다 — 워커 프록시 경유. 키는 워커에 있어 시크릿 불필요.
+          KAMIS_PROXY: https://igeobissa-recipes.designerxyzi.workers.dev/kamis
+        run: node scripts/build-baselines.mjs
+      - name: Sanity check
+        working-directory: mobile
+        # 수집이 통째로 실패했는데 조용히 커밋되면 앱 전체가 평년을 잃는다 — 최소 품목 수를 강제한다.
+        run: |
+          node -e "
+          const b=require('./public/baselines.json');
+          const n=Object.keys(b.items).length;
+          const withDays=Object.values(b.items).filter(v=>Array.isArray(v.days)).length;
+          console.log('품목', n, '| 소매 평년', withDays);
+          if (n < 60 || withDays < 50) { console.error('수집량이 비정상적으로 적다 — 커밋 중단'); process.exit(1); }
+          "
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mobile/public/baselines.json
+          git commit -m "chore: update baselines $(date -u -d '+9 hours' +%F)" || { echo "변동 없음"; exit 0; }
+          git push
