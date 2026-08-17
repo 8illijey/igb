@@ -51,6 +51,61 @@
   };
 
   /** 상품명에 이 중 하나는 반드시 있어야 함 — 엉뚱한 상품(가공식품·굿즈) 배제 */
+  /**
+   * 품종별 검색어 — `itemCode-kindCode` 키. KEYWORDS(품목명)보다 우선한다.
+   *
+   * KAMIS는 한 품목을 품종으로 나눠 조사한다. 포도만 해도 츠벨얼리(1kg)·거봉(2kg)·
+   * 샤인머스켓(2kg)이 각각 오고 단위도 다르다. 앱은 그중 '오늘 신호가 가장 좋은'
+   * 품종 하나를 대표로 보여주므로 대표는 날마다 바뀜 수 있다.
+   * 상품을 품목 단위로만 갖고 있으면 츠벨얼리 페이지에 샤인머스캣을 붙이는 오정보가 된다
+   * (2026-08-18 실제 발생). 그래서 품종이 서로 다른 상품인 것은 따로 뽑는다.
+   * 고기류는 이미 부위별로 KEYWORDS에 들어있어 여기 안 적는다.
+   */
+  const KIND_KEYWORDS = {
+    '111-01': '쌀 20kg', '111-10': '쌀 10kg',
+    '214-01': '적상추', '214-02': '청상추',
+    '223-01': '가시오이', '223-02': '다다기오이', '223-03': '취청오이',
+    '224-01': '애호박', '224-02': '쥐키니 호박',
+    '241-00': '건고추', '241-01': '햇 건고추',
+    '242-00': '풋고추', '242-02': '꾬리고추', '242-03': '청양고추', '242-04': '오이맛고추',
+    '246-00': '대파', '246-02': '쪽파',
+    '248-00': '국산 고춧가루', '248-01': '중국산 고춧가루',
+    '411-05': '부사 사과', '411-06': '아오리 사과',
+    '412-01': '신고배', '412-04': '원황배',
+    '414-01': '츠벨얼리 포도', '414-02': '거봉 포도', '414-12': '샤인머스캣',
+    '422-01': '방울토마토', '422-02': '대추방울토마토',
+    '9903-21': '계란 10구', '9903-23': '계란 30구',
+  };
+
+  /** 품종별 필수 토큰 — 없으면 TOKENS(품목)을 쓴다. */
+  const KIND_TOKENS = {
+    '214-01': ['적상추'], '214-02': ['청상추'],
+    '223-02': ['다다기'], '223-03': ['취청'],
+    '224-02': ['쥐키니'],
+    '242-02': ['꾬리'], '242-03': ['청양'], '242-04': ['오이맛', '오이고추'],
+    '246-02': ['쪽파'],
+    '411-06': ['아오리', '쓰가루'],
+    '412-04': ['원황'],
+    '414-02': ['거봉'], '414-12': ['샤인머스캣', '샤인 머스캣'],
+    '422-02': ['대추방울', '대추 방울'],
+    '9903-23': ['30구'],
+    '111-10': ['쌀'],
+  };
+
+  /** 품종별 배제어 — 형제 품종이 서로를 잔아먹지 않게. */
+  const KIND_EXCLUDE = {
+    '214-01': ['청상추'], '214-02': ['적상추'],
+    '223-01': ['다다기', '취청'],
+    '224-01': ['쥐키니'],
+    '242-00': ['꾬리', '청양', '오이맛'],
+    '246-00': ['쪽파'],
+    '411-05': ['아오리', '쓰가루'],
+    '412-01': ['원황'],
+    '414-01': ['샤인', '거봉'],
+    '422-01': ['대추방울', '대추 방울'],
+    '9903-21': ['30구'],
+  };
+
   const TOKENS = {
     쌀: ['쌀'], 찹쌀: ['찹쌀'], 콩: ['백태', '메주콩', '흰콩', '콩'], 팥: ['팥'], 녹두: ['녹두'],
     고구마: ['고구마'], 감자: ['감자'], 배추: ['배추'], 양배추: ['양배추'], 시금치: ['시금치'],
@@ -190,7 +245,10 @@
     const out = [];
     for (const it of items) {
       const k = `${it.itemCode}-${it.kindCode}`;
-      if (seenKey.has(k) || seenName.has(it.itemName)) continue;
+      // 품종별 검색어가 정의된 품종은 전부 남긴다. 예전엔 품목명당 1개만 남겨,
+      // 대표 품종이 바뀜 날 그 페이지의 상품이 통째로 사라졌다(2026-08-18).
+      if (seenKey.has(k)) continue;
+      if (!KIND_KEYWORDS[k] && seenName.has(it.itemName)) continue;
       seenKey.add(k);
       seenName.add(it.itemName);
       out.push(it);
@@ -203,9 +261,11 @@
   function scoreProduct(p, item) {
     if (p.type !== 'PRODUCT' || p.isSoldOut || p.travel) return -1;
     const title = p.title || '';
-    const tokens = TOKENS[item.itemName] || [item.itemName];
+    const kindKey = `${item.itemCode}-${item.kindCode}`;
+    const tokens = KIND_TOKENS[kindKey] || TOKENS[item.itemName] || [item.itemName];
     if (!tokens.some((t) => title.includes(t.trim()))) return -1;
-    for (const bad of EXCLUDE[item.itemName] || []) if (title.includes(bad)) return -1;
+    for (const bad of [...(EXCLUDE[item.itemName] || []), ...(KIND_EXCLUDE[kindKey] || [])])
+      if (title.includes(bad)) return -1;
 
     let s = 0;
     const dct = p.deliveryChargeType || [];
@@ -288,7 +348,7 @@
 
     for (const item of catalog) {
       const key = `${item.itemCode}-${item.kindCode}`;
-      const keyword = KEYWORDS[item.itemName];
+      const keyword = KIND_KEYWORDS[key] || KEYWORDS[item.itemName];
       if (!keyword) {
         // KAMIS가 새 품목을 추가하면 여기로 떨어진다. 조용히 빠뜨리지 말고 남긴다.
         stats.skipped.push(`${key} ${item.itemName} (검색어 미정의)`);
