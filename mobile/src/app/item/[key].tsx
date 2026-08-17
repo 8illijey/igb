@@ -318,9 +318,33 @@ export default function ItemDetailScreen() {
 
   // 추천 = 평년 단일 기준(홈 카드와 동일 — 둘이 어긋나지 않게). 최근 1년 평균은 rec-card 보조 설명으로만.
   // 평년만 필요하므로 recentAvg(365·verdicts) 안 기다리고 즉시 확정 — 칩·헤드라인 바로 뜸.
-  const buy = active?.today != null ? evalBuy(active.today, active.normal) : null;
+  // 도매 '이맘때 평균' — KAMIS 도매 응답의 dpr7(평년)은 쓸 수 없다.
+  // 2026-08-17 확인: 도매 32개 품목 전부 dpr7이 소매 dpr7과 숫자가 완전히 동일했다.
+  // 단위는 다른데(감자 소매 100g / 도매 20kg) 값은 같아서, 그대로 쓰면 감자가 기준 대비 117배로
+  // 잎혀 도매 품목의 절반이 항상 '비싼 편이에요'로 뜼던다 — 실제로는 평균보다 쌀 때도.
+  // → 사전계산된 도매 시계열의 '이번 달 평균'(wholesaleMonths)을 기준으로 쓴다.
+  //   연간 흐름 막대가 이미 이 값을 쓰고 있어, 한 화면에서 막대와 숫자가 같은 축을 보게 된다.
+  // 연평균(wholesaleRecentAvg) 폴백은 일부러 안 쓴다 — 제철 과일 비수기에만 발동하는데
+  // 그때 연평균은 성수기 가격이라(복숭아는 7~9월만 조사) '이맘때'가 아니게 된다.
+  // 고치려던 것과 같은 종류의 오류라, 기준이 없으면 신호를 안 내는 쪽을 택한다.
+  const wholesaleBaseline =
+    market === 'wholesale' ? verdicts[vKey]?.wholesaleMonths?.[new Date().getMonth()] ?? null : null;
+  /** 차트 기준선·라벨의 '이맘때 평균'. 소매는 KAMIS 평년, 도매는 위 사전계산값. */
+  const baseline = market === 'wholesale' ? wholesaleBaseline : active?.normal ?? null;
+  // 도매는 기준값이 없으면 buy=null → 칩을 아예 안 띄운다(signalHidden).
+  const buy =
+    active?.today == null
+      ? null
+      : market === 'wholesale'
+        ? wholesaleBaseline != null
+          ? evalBuy(active.today, wholesaleBaseline)
+          : null
+        : evalBuy(active.today, active.normal);
   const displayLevel: SignalLevel = buy ? buy.level : 'fair';
   const recReady = buy != null;
+  // 도매인데 기준값이 없는 경우 — 로딩이 아니라 '판단을 안 함'이니 스켈레톤 대신 아무것도 안 보인다.
+  // (도매 사전계산이 없는 축산·유제품 6개: 소·돼지·수입소·수입돼지·계란·우유)
+  const signalHidden = market === 'wholesale' && !recReady && active?.today != null;
   // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
   const chartReady = chartDisplay != null;
   // 푸터 '기준일' = 지금 보는 차트의 실제 최근 조사일 (오늘 날짜 아님).
@@ -453,7 +477,7 @@ export default function ItemDetailScreen() {
                         level={displayLevel}
                         label={
                           displayLevel === 'cheap'
-                            ? isTopDiscount
+                            ? isTopDiscount && market === 'retail'
                               ? '할인율 1위'
                               : '저렴해요'
                             : displayLevel === 'fair'
@@ -461,7 +485,7 @@ export default function ItemDetailScreen() {
                               : '비싼 편이에요'
                         }
                       />
-                    ) : (
+                    ) : signalHidden ? null : (
                       <Skeleton style={styles.skelChip} />
                     )}
                   </View>
@@ -509,8 +533,8 @@ export default function ItemDetailScreen() {
               <View style={styles.chartCard}>
                 <View style={styles.chartLabelRow}>
                   <Text style={styles.chartTitle}>최근 시세</Text>
-                  {active.normal != null && (
-                    <Text style={styles.chartBaseline}>이맘때 평균 {won(active.normal)}원</Text>
+                  {baseline != null && (
+                    <Text style={styles.chartBaseline}>이맘때 평균 {won(baseline)}원</Text>
                   )}
                 </View>
                 {/* 차트 데이터(28일 도착) 전엔 스켈레톤. 색은 이미 확정된 추천(displayLevel)을 따른다 */}
@@ -519,7 +543,7 @@ export default function ItemDetailScreen() {
                 ) : (
                   <Sparkline
                     series={chartDisplay!}
-                    baseline={active.normal}
+                    baseline={baseline}
                     level={recReady ? displayLevel : 'fair'}
                   />
                 )}
