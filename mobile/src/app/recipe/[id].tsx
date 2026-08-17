@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, ChevronRight, Heart } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PriceItem, won } from '../../api/kamis';
 import { EmptyState } from '../../components/igb/EmptyState';
+import { FavoriteHeart } from '../../components/igb/FavoriteHeart';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Ingredient, findItem, getViewedRecipe, recipeHero, recipeImage, recipeStep, useRecipes } from '../../recipes';
@@ -22,7 +23,9 @@ export default function RecipeDetailScreen() {
   const fallback = useRecipes();
   const recipe = getViewedRecipe(Number(id)) ?? fallback[Number(id)];
   const { isFavorite, toggle } = useFavorites();
-  const favKey = `recipe:${id}`;
+  // 제목 키 — 인덱스 키는 목록(주간 로테이션·검색)이 바뀌면 다른 레시피를 가리킨다.
+  // 복원은 관심목록이 식약처 DB 라이브 재조회(fetchRecipeByTitle)로 한다.
+  const favKey = recipe ? `recipe:${recipe.title}` : `recipe:${id}`;
   const fav = isFavorite(favKey);
   const [topH, setTopH] = useState(0);
 
@@ -60,14 +63,7 @@ export default function RecipeDetailScreen() {
           <View style={styles.titleBlock}>
             <View style={styles.titleRow}>
               <Text style={[styles.title, { flex: 1 }]}>{recipe.title}</Text>
-              <Pressable onPress={() => toggle(favKey)} hitSlop={8} style={styles.favBtn}>
-                <Heart
-                  size={24}
-                  color={fav ? colors.iconActive : colors.iconInactive}
-                  fill={fav ? colors.iconActive : 'none'}
-                  strokeWidth={2}
-                />
-              </Pressable>
+              <FavoriteHeart fav={fav} onToggle={() => toggle(favKey)} style={styles.favBtn} />
             </View>
           </View>
           <Text style={styles.meta}>

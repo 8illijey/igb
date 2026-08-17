@@ -1,11 +1,25 @@
+import * as Haptics from 'expo-haptics';
 import React from 'react';
-import { PanResponder, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Platform, StyleSheet, Text, View } from 'react-native';
+import Reanimated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { SeriesPoint, won } from '../../api/kamis';
 import { colors, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 import { Tooltip, TooltipPosition } from './Tooltip';
 
 const CUR_YEAR = String(new Date().getFullYear());
+// 발견성 힌트(크로스헤어 스윕)는 세션당 1회 — 상세 들락날락할 때마다 나오면 소음.
+let hintShown = false;
+const easeInOut = Easing.bezier(0.77, 0, 0.175, 1);
 // 작년(이전 연도) 날짜면 연도 접두 — 1년 차트에서 구분. 예: "25/10/02", 올해는 "10/02".
 const fmtDate = (p: SeriesPoint) => (p.year && p.year !== CUR_YEAR ? `${p.year.slice(2)}/${p.date}` : p.date);
 
@@ -32,16 +46,59 @@ export function Sparkline({ series, baseline, level, height = 140 }: Props) {
     if (w <= 0 || n <= 1) return 0;
     return Math.max(0, Math.min(n - 1, Math.round((lx / w) * (n - 1))));
   };
+
+  // 발견성 힌트 — 데이터가 처음 그려지고 600ms 뒤 크로스헤어가 한 번 훑고 사라진다(세션 1회).
+  const reduced = useReducedMotion();
+  const hintX = useSharedValue(0);
+  const hintOpacity = useSharedValue(0);
+  const hintStyle = useAnimatedStyle(() => ({
+    opacity: hintOpacity.value,
+    transform: [{ translateX: hintX.value }],
+  }));
+  const killHint = () => {
+    cancelAnimation(hintX);
+    hintOpacity.value = withTiming(0, { duration: 80 });
+  };
+  React.useEffect(() => {
+    if (hintShown || reduced || width <= 0 || series.length < 2) return;
+    hintShown = true;
+    const t = setTimeout(() => {
+      hintX.value = width;
+      hintOpacity.value = withTiming(0.5, { duration: 200 });
+      hintX.value = withSequence(
+        withTiming(width * 0.4, { duration: 450, easing: easeInOut }),
+        withTiming(width, { duration: 450, easing: easeInOut }),
+      );
+      hintOpacity.value = withDelay(900, withTiming(0, { duration: 200 }));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [width, series.length, reduced]);
+
+  // 스크럽 틱 — 포인트가 바뀔 때만 셀렉션 햅틱(연속 발화 방지). 웹 no-op.
+  const selRef = React.useRef<number | null>(null);
+  const scrubTo = (lx: number) => {
+    const i = idxFromX(lx);
+    if (selRef.current !== i && Platform.OS !== 'web') Haptics.selectionAsync();
+    selRef.current = i;
+    setSel(i);
+  };
+  const scrubEnd = () => {
+    selRef.current = null;
+    setSel(null);
+  };
   // 가로 드래그만 캡처 → 세로 스크롤은 부모로 통과. 손 떼면 '오늘'로 복귀.
   const pan = React.useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > Math.abs(g.dy) && Math.abs(g.dx) > 4,
-        onPanResponderGrant: (e) => setSel(idxFromX(e.nativeEvent.locationX)),
-        onPanResponderMove: (e) => setSel(idxFromX(e.nativeEvent.locationX)),
-        onPanResponderRelease: () => setSel(null),
-        onPanResponderTerminate: () => setSel(null),
+        onPanResponderGrant: (e) => {
+          killHint();
+          scrubTo(e.nativeEvent.locationX);
+        },
+        onPanResponderMove: (e) => scrubTo(e.nativeEvent.locationX),
+        onPanResponderRelease: scrubEnd,
+        onPanResponderTerminate: scrubEnd,
       }),
     [],
   );
@@ -74,12 +131,13 @@ export function Sparkline({ series, baseline, level, height = 140 }: Props) {
   const TAIL_H = 6; // 꼬리 높이(top variant에서 버블을 점 아래로 밀 때)
 
   const active = sel != null ? sel : values.length - 1; // 표시 인덱스 (스크럽 or 오늘)
-  // 마지막 조사가 오래됐으면(친환경 등 최근 조사 없음) '오늘 시세' 대신 실제 조사날짜로 표기.
+  // 최신 조사가 '오늘'이 아니면(주말·공휴일·KAMIS 4시 갱신 전 등) '오늘 시세' 대신 실제 조사날짜로 표기.
   const lastP = series[values.length - 1];
-  const lastAge = lastP.year ? (Date.now() - Date.parse(`${lastP.year}/${lastP.date}`)) / 86400000 : 0;
-  const stale = lastAge > 14; // 2주 넘게 최신 조사 없음
-  const todayLabel = stale ? fmtDate(lastP) : '오늘 시세';
-  const endAxisLabel = stale ? fmtDate(lastP) : '오늘';
+  const now = new Date();
+  const [lm, ld] = lastP.date.split('/').map(Number);
+  const isToday = lastP.year === String(now.getFullYear()) && lm === now.getMonth() + 1 && ld === now.getDate();
+  const todayLabel = isToday ? '오늘 시세' : fmtDate(lastP);
+  const endAxisLabel = isToday ? '오늘' : fmtDate(lastP);
   const activeV = values[active];
 
   return (
@@ -104,6 +162,8 @@ export function Sparkline({ series, baseline, level, height = 140 }: Props) {
             {sel == null && <Circle cx={width} cy={y(values[values.length - 1])} r={4} fill={c.main} />}
           </Svg>
         )}
+        {/* 발견성 힌트 스윕 — '만질 수 있는 차트'라는 신호. 스크럽 시작 시 즉시 소멸(killHint). */}
+        <Reanimated.View pointerEvents="none" style={[styles.hintLine, hintStyle]} />
         {/* '평균' 라벨 — 점선 좌측. 실제 값은 카드 서브타이틀('이맘때 평균 X원')이 보여준다. */}
         {baseline != null && width > 0 && (
           <Text style={[styles.refLabel, { left: 0, top: Math.max(0, Math.min(height - 20, y(baseline) - 10)) }]}>평균</Text>
@@ -164,6 +224,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   } as const,
   tooltipWrap: { position: 'absolute' },
+  hintLine: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 1, backgroundColor: colors.borderStrong },
   dateRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.s1 },
   dateText: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
 });

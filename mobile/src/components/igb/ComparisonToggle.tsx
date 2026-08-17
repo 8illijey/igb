@@ -1,7 +1,8 @@
 import { Repeat } from 'lucide-react-native';
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { colors, radius, spacing, type } from '../../theme/tokens';
+import { AnimatedPressable, usePressScale } from './usePressScale';
 
 export type ComparisonBasis = 'vsNormal' | 'vsYesterday';
 
@@ -21,15 +22,18 @@ export function ComparisonToggle({
   value: ComparisonBasis;
   onChange: (v: ComparisonBasis) => void;
 }) {
+  const press = usePressScale();
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={() => onChange(value === 'vsNormal' ? 'vsYesterday' : 'vsNormal')}
-      style={({ pressed }) => [styles.base, pressed && { opacity: 0.7 }]}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      style={[styles.base, press.pressed && { opacity: 0.7 }, press.style]}
       hitSlop={6}
     >
       <Repeat size={16} color={colors.textSecondary} strokeWidth={2} />
       <Text style={styles.label}>{LABEL[value]}</Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

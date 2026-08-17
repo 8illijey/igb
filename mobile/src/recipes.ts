@@ -29,8 +29,9 @@ const normalize = (r: any): Recipe => ({
 /** 번들된(빌드 시점) 레시피 — 오프라인·첫 로드 폴백. 운영판은 Worker에서 fetch. */
 export const RECIPES: Recipe[] = (recipeData.recipes as any[]).map(normalize);
 
-// 운영판 Worker URL. 미설정 시 번들 RECIPES만 사용.
-const RECIPES_URL = process.env.EXPO_PUBLIC_RECIPES_URL;
+// 운영판 Worker URL 하드코딩 — EXPO_PUBLIC_* env가 오염 값으로 주입되는 사고 반복(kamis.ts 참조, 2026-08-09).
+// 오염되면 식약처 라이브 대신 구버전 번들만 떴다. 실패 시엔 어차피 번들 RECIPES 폴백.
+const RECIPES_URL = 'https://igeobissa-recipes.designerxyzi.workers.dev/recipes';
 let sessionCache: Recipe[] | null = null; // 목록·상세가 같은 데이터를 보도록 세션 캐시
 
 /** 레시피 목록 — Worker에서 라이브 fetch(주1회 갱신), 실패/미설정 시 번들 폴백. */
@@ -63,6 +64,21 @@ export function setViewedRecipes(list: Recipe[]) {
 }
 export function getViewedRecipe(id: number): Recipe | undefined {
   return viewedRecipes[id];
+}
+
+// ---- 관심 레시피 복원 ----
+// 즐겨찾기 키가 '목록 인덱스'면 목록(주간 로테이션·검색 결과)이 바뀔 때 엉뚱한 레시피를 가리킨다
+// (2026-08-09 실제 발생 — 구버전 번들 제목이 뜸). 제목 키로 저장하고, 복원은 원천인
+// 식약처 조리식품 레시피 DB(워커 /recipes/search 라이브)에서 제목 재조회로 한다.
+export async function fetchRecipeByTitle(title: string): Promise<Recipe | null> {
+  try {
+    const base = RECIPES_URL.replace(/\/recipes$/, '');
+    const res = await fetch(`${base}/recipes/search?q=${encodeURIComponent(title)}&by=title`);
+    const list = (((await res.json()) as any)?.recipes ?? []).map(normalize);
+    return list.find((r: Recipe) => r.title === title) ?? list[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** 재료명·레시피명으로 검색 — 화면에 보이는 corpus(라이브 또는 번들)를 로컬 필터. 빈 쿼리면 빈 배열. */

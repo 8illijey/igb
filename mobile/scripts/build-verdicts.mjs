@@ -41,7 +41,11 @@ const fetchT = async (url, ms = 15000) => {
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort(), ms);
     try {
-      const res = await fetch(url, { signal: ac.signal });
+      // UA 필수: KAMIS 방화벽이 브라우저 UA 없는 요청을 차단(2026-07-17 확인). 프록시 경유든 직접이든 무해.
+      const res = await fetch(url, {
+        signal: ac.signal,
+        headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36' },
+      });
       if (res.status >= 500) throw new Error(`upstream ${res.status}`);
       return res;
     } catch (e) {
@@ -334,6 +338,37 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     if (done % 10 === 0) console.log(`  ${done}/${reps.length}`);
   }
 
+  // KAMIS 장애 시 빈 verdicts가 기존 데이터를 덮어쓰는 사고 방지 (2026-07-15 실제 발생)
+  if (Object.keys(out).length === 0) {
+    console.error('판정 0건 — KAMIS 장애로 보고 기존 verdicts.json 보존, 실패 처리');
+    process.exit(1);
+  }
+  // 부분 장애 보전 (2026-07-19 실제 발생: 판정은 되고 연간 시계열만 전멸) —
+  // 새 months가 비었으면 직전 verdicts의 연간 흐름 필드를 물려받는다. 대표 품종이 바뀌었으면 같은 품목으로 폴백.
+  try {
+    const prev = JSON.parse(fs.readFileSync(new URL('../public/verdicts.json', import.meta.url), 'utf8')).items ?? {};
+    let carried = 0;
+    for (const [k, v] of Object.entries(out)) {
+      if ((v.months ?? []).some(Boolean)) continue;
+      const code = k.split('-')[0];
+      const p = prev[k] ?? prev[Object.keys(prev).find((pk) => pk.startsWith(`${code}-`)) ?? ''];
+      if (!p || !(p.months ?? []).some(Boolean)) continue;
+      v.months = p.months;
+      if (v.wholesaleRecentAvg == null && p.wholesaleRecentAvg != null) {
+        v.wholesaleRecentAvg = p.wholesaleRecentAvg;
+        v.wholesaleMonths = p.wholesaleMonths;
+      }
+      if (p.spanVarieties) {
+        v.spanVarieties = p.spanVarieties;
+        v.variety ??= p.variety;
+        v.thisMonthVarieties ??= p.thisMonthVarieties;
+      }
+      carried += 1;
+    }
+    if (carried) console.log(`연간 흐름 결손 ${carried}건을 직전 verdicts에서 보전`);
+  } catch {
+    // 직전 파일 없음(첫 실행) — 보전 생략
+  }
   const payload = { generatedAt: new Date().toISOString(), date: fmtDate(new Date()), items: out };
   const dir = new URL('../public/', import.meta.url);
   fs.mkdirSync(dir, { recursive: true });

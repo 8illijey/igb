@@ -1,13 +1,13 @@
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { ChevronRight, Heart } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { PriceListRow } from '../../components/igb/PriceListRow';
 import { Wordmark } from '../../components/igb/Wordmark';
-import { recipeHero, useRecipes } from '../../recipes';
+import { fetchRecipeByTitle, recipeHero, setViewedRecipes, useRecipes, type Recipe } from '../../recipes';
 import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
@@ -24,14 +24,32 @@ export default function FavoritesScreen() {
     () => keys.map((k) => resolve(k)).filter((i) => i != null),
     [keys, resolve],
   );
-  // 관심 레시피 — 키가 'recipe:{id}' 형태. 상세 화면 하트로 담는다.
+  // 관심 레시피 — 키 'recipe:{제목}'. 복원은 원천인 식약처 레시피 DB 라이브 재조회(주간 목록에 없어도 뜸).
+  // 구버전 'recipe:{인덱스}' 키는 어떤 목록의 인덱스였는지 알 수 없어(오표시 원인) 표시하지 않는다.
+  const [fetched, setFetched] = useState<Record<string, Recipe>>({});
+  useEffect(() => {
+    const titles = keys
+      .filter((k) => k.startsWith('recipe:'))
+      .map((k) => k.slice('recipe:'.length))
+      .filter((t) => !/^\d+$/.test(t));
+    if (!titles.length) return;
+    let alive = true;
+    Promise.all(
+      titles.map(async (t) => [t, recipeList.find((r) => r.title === t) ?? (await fetchRecipeByTitle(t))] as const),
+    ).then((entries) => {
+      if (alive) setFetched(Object.fromEntries(entries.filter(([, r]) => r != null)) as Record<string, Recipe>);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [keys, recipeList]);
   const favRecipes = useMemo(
     () =>
       keys
         .filter((k) => k.startsWith('recipe:'))
-        .map((k) => ({ id: Number(k.slice('recipe:'.length)), recipe: recipeList[Number(k.slice('recipe:'.length))] }))
+        .map((k) => ({ key: k, recipe: fetched[k.slice('recipe:'.length)] }))
         .filter((r) => r.recipe != null),
-    [keys, recipeList],
+    [keys, fetched],
   );
 
   const isEmpty = favorites.length === 0 && favRecipes.length === 0;
@@ -85,12 +103,16 @@ export default function FavoritesScreen() {
                   <Text style={styles.sectionTitle}>관심 레시피</Text>
                   <Text style={styles.count}>{favRecipes.length}개</Text>
                 </View>
-                {favRecipes.map(({ id, recipe }, idx) => (
-                  <View key={`recipe:${id}`}>
+                {favRecipes.map(({ key, recipe }, idx) => (
+                  <View key={key}>
                     {idx > 0 && <View style={styles.divider} />}
                     <Pressable
                       style={({ pressed }) => [styles.recipeRow, pressed && { opacity: 0.6 }]}
-                      onPress={() => router.push(`/recipe/${id}` as Href)}
+                      onPress={() => {
+                        // 상세는 '현재 목록'을 인덱스로 읽는다 — 관심 레시피 배열을 그 목록으로 세팅하고 이동.
+                        setViewedRecipes(favRecipes.map((f) => f.recipe!));
+                        router.push(`/recipe/${idx}` as Href);
+                      }}
                     >
                       <View style={styles.recipeThumb}>
                         {recipeHero(recipe!) != null && (

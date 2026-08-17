@@ -24,8 +24,9 @@ export interface Verdict {
   thisMonthVarieties?: { name: string; price: number }[];
 }
 
-// 기본은 웹 동일출처 정적(/verdicts.json). 외부 호스팅(GitHub raw·Vercel Blob 등)은 env로 덮어쓴다.
-const VERDICTS_URL = process.env.EXPO_PUBLIC_VERDICTS_URL || '/verdicts.json';
+// GitHub raw 하드코딩 — CI가 매일 갱신하는 최신본을 재배포 없이 직독. EXPO_PUBLIC_* env 주입은
+// 오염 사고가 반복돼 제거(kamis.ts 참조, 2026-08-09). 실패 시 load()가 빈 맵 폴백.
+const VERDICTS_URL = 'https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json';
 
 let cache: Promise<Record<string, Verdict>> | null = null;
 function load(): Promise<Record<string, Verdict>> {

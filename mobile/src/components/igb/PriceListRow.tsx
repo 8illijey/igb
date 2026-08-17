@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { won } from '../../api/kamis';
 import { thumbFor } from '../../thumbnails';
 import { colors, radius, SignalLevel, spacing, type } from '../../theme/tokens';
 import { SignalChip } from './SignalChip';
+import { AnimatedPressable, usePressScale } from './usePressScale';
 
 interface Props {
   name: string;
@@ -24,10 +25,13 @@ interface Props {
  */
 export function PriceListRow({ name, price, unit, level, itemCode, kindCode, onPress }: Props) {
   const thumb = itemCode ? thumbFor({ itemCode, kindCode }) : undefined;
+  const press = usePressScale();
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.overlayPress }]}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      style={[styles.row, press.pressed && { backgroundColor: colors.overlayPress }, press.style]}
     >
       <View style={styles.left}>
         {thumb ? (
@@ -46,7 +50,7 @@ export function PriceListRow({ name, price, unit, level, itemCode, kindCode, onP
         </View>
         {level && <SignalChip level={level} size="s" iconOnly />}
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

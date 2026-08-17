@@ -36,6 +36,8 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const fresh = await fetchAllCategories();
+      // 장애 중 '데이터 없음' 정상 JSON이 오면 빈 목록이 성공으로 캐시를 덮는다(2026-07-15 실제 발생) — 실패로 취급해 이전 화면 유지.
+      if (!fresh.length) throw new Error('시세 응답이 비어 있어요');
       setItems(fresh);
       AsyncStorage.setItem(CACHE_KEY, JSON.stringify(fresh)).catch(() => {});
     } catch (e) {

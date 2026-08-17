@@ -83,6 +83,14 @@ export const iconSize = { s: 16, m: 20, l: 24, xl: 32 } as const;
 
 export const opacity = { disabled: 0.4, disabledGlass: 0.3 } as const;
 
+/** 모션 — 인디케이터 이동·press 피드백 공용. ease-in 금지(반응이 늦어 보임). */
+export const motion = {
+  /** 강한 ease-out — 등장·이동 기본값 */
+  easeOutBezier: [0.23, 1, 0.32, 1] as const,
+  fast: 120,
+  base: 200,
+} as const;
+
 /** Pretendard 정적 웨이트 — expo-font로 로드되는 family 이름 */
 export const font = {
   regular: 'Pretendard-Regular',

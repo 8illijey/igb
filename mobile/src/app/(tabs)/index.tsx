@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Reanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { PriceItem, won } from '../../api/kamis';
 import { useVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
@@ -24,6 +25,29 @@ import { subjectParticle } from '../../utils/korean';
 import { colors, font, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 
 const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
+
+/** 히어로 가격 카운트업 — 첫 도착 1회만 85%→100%를 500ms cubic ease-out으로. reduced motion·비활성 시 즉시 최종값. */
+function useCountUp(target: number | null, enabled: boolean): number | null {
+  const [v, setV] = useState(target);
+  useEffect(() => {
+    if (target == null || !enabled) {
+      setV(target);
+      return;
+    }
+    const from = Math.round(target * 0.85);
+    const t0 = Date.now();
+    let raf: number;
+    const tick = () => {
+      const p = Math.min(1, (Date.now() - t0) / 500);
+      const e = 1 - Math.pow(1 - p, 3);
+      setV(Math.round(from + (target - from) * e));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, enabled]);
+  return v;
+}
 
 // Figma price-right-button (842:4347) 실제 애셋 — 37×37, 굵은 chevron(stroke 3.44).
 function PriceChevron() {
@@ -43,8 +67,9 @@ function PriceChevron() {
 // (전부 BEST면 정보가 0 → 할인율로 카드끼리 구별. 상세 종합판정은 cheap 게이팅이라 모순 안 남)
 
 /** Figma hero-verdict-card 1:1 — level은 사전계산(평년+최근1년) 우선, 없으면 item.level(평년) */
-function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel }) {
+function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceItem; level: SignalLevel; animatePrice?: boolean }) {
   const c = signal[level];
+  const shownPrice = useCountUp(item.today, animatePrice);
   const pct = Math.abs(item.vsNormalPct ?? 0);
   const verdictTail =
     level === 'cheap' ? `${pct}% 싸요` : level === 'expensive' ? `${pct}% 비싸요` : '평소 가격이에요';
@@ -81,7 +106,7 @@ function HeroVerdictCard({ item, level }: { item: PriceItem; level: SignalLevel 
         {/* 우측 칼럼: 가격+chevron 위, 캡션 아래 (space-between) — Figma title-price */}
         <View style={styles.heroPriceCol}>
           <View style={styles.heroPriceRow}>
-            <Text style={styles.heroPrice}>{won(item.today)}원</Text>
+            <Text style={styles.heroPrice}>{won(shownPrice)}원</Text>
             <PriceChevron />
           </View>
           <View>
@@ -143,6 +168,16 @@ export default function HomeScreen() {
   const [topH, setTopH] = useState(0);
 
   const lvlOf = (i: PriceItem) => verdicts[itemKey(i)]?.level ?? i.level;
+
+  // 진입 연출 게이트 — 스피너를 실제로 본 첫 도착 1회만. 캐시 즉시 페인트·당겨서 새로고침·펼침엔 연출 없음.
+  const reduced = useReducedMotion();
+  const sawSpinner = useRef(false);
+  const didAnimate = useRef(false);
+  if (loading && items.length === 0) sawSpinner.current = true;
+  const animateEntrance = sawSpinner.current && !didAnimate.current && !reduced && items.length > 0;
+  useEffect(() => {
+    if (animateEntrance) didAnimate.current = true;
+  });
   const ORDER = { cheap: 0, fair: 1, expensive: 2 } as const;
   // 전체 품목 — BEST(싸) → FAIR(적정) → WAIT(비싸) 순, 같은 등급 내 평년 대비 낮은 순.
   const ranked = useMemo(
@@ -186,7 +221,14 @@ export default function HomeScreen() {
           <EmptyState title="시세를 불러오지 못했어요" description="아래로 당겨 다시 시도해 보세요" />
         ) : (
           <>
-            {hero && <HeroVerdictCard item={hero} level={lvlOf(hero)} />}
+            {hero &&
+              (animateEntrance ? (
+                <Reanimated.View entering={FadeInDown.duration(300)}>
+                  <HeroVerdictCard item={hero} level={lvlOf(hero)} animatePrice />
+                </Reanimated.View>
+              ) : (
+                <HeroVerdictCard item={hero} level={lvlOf(hero)} />
+              ))}
 
             {notable.length > 0 && (
               <View style={styles.outerCard}>
@@ -195,9 +237,15 @@ export default function HomeScreen() {
                   style={styles.grid}
                   onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
                 >
-                  {notable.map((i) => (
-                    <ThumbnailCard key={itemKey(i)} item={i} width={colW} />
-                  ))}
+                  {notable.map((i, n) =>
+                    animateEntrance ? (
+                      <Reanimated.View key={itemKey(i)} entering={FadeInDown.duration(300).delay(60 + n * 40)}>
+                        <ThumbnailCard item={i} width={colW} />
+                      </Reanimated.View>
+                    ) : (
+                      <ThumbnailCard key={itemKey(i)} item={i} width={colW} />
+                    ),
+                  )}
                 </View>
                 <Pressable
                   style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.85 }]}

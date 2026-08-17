@@ -7,7 +7,9 @@
 import type { SignalLevel } from '../theme/tokens';
 
 // KAMIS는 worker 프록시 경유 — cert_key/cert_id는 서버에서 주입되어 클라이언트에 노출되지 않는다.
-const BASE = process.env.EXPO_PUBLIC_KAMIS_URL ?? 'https://igeobissa-recipes.designerxyzi.workers.dev/kamis';
+// 워커 URL 하드코딩: Vercel env EXPO_PUBLIC_KAMIS_URL이 자기 오리진 값으로 오염돼 전 요청이 앱 HTML을 받는
+// 사고가 반복됨(2026-07-16, 2026-08-08). env 오버라이드는 사고만 유발하므로 제거. 워커 URL은 고정값이라 무방.
+const BASE = 'https://igeobissa-recipes.designerxyzi.workers.dev/kamis';
 
 /** 타임아웃 있는 fetch — 병렬 호출(Promise.all)에서 하나가 hang해도 전체가 안 멈추게. */
 async function fetchT(url: string, ms = 12000): Promise<Response> {
@@ -235,7 +237,8 @@ async function fetchPeriodRowsRange(
       p_convert_kg_yn: 'N',
     })}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`KAMIS HTTP ${res.status}`);
+    // 인프라 오류(워커 stale 미보유 등)는 중단 대신 다음 등급 후보로 — stale은 성공했던 등급 키에만 있다.
+    if (!res.ok) continue;
     const json = await res.json();
     const rows: any[] = json?.data?.item ?? [];
     if (Array.isArray(rows) && rows.length > 0) return rows;
@@ -414,7 +417,8 @@ export async function fetchEco(
         const rows: any[] = (await res.json())?.data?.item ?? [];
         if (!Array.isArray(rows) || rows.length === 0) return null;
         const series = assignYears(rowsToSeries(rows));
-        return series.length ? { rows, series } : null;
+        // 2점 미만은 무효 — 차트를 못 그리는 1점짜리(오래된 stale 등)가 헤더 가격만 뜨는 불일치 방지.
+        return series.length >= 2 ? { rows, series } : null;
       } catch {
         return null;
       }

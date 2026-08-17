@@ -1,6 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { StyleSheet, Text, ViewStyle } from 'react-native';
 import { colors, opacity, palette, radius, type } from '../../theme/tokens';
+import { AnimatedPressable, usePressScale } from './usePressScale';
 
 // quiet: 여백 없는 muted 텍스트 버튼(예: '전체 삭제'). Figma button variant=quiet 와 1:1.
 type Variant = 'primary' | 'secondary' | 'ghost' | 'quiet';
@@ -46,23 +47,27 @@ export function IGButton({
         : variant === 'quiet'
           ? colors.textTertiary
           : palette.brandPrimary;
+  const press = usePressScale();
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      style={[
         styles.base,
         { height: HEIGHT[size], borderRadius: RADIUS[size], backgroundColor: bg },
         // quiet은 텍스트 링크 — 가로 패딩 제거(hug)
         variant === 'quiet' && { paddingHorizontal: 0 },
-        pressed && variant === 'primary' && { backgroundColor: palette.brandPrimaryAlt },
-        pressed && variant !== 'primary' && { opacity: 0.85 },
+        press.pressed && variant === 'primary' && { backgroundColor: palette.brandPrimaryAlt },
+        press.pressed && variant !== 'primary' && { opacity: 0.85 },
         disabled && { opacity: opacity.disabled },
         style,
+        press.style,
       ]}
     >
       <Text style={[LABEL[size] as object, { color: fg }]}>{label}</Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

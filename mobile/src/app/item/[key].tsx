@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, ChevronRight, Heart } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Linking, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ import {
   SeriesPoint,
   won,
 } from '../../api/kamis';
-import { coupangUrl, LINKPRICE_MALLS, linkpriceUrl, naverShoppingUrl, trackShoppingClick } from '../../api/shopping';
+import { coupangProducts, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
 import { useVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
@@ -31,6 +31,7 @@ import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle, topicParticle, withParticle } from '../../utils/korean';
 import { colors, palette, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
+import { FavoriteHeart } from '../../components/igb/FavoriteHeart';
 
 type Market = 'retail' | 'eco' | 'wholesale';
 
@@ -48,6 +49,15 @@ const dataMem = new Map<string, unknown>();
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
+// 표시 중인 차트의 실제 최근 조사일(YYYY-MM-DD). 푸터 '기준일'은 오늘이 아니라 이 값이어야 한다
+// — KAMIS는 매일 오후 4시 갱신·주말 미조사·미러 1~2일 지연이라 오늘과 조사일이 다르다(2026-08-13).
+function latestSurveyDate(s: SeriesPoint[] | null | undefined): string | null {
+  if (!s || s.length === 0) return null;
+  const last = s[s.length - 1];
+  const [mm, dd] = String(last.date).split('/');
+  if (!mm || !dd) return null;
+  return `${last.year ?? new Date().getFullYear()}-${mm}-${dd}`;
+}
 async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   if (dataMem.has(key)) return dataMem.get(key) as T;
   try {
@@ -61,6 +71,8 @@ async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
     }
   } catch {}
   const s = await fetcher();
+  // 빈 결과는 캐시 안 함 — KAMIS 장애 중의 빈 응답이 하루 종일 굳어 복구 후에도 차트가 비는 사고 방지(2026-07-15).
+  if (Array.isArray(s) && s.length === 0) return s;
   dataMem.set(key, s);
   AsyncStorage.setItem('igb.cache.' + key, JSON.stringify({ d: todayStr(), s })).catch(() => {});
   return s;
@@ -253,11 +265,21 @@ export default function ItemDetailScreen() {
 
   // 최근 1년 평균 — 사전계산(서버) 우선, 없으면 365일 기기 계산. 사전계산이 있으면 추천이 즉시 확정.
   const verdicts = useVerdicts();
+  // 대표 품종(kind)은 홈과 verdicts가 서로 다른 시점에 뽑아 어긋날 수 있다(예: 봄배추 211-01 vs 고랭지 211-02).
+  // 같은 품목 verdict가 유일하면 그걸 쓴다. 고기는 부위(kind)마다 가격이 달라 정확 일치만(prices.resolve와 동일 원칙).
+  const MEAT_CODES = ['4301', '4304', '4401', '4402', '9901'];
+  const vKey = useMemo(() => {
+    if (verdicts[key]) return key;
+    const code = key.split('-')[0];
+    if (MEAT_CODES.includes(code)) return key;
+    const same = Object.keys(verdicts).filter((k) => k.startsWith(`${code}-`));
+    return same.length === 1 ? same[0] : key;
+  }, [verdicts, key]);
   const precomputedRecentAvg =
     market === 'wholesale'
-      ? verdicts[key]?.wholesaleRecentAvg ?? null
+      ? verdicts[vKey]?.wholesaleRecentAvg ?? null
       : market === 'retail'
-        ? verdicts[key]?.recentAvg ?? null
+        ? verdicts[vKey]?.recentAvg ?? null
         : null;
   const recentAvg = precomputedRecentAvg ?? yearDerived?.recentAvg ?? null;
 
@@ -272,21 +294,24 @@ export default function ItemDetailScreen() {
   // 연간 흐름 — 사전계산(다품종 병합) 우선, 없으면 365일 단일 품종에서 파생
   // 도매는 도매 데이터(품종 병합)만. 사전계산 없으면 라이브(yearDerived)로 폴백 — 소매가는 안 빌림.
   const annualMonths =
-    (market === 'retail' ? verdicts[key]?.months : market === 'wholesale' ? verdicts[key]?.wholesaleMonths : null) ??
+    (market === 'retail' ? verdicts[vKey]?.months : market === 'wholesale' ? verdicts[vKey]?.wholesaleMonths : null) ??
     yearDerived?.months ??
     null;
   // 철별 분할 품목인지 — 시장 무관 품목 속성(소매 사전계산). hero 품종명 표시 기준 + 흐름 캡션용.
-  const isSplitItem = verdicts[key]?.spanVarieties ?? false;
+  const isSplitItem = verdicts[vKey]?.spanVarieties ?? false;
   const annualSpanVarieties = market === 'eco' ? false : isSplitItem;
   // hero 품종명 — 도매는 '도매 데이터 자체'(보고 있는 wsItem의 kind="봄(20kg)"→봄무), 소매는 대표 품종.
   // 차트 병합(월동무 데이터)과 무관 — 분할 품목이면 wsItem의 실제 품종을 그대로 표기.
   const heroVariety =
-    market === 'wholesale' ? (active ? varietyName(active.kindName, active.itemName) : null) : verdicts[key]?.variety ?? null;
-  const heroName = (isSplitItem && heroVariety) || item?.itemName || '';
+    market === 'wholesale' ? (active ? varietyName(active.kindName, active.itemName) : null) : verdicts[vKey]?.variety ?? null;
+  // 도매는 실제 조사 단위 이름으로 — 소매와 조사 단위가 다른 품목(닭고기 육계9호 vs 육계(kg))에서
+  // 소매 이름을 그대로 두면 다른 상품의 가격처럼 읽힌다. 분할 품목은 기존 품종명 우선.
+  const heroName =
+    (isSplitItem && heroVariety) || (market === 'wholesale' && active ? active.itemName : item?.itemName) || '';
   // 연간흐름 '철마다 품종 달라요' 캡션 — 소매는 사전계산(품종별 가격), 도매는 현재 품종명만(가격 캡션은 소매가라 제외).
   const annualThisMonthVarieties =
     market === 'retail'
-      ? verdicts[key]?.thisMonthVarieties ?? null
+      ? verdicts[vKey]?.thisMonthVarieties ?? null
       : market === 'wholesale' && isSplitItem && heroVariety
         ? [{ name: heroVariety, price: 0 }]
         : null;
@@ -298,6 +323,11 @@ export default function ItemDetailScreen() {
   const recReady = buy != null;
   // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
   const chartReady = chartDisplay != null;
+  // 푸터 '기준일' = 지금 보는 차트의 실제 최근 조사일 (오늘 날짜 아님).
+  const surveyDate = useMemo(
+    () => latestSurveyDate(market === 'eco' ? eco?.series : chartDisplay),
+    [market, eco, chartDisplay],
+  );
   // 유기농·무농약 '이맘때 평균'(최근 2년) 대비 신호 — 일반의 평년 대비와 같은 방식(이맘때 평균이 기준).
   const ecoSeasonalPct =
     eco && ecoBaseline && eco.latest != null
@@ -408,8 +438,9 @@ export default function ItemDetailScreen() {
             <View style={styles.hero}>
               <View style={styles.heroBody}>
                 <View style={styles.heroThumb}>
-                  {thumbFor(active) != null && (
-                    <Image source={thumbFor(active)} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  {/* 사진은 품목 대표(item)로 고정 — 도매 wsItem의 품종코드로 찾으면 소매/도매 사진이 어긋난다 */}
+                  {thumbFor(item!) != null && (
+                    <Image source={thumbFor(item!)} style={StyleSheet.absoluteFill} contentFit="cover" />
                   )}
                 </View>
                 <View style={styles.heroContents}>
@@ -464,9 +495,10 @@ export default function ItemDetailScreen() {
               <Sparkline series={eco.series} baseline={ecoBaseline?.avg ?? null} level={ecoLevel} />
             </View>
             <BuySection markets={eco.markets} reference={eco.latest} />
-            <ShopSection itemCode={item.itemCode} />
+            <ShopSection itemCode={itemKey(item)} />
             <Text style={styles.source}>
-              자료 출처 · KAMIS {new Date().toISOString().slice(0, 10)} 기준{'\n'}유기농·무농약은 주 1회 화요일에 업데이트
+              자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}
+              {'\n'}유기농·무농약은 주 1회 화요일에 업데이트
             </Text>
           </View>
         ) : active && view ? (
@@ -504,9 +536,9 @@ export default function ItemDetailScreen() {
 
             <BuySection markets={markets} reference={active.today} />
 
-            <ShopSection itemCode={item.itemCode} />
+            <ShopSection itemCode={itemKey(item)} />
 
-            <Text style={styles.source}>자료 출처 · KAMIS {new Date().toISOString().slice(0, 10)} 기준</Text>
+            <Text style={styles.source}>자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}</Text>
           </View>
         ) : null}
       </ScrollView>
@@ -709,42 +741,58 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
  * "지금 온라인에서 사기" — 제휴 아웃링크. 가격 숫자는 표시하지 않는다(실시간 조회 불가 → 오정보 방지).
  * 제휴 설정이 안 된 몰 행은 숨김 — 네이버(무수익 검색 링크)는 항상 있어 섹션이 비지 않는다.
  */
+/** 지금 쿠팡에서 사기 — 상품 카드 리스트(이미지·상품명·로켓 배지·가격). Figma 933:2564 1:1. */
 function ShopSection({ itemCode }: { itemCode: string }) {
-  const rows = [
-    ...LINKPRICE_MALLS.map((m) => ({ id: m.id, name: m.name, url: linkpriceUrl(m, itemCode) })),
-    { id: 'coupang', name: '쿠팡', url: coupangUrl(itemCode) },
-    { id: 'naver', name: '네이버쇼핑', url: naverShoppingUrl(itemCode) },
-  ].filter((r): r is { id: string; name: string; url: string } => r.url != null);
-  if (rows.length === 0) return null;
+  const products = coupangProducts(itemCode);
+  if (products.length === 0) return null;
   return (
     <View style={styles.buySection}>
-      <Text style={styles.sectionTitle}>지금 온라인에서 사기</Text>
-      <View style={styles.buyCard}>
-        {rows.map((r, idx) => (
-          <View key={r.id}>
+      <Text style={styles.sectionTitle}>지금 쿠팡에서 사기</Text>
+      <View style={styles.coupangCard}>
+        {products.map((p, idx) => (
+          <View key={idx}>
             {idx > 0 && <View style={styles.buyDivider} />}
             <Pressable
-              style={styles.buyRow}
+              style={styles.coupangRow}
               onPress={() => {
-                trackShoppingClick(r.id, itemCode);
-                Linking.openURL(r.url);
+                trackShoppingClick('coupang', itemCode);
+                Linking.openURL(p.url);
               }}
             >
-              <Text style={styles.buyName}>{r.name}</Text>
-              <ChevronRight size={20} color={colors.iconInactive} strokeWidth={2} />
+              <View style={styles.coupangThumb}>
+                {p.imageUrl ? (
+                  <Image source={{ uri: p.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                ) : null}
+              </View>
+              <View style={styles.coupangInfo}>
+                <Text style={styles.coupangName} numberOfLines={2}>
+                  {p.name}
+                </Text>
+                <View style={styles.coupangPriceRow}>
+                  {p.status && (
+                    <Image
+                      source={{ uri: ROCKET_LOGO[p.status] }}
+                      style={{ height: 16, width: ROCKET_LOGO_W[p.status] }}
+                      contentFit="contain"
+                    />
+                  )}
+                  <Text style={styles.coupangPrice}>{won(p.price)}원</Text>
+                </View>
+              </View>
             </Pressable>
           </View>
         ))}
       </View>
-      {/* 공정위 표시의무 — 제휴 링크로 수수료를 받을 수 있음을 고지 */}
-      <Text style={styles.buyCaption}>구매로 이어지면 앱에 수수료가 지급될 수 있어요. 가격은 판매처에서 확인하세요.</Text>
+      {/* 쿠팡 파트너스 표시의무 — 수수료 고지 필수 */}
+      <Text style={styles.buyCaption}>
+        이 게시물은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다. 정확한 가격은 판매처에서 확인하세요.
+      </Text>
     </View>
   );
 }
 
-/** main-header type=detail — back + 제목 + 관심(heart) */
+/** main-header type=detail — back + 제목 + 관심(heart). 하트 상호작용은 FavoriteHeart 공용. */
 function Header({ title, fav, onFav }: { title: string; fav: boolean; onFav: () => void }) {
-  const favColor = fav ? colors.iconActive : colors.iconInactive;
   return (
     <View style={styles.header}>
       <Pressable style={styles.iconBtn} onPress={() => router.back()} hitSlop={4}>
@@ -753,9 +801,7 @@ function Header({ title, fav, onFav }: { title: string; fav: boolean; onFav: () 
       <Text style={styles.headerTitle} numberOfLines={1}>
         {title}
       </Text>
-      <Pressable style={styles.iconBtn} onPress={onFav} hitSlop={4}>
-        <Heart size={24} color={favColor} fill={fav ? favColor : 'none'} strokeWidth={2} />
-      </Pressable>
+      <FavoriteHeart fav={fav} onToggle={onFav} hitSlop={4} style={styles.iconBtn} />
     </View>
   );
 }
@@ -871,4 +917,19 @@ const styles = StyleSheet.create({
   buyPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
   buyDivider: { height: 1, backgroundColor: colors.borderDefault },
   buyCaption: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
+  // 쿠팡 상품 리스트 (Figma 933:2564)
+  coupangCard: { borderRadius: radius.l, backgroundColor: colors.bgElevated, overflow: 'hidden' },
+  coupangRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s3,
+    paddingHorizontal: spacing.s4,
+    paddingVertical: spacing.s3,
+    minHeight: 80,
+  },
+  coupangThumb: { width: 56, height: 56, borderRadius: radius.s, backgroundColor: colors.bgSecondary, overflow: 'hidden' },
+  coupangInfo: { flex: 1, gap: spacing.s1 },
+  coupangName: { ...type.size[15], ...type.w.regular, color: colors.textPrimary } as const,
+  coupangPriceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
+  coupangPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
 });

@@ -11,6 +11,8 @@ export interface Env {
   KAMIS_KEY: string;
   KAMIS_ID: string;
   ADMIN_TOKEN?: string;
+  /** 공공데이터포털 KAMIS 미러(apis.data.go.kr) 인증키 — 원본 방화벽 차단 시 폴백 소스(2026-08-08) */
+  DATAGO_KEY?: string;
 }
 
 const KV_KEY = 'recipes:latest';
@@ -27,6 +29,171 @@ const ALIAS: Record<string, string> = { 애호박: '호박', 대파: '파', 소�
 const ALLOWED_BY_LEN = [...ALLOWED].sort((a, b) => b.length - a.length);
 
 const KAMIS_BASE = 'https://www.kamis.or.kr/service/price/xml.do';
+// 원본 다운 서킷브레이커 — 방화벽 차단 중엔 매 요청이 원본 시도(최대 8s)를 낭비해 유기농 탭 등이 늘어진다.
+// 타임아웃/비JSON(차단 페이지)을 보면 10분간 원본을 건너뛰고 바로 미러/stale로. isolate 단위 메모리.
+let kamisDownUntil = 0;
+// KAMIS 방화벽이 브라우저 UA 없는 요청을 무응답/차단 페이지로 막는다(2026-07-17 확인) — 모든 KAMIS fetch에 필수.
+const KAMIS_HEADERS = {
+  'user-agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+  accept: 'application/json, text/plain, */*',
+};
+
+// ── 공공데이터포털 KAMIS 미러 어댑터 (2026-08-08) ─────────────────────────────
+// 원본 KAMIS가 데이터센터 IP를 방화벽으로 막아 워커/CI가 못 받을 때, apis.data.go.kr 게이트웨이(클라우드 IP 허용)
+// 에서 받아 **원본 KAMIS 응답 포맷으로 변환**해 돌려준다. 앱·CI·verdicts 빌드는 무변경으로 동작.
+// 코드 체계(부류·품목·품종·등급·시군구·소매도매)는 원본과 100% 동일 — 파라미터 이름만 매핑.
+// 트레이드오프: 미러는 원본보다 1~2일 지연.
+const DATAGO_BASE = 'https://apis.data.go.kr/B552845/perRegion/price';
+const ymd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+
+// 미러엔 평년(원본 dpr7)이 없다 → verdicts(CI 사전계산)의 normal을 daily 변환 시 dpr7에 주입.
+// 그래야 앱 홈/상세의 '평년 대비' 판정이 무변경으로 복구된다. 1시간 메모리 캐시(isolate 단위).
+const VERDICTS_URL = 'https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json';
+let verdictsCache: { t: number; v: Record<string, any> } | null = null;
+async function getVerdicts(): Promise<Record<string, any>> {
+  if (verdictsCache && Date.now() - verdictsCache.t < 3600_000) return verdictsCache.v;
+  try {
+    const r = await fetch(VERDICTS_URL, { signal: AbortSignal.timeout(5000) });
+    const v = ((await r.json()) as any)?.items ?? {};
+    verdictsCache = { t: Date.now(), v };
+    return v;
+  } catch {
+    return verdictsCache?.v ?? {};
+  }
+}
+
+/** data.go.kr price 조회 — cond[...] 필터 배열, 최근→과거 정렬. 실패 시 null. */
+async function datagoQuery(key: string, cond: Record<string, string>, extra: Record<string, string> = {}): Promise<any[] | null> {
+  const p = new URLSearchParams({ serviceKey: key, returnType: 'JSON', numOfRows: '1000', pageNo: '1', ...extra });
+  for (const [k, v] of Object.entries(cond)) p.append(k, v);
+  let res: Response;
+  try {
+    res = await fetch(`${DATAGO_BASE}?${p.toString()}`, { signal: AbortSignal.timeout(10000) });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  let j: any;
+  try {
+    j = await res.json();
+  } catch {
+    return null;
+  }
+  if (j?.response?.header?.resultCode !== '0') return null; // 인증 실패·오류
+  const item = j?.response?.body?.items?.item;
+  return Array.isArray(item) ? item : [];
+}
+
+/** 미러 → 원본 KAMIS 포맷 변환. action별로 dailyPriceByCategoryList / period* 를 재구성. null이면 폴백 실패. */
+async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promise<string | null> {
+  if (!env.DATAGO_KEY) return null;
+  const end = new Date();
+  const start = new Date();
+
+  if (action === 'dailyPriceByCategoryList') {
+    // p_regday 존중 — verdicts 빌드가 과거 시점(-90/-180/-270일) 목록으로 계절 품종(봄배추 등)을
+    // 발견한다. 무시하고 항상 오늘로 답하면 다품종 병합이 죽어 연간 흐름이 반토막 난다(2026-08-09).
+    const regday = sp.get('p_regday');
+    if (regday && /^\d{4}-\d{2}-\d{2}$/.test(regday)) {
+      end.setTime(Date.parse(regday));
+      start.setTime(Date.parse(regday));
+    }
+    start.setDate(end.getDate() - 10); // 최근 조사일을 확실히 잡도록 10일 창
+    const rows = await datagoQuery(env.DATAGO_KEY, {
+      'cond[exmn_ymd::GTE]': ymd(start),
+      'cond[exmn_ymd::LTE]': ymd(end),
+      'cond[se_cd::EQ]': sp.get('p_product_cls_code') ?? '01',
+      'cond[ctgry_cd::EQ]': sp.get('p_item_category_code') ?? '',
+      'cond[sgg_cd::EQ]': sp.get('p_country_code') ?? '1101',
+    });
+    if (!rows) return null;
+    // 미러의 축산 도매 등은 가격이 '0'으로 오는 껍데기 행이 있다(2026-08-09 확인) — 통과시키면
+    // last-good KV의 정상 데이터를 오염시키므로 가격 없는 행은 버리고, 전부 껍데기면 폴백(null).
+    const priced = rows.filter((r) => r.exmn_dd_avg_prc && r.exmn_dd_avg_prc !== '0');
+    if (priced.length === 0) return null;
+    const verd = await getVerdicts();
+    // 품목+품종별로 조사일 내림차순 → 사다리(dpr1=최근, dpr2~4=이전 조사일). 원본 dpr1~4 자리를 채운다.
+    const byKind = new Map<string, any[]>();
+    for (const r of priced) {
+      const k = `${r.item_cd}_${r.vrty_cd}_${r.grd_cd}`;
+      (byKind.get(k) ?? byKind.set(k, []).get(k)!).push(r);
+    }
+    const item: any[] = [];
+    for (const list of byKind.values()) {
+      list.sort((a, b) => String(b.exmn_ymd).localeCompare(String(a.exmn_ymd)));
+      const top = list[0];
+      const prices = list.map((r) => r.exmn_dd_avg_prc || '-');
+      // 평년(dpr7) = verdicts의 '이맘때 평균'. verdict.normal은 원본 dpr7 유래라 미러 빌드 시 비어 순환 →
+      // 대신 months[현재월](최근 1년 그달 평균)을 쓴다. 없으면 recentAvg 폴백.
+      const v = verd[`${top.item_cd}-${top.vrty_cd}`];
+      const normal = v?.months?.[new Date().getMonth()] ?? v?.recentAvg;
+      item.push({
+        item_name: top.item_nm,
+        item_code: top.item_cd,
+        kind_name: top.vrty_nm,
+        kind_code: top.vrty_cd,
+        rank: top.grd_nm ?? '',
+        rank_code: top.grd_cd,
+        unit: top.unit_sz ? `${top.unit_sz}${top.unit}` : top.unit,
+        // dpr1~4 = 최근 4개 조사일 사다리. dpr5(1개월)·6(1년)은 미러에 없어 비움.
+        // dpr7(평년)은 verdicts에서 주입 — 앱 '평년 대비' 판정 복구.
+        dpr1: prices[0] ?? '-',
+        dpr2: prices[1] ?? '-',
+        dpr3: prices[2] ?? '-',
+        dpr4: prices[3] ?? '-',
+        dpr5: '-',
+        dpr6: '-',
+        dpr7: normal != null ? String(normal) : '-',
+      });
+    }
+    return JSON.stringify({ data: { item } });
+  }
+
+  // periodProductList / periodEcoPriceList — 품목 기간별 시계열. rowsToSeries가 countyname==='평균'만 읽으므로 그 라벨로.
+  const s = sp.get('p_startday');
+  const e = sp.get('p_endday');
+  if (!s || !e) return null;
+  // 친환경 데이터는 se_cd=07(신규)에 있다 — 03(구)은 데이터 0건(2026-08-08 확인). 등급(07유기농/08무농약)은 grd_cd로.
+  const isEco = action === 'periodEcoPriceList';
+  const seCd = isEco ? '07' : sp.get('p_productclscode') ?? '01';
+  const cond: Record<string, string> = {
+    'cond[exmn_ymd::GTE]': s.replace(/-/g, ''),
+    'cond[exmn_ymd::LTE]': e.replace(/-/g, ''),
+    'cond[se_cd::EQ]': seCd,
+    'cond[item_cd::EQ]': sp.get('p_itemcode') ?? '',
+    'cond[sgg_cd::EQ]': sp.get('p_countycode') ?? '1101',
+  };
+  const kind = sp.get('p_kindcode');
+  if (kind) cond['cond[vrty_cd::EQ]'] = kind;
+  if (isEco) {
+    const rank = sp.get('p_productrankcode'); // 07=유기농, 08=무농약
+    if (rank) cond['cond[grd_cd::EQ]'] = rank;
+  }
+  const rows = await datagoQuery(env.DATAGO_KEY, cond);
+  if (!rows) return null;
+  const priced = rows.filter((r) => r.exmn_dd_avg_prc && r.exmn_dd_avg_prc !== '0'); // 0원 껍데기 행 제거
+  if (priced.length === 0) return null;
+  // 같은 조사일에 여러 등급이면 상품(04) 우선, 없으면 첫값. 친환경은 04 없어 첫값. 원본 '평균' 행 1개/일에 대응.
+  const byDay = new Map<string, any>();
+  for (const r of priced) {
+    const d = String(r.exmn_ymd);
+    if (!byDay.has(d) || r.grd_cd === '04') byDay.set(d, r);
+  }
+  const item = [...byDay.values()]
+    .sort((a, b) => String(a.exmn_ymd).localeCompare(String(b.exmn_ymd)))
+    .map((r) => {
+      const y = String(r.exmn_ymd);
+      return {
+        countyname: '평균',
+        yyyy: y.slice(0, 4),
+        regday: `${y.slice(4, 6)}/${y.slice(6, 8)}`,
+        price: r.exmn_dd_avg_prc || '-',
+      };
+    });
+  return JSON.stringify({ data: { item } });
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 type Level = 'cheap' | 'fair' | 'expensive';
 
@@ -43,7 +210,7 @@ async function liveLevels(env: Env): Promise<[string, Level | null][] | null> {
     const qs = `p_cert_key=${env.KAMIS_KEY}&p_cert_id=${env.KAMIS_ID}&p_returntype=json&action=dailyPriceByCategoryList&p_product_cls_code=01&p_country_code=1101&p_regday=${day}&p_convert_kg_yn=N&p_item_category_code=${cat}`;
     let j: any;
     try {
-      j = await (await fetch(`${KAMIS_BASE}?${qs}`)).json();
+      j = await (await fetch(`${KAMIS_BASE}?${qs}`, { headers: KAMIS_HEADERS })).json();
     } catch {
       continue;
     }
@@ -157,9 +324,11 @@ function buildRecipe(r: any, cheapSet: Set<string>, expensiveSet: Set<string>) {
 }
 
 /** 재료명으로 식약처 레시피 검색 → 앱 레시피 목록(싼/비싼 판단은 클라가 라이브 시세로). */
-export async function searchRecipes(env: Env, q: string) {
+export async function searchRecipes(env: Env, q: string, byTitle = false) {
   if (!env.FOODSAFETY_KEY) throw new Error('FOODSAFETY_KEY missing');
-  const url = `${FOOD_BASE}/${env.FOODSAFETY_KEY}/COOKRCP01/json/1/50/RCP_PARTS_DTLS=${encodeURIComponent(q)}`;
+  // 기본은 재료(RCP_PARTS_DTLS) 검색, byTitle이면 레시피명(RCP_NM) — 관심목록이 제목으로 복원할 때 사용.
+  const field = byTitle ? 'RCP_NM' : 'RCP_PARTS_DTLS';
+  const url = `${FOOD_BASE}/${env.FOODSAFETY_KEY}/COOKRCP01/json/1/50/${field}=${encodeURIComponent(q)}`;
   let rows: any[] = [];
   try {
     rows = (await (await fetch(url)).json())?.COOKRCP01?.row ?? [];
@@ -236,7 +405,7 @@ export default {
     ctx.waitUntil(generate(env).then((data) => storeRecipes(env, data)));
   },
 
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
@@ -264,21 +433,106 @@ export default {
       params.set('p_cert_key', env.KAMIS_KEY);
       params.set('p_cert_id', env.KAMIS_ID);
       params.set('p_returntype', 'json');
-      const upstream = await fetch(`${KAMIS_BASE}?${params.toString()}`);
+      // last-good 폴백 — 2026-07-15 KAMIS 전면 장애(무응답·방화벽 페이지)로 프로덕션이 백지가 됐다.
+      // 성공 응답을 KV에 저장해두고, 상류가 죽으면 그걸 내보낸다. 키에서 날짜를 뺀다 —
+      // 날짜와 무관하게 '가장 최근 성공한 같은 질의'가 잡히도록. 기간 질의는 날짜 대신
+      // 기간 길이(s)·현재로부터의 거리(개월, b)로 버킷팅해 28일 차트와 작년 창이 섞이지 않게 한다.
+      // 주의: 키 산식은 시드 스크립트(scratchpad seed-period.mjs)와 동일해야 함.
+      const action = url.searchParams.get('action') ?? '';
+      let staleKey: string | null = null;
+      if (action === 'dailyPriceByCategoryList') {
+        staleKey = `kamis:daily:${url.searchParams.get('p_product_cls_code') ?? '01'}:${url.searchParams.get('p_item_category_code') ?? ''}`;
+      } else {
+        const s = Date.parse(url.searchParams.get('p_startday') ?? '');
+        const e = Date.parse(url.searchParams.get('p_endday') ?? '');
+        if (Number.isFinite(s) && Number.isFinite(e)) {
+          const span = Math.round((e - s) / 86400000);
+          const back = Math.max(0, Math.round((Date.now() - e) / 86400000 / 30));
+          const IGNORE = new Set(['p_cert_key', 'p_cert_id', 'p_returntype', 'p_startday', 'p_endday']);
+          const base = [...url.searchParams.entries()]
+            .filter(([k]) => !IGNORE.has(k))
+            .sort()
+            .map((p) => p.join('='))
+            .join('&');
+          staleKey = `kamis:period:${base}:s${span}:b${back}`;
+        }
+      }
+      let upstream: Response | null = null;
+      if (Date.now() >= kamisDownUntil) {
+        try {
+          // KAMIS는 장애 시 응답 없이 매달린다 — 8초 컷하고 폴백으로.
+          upstream = await fetch(`${KAMIS_BASE}?${params.toString()}`, {
+            signal: AbortSignal.timeout(8000),
+            headers: KAMIS_HEADERS,
+          });
+        } catch {
+          kamisDownUntil = Date.now() + 600_000; // 타임아웃·네트워크 → 10분 원본 스킵
+        }
+      }
       // KAMIS는 요청 파라미터(cert 포함)를 응답 condition에 echo한다 → 제거해야 키가 안 샌다.
-      let text = await upstream.text();
+      let text = upstream ? await upstream.text() : '';
       let parsed = false;
+      let hasRows = false;
       try {
         const j = JSON.parse(text);
         delete j.condition;
         text = JSON.stringify(j);
         parsed = true;
+        const rows = j?.data?.item;
+        hasRows = Array.isArray(rows) && rows.length > 0;
+        if (hasRows) kamisDownUntil = 0; // 원본 생존 확인 — 브레이커 해제
+        if (staleKey && upstream?.ok && hasRows) {
+          const body = text;
+          // 값이 같으면 안 씀 — KV 쓰기 한도 절약 (시세는 하루 한 번 바뀜)
+          ctx.waitUntil(
+            env.RECIPES_KV.get(staleKey).then((cur) => (cur === body ? undefined : env.RECIPES_KV.put(staleKey, body))),
+          );
+        }
       } catch {
-        // 비-JSON(에러 페이지 등): cert 두 값 모두 마스킹. 검증 못한 본문이므로 캐시 금지.
+        // 비-JSON(방화벽 차단 페이지 등) — 원본 다운으로 간주, 10분 스킵.
+        if (upstream) kamisDownUntil = Date.now() + 600_000;
+        // cert 두 값 모두 마스킹. 검증 못한 본문이므로 캐시 금지.
         text = text.split(env.KAMIS_KEY).join('***').split(env.KAMIS_ID).join('***');
       }
+      // 장애 플래핑 대응: KAMIS는 죽는 중에 방화벽 페이지뿐 아니라 '데이터 없음' 정상 JSON도 섞어 준다
+      // (2026-07-16 확인). 빈 응답도 폴백 대상 — stale은 같은 질의가 과거에 데이터를 준 적 있을 때만
+      // 존재하므로, 정당하게 늘 비는 질의(등급 후보 탐색 등)는 stale이 없어 원문 그대로 통과된다.
+      if (!(parsed && hasRows)) {
+        // ① data.go.kr 미러 폴백 — 원본 방화벽 차단 시 클라우드에서 받아 원본 포맷으로 변환(2026-08-08).
+        //    성공하면 last-good KV에도 저장해 다음 장애 때 미러 호출 없이 바로 응답.
+        const mirror = await fetchDatago(env, action, url.searchParams).catch(() => null);
+        if (mirror) {
+          // 값이 같으면 안 씀 — KV 무료 티어 일일 쓰기 1000회. 중복 put이 한도를 태운 사고(2026-08-09).
+          if (staleKey)
+            ctx.waitUntil(
+              env.RECIPES_KV.get(staleKey).then((cur) => (cur === mirror ? undefined : env.RECIPES_KV.put(staleKey, mirror))),
+            );
+          return new Response(mirror, {
+            headers: {
+              'content-type': 'application/json; charset=utf-8',
+              'cache-control': 'public, max-age=300',
+              'x-igb-mirror': '1', // 미러 경유(1~2일 지연) 표식
+              ...CORS,
+            },
+          });
+        }
+        // ② last-good KV — 미러도 실패면 마지막 정상 응답.
+        if (staleKey) {
+          const stale = await env.RECIPES_KV.get(staleKey);
+          if (stale) {
+            return new Response(stale, {
+              headers: {
+                'content-type': 'application/json; charset=utf-8',
+                'cache-control': 'no-store', // 장애 중 임시 응답 — 엣지에 남기지 않는다
+                'x-igb-stale': '1',
+                ...CORS,
+              },
+            });
+          }
+        }
+      }
       return new Response(text, {
-        status: upstream.status,
+        status: upstream?.status ?? 599,
         headers: {
           'content-type': 'application/json; charset=utf-8',
           'cache-control': parsed ? 'public, max-age=300' : 'no-store',
@@ -291,7 +545,7 @@ export default {
     if (url.pathname === '/recipes/search') {
       const q = (url.searchParams.get('q') ?? '').trim();
       if (!q) return Response.json({ recipes: [] }, { headers: CORS });
-      const data = await searchRecipes(env, q);
+      const data = await searchRecipes(env, q, url.searchParams.get('by') === 'title');
       return new Response(JSON.stringify(data), {
         headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=3600', ...CORS },
       });
@@ -320,6 +574,21 @@ export default {
       const cur = parseInt((await env.RECIPES_KV.get(key)) ?? '0', 10);
       await env.RECIPES_KV.put(key, String(cur + 1));
       return new Response('ok', { headers: CORS });
+    }
+
+    // 쇼핑 딥링크 트램펄린 — SSG(이마트몰) 제휴 게이트웨이가 한글 쿼리 파라미터를 지워서,
+    // ASCII뿐인 이 URL(base64url)을 경유시킨 뒤 여기서 진짜 검색 URL로 302시킨다.
+    // 귀속 쿠키는 게이트웨이 홉(.ssg.com)에서 이미 심어진 상태라 수수료에 영향 없음.
+    if (url.pathname === '/go') {
+      let target = '';
+      try {
+        const b64 = (url.searchParams.get('u') ?? '').replace(/-/g, '+').replace(/_/g, '/');
+        target = new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+      } catch {}
+      // 오픈 리다이렉트 방지 — 제휴 몰 도메인만 허용
+      if (!/^https:\/\/(emart\.ssg\.com|www\.ssg\.com|www\.kurly\.com|www\.cjthemarket\.com)\//.test(target))
+        return new Response('bad request', { status: 400, headers: CORS });
+      return Response.redirect(target, 302);
     }
 
     // 클릭 집계 조회 — { "2026-07-03:coupang:245": 3, ... }
