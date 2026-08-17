@@ -76,15 +76,23 @@ await fs.writeFile(OUT, serialize(data));
 console.log(JSON.stringify(stats, null, 1));
 ```
 
-그 다음 이 파일 하나만 커밋 + 푸시하면 Vercel이 자동 배포한다.
-작업 중인 다른 변경사항은 절대 같이 담지 않는다:
+그 다음 이 파일 하나만 커밋 + 푸시한다. 작업 중인 다른 변경사항은 절대 같이 담지 않는다:
 
 ```bash
 cd /Users/yeji/Documents/projects/igeobissa
+git pull --ff-only          # verdicts CI가 매일 16:05에 푸시한다. 안 하면 push가 거절된다.
 git add mobile/src/coupang-products.json
 git commit -m "chore: 쿠팡 상품·가격 갱신 $(date +%F)" || echo "변동 없음"
 git push
 ```
+
+Vercel 프로젝트(mobile)는 `8illijey/igb`에 연결돼 있고 rootDirectory가 `mobile`이라,
+main에 push하면 프로덕션 배포가 자동으로 걸린다. 배포를 따로 트리거하지 않는다.
+2~4분 뒤 https://igeobissa.vercel.app 이 200인지, 번들에 `link.coupang.com`이 있는지로 검증한다.
+
+> 2026-08-17 이전엔 Git 연동이 없어 `vercel --prod` 수동 배포였고, 그래서 프로덕션이
+> 7월 19일 상태에 한 달 넘게 멈춰 있었다. 그때 CLI 토큰도 며칠 만에 만료돼 자동화가 불가능했다.
+> 지금 구조는 토큰에 의존하지 않는다.
 
 ### B. 수동 / CLI
 
