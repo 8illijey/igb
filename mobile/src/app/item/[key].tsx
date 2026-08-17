@@ -536,7 +536,10 @@ export default function ItemDetailScreen() {
 
             <BuySection markets={markets} reference={active.today} />
 
-            <ShopSection itemCode={itemKey(item)} />
+            {/* 도매 탭엔 쿠팡 섹션을 붙이지 않는다 — 도매가는 가락시장 경락가(유통 마진 이전)라
+                소매가인 쿠팡 상품과 비교 축이 다르고, 조사 단위(10kg·1상자)도 상품 규격과 대응이 안 된다.
+                "도매가로 살 수 있다"는 오해를 만드느니 안 보여주는 게 정직하다. */}
+            {market !== 'wholesale' && <ShopSection itemCode={itemKey(item)} />}
 
             <Text style={styles.source}>자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}</Text>
           </View>

@@ -86,6 +86,9 @@ const EN = {
   '422': 'a few cherry tomatoes',
   '411': 'a single red apple',
   '412': 'a single round Asian pear',
+  '413': 'a single ripe peach, fresh fruit',
+  '414': 'a bunch of dark purple grapes',
+  '415': 'a few mandarin oranges with green leaves',
   '418': 'a single bunch of bananas',
   '419': 'a single kiwi fruit',
   '420': 'a single pineapple',
@@ -244,6 +247,13 @@ function emitMap() {
 
 const items = await fetchItems();
 console.log(`KAMIS 품목 ${items.size}개`);
+// EN에 영문 피사체가 없는 품목은 한글명이 그대로 프롬프트에 들어가 결과가 무너진다.
+// (FLUX는 한글을 못 읽고, Gemini도 스타일이 흔들린다) 조용히 이상한 그림을 만드느니 먼저 알린다.
+const noEn = [...items.keys()].filter((c) => !EN[c] && !fs.existsSync(path.join(OUT_DIR, `${c}.png`)));
+if (noEn.length) {
+  console.warn(`⚠ 영문 피사체(EN) 미정의 품목 ${noEn.length}개 — ${noEn.map((c) => `${items.get(c)}(${c})`).join(', ')}`);
+  console.warn('  EN 맵에 추가하고 다시 실행하는 것을 권합니다. 그대로 두면 한글명으로 생성됩니다.');
+}
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 let done = 0;
