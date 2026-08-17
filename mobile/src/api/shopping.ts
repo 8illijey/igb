@@ -36,12 +36,25 @@ export const ROCKET_LOGO_W: Record<RocketType, number> = { rocket: 64, seller_ro
 
 /**
  * 품목의 쿠팡 상품 리스트. 없으면 빈 배열(섹션 숨김).
- * 키는 품종까지 구분하는 '245-00'이 우선 — 소고기 안심/등심/갈비처럼 itemCode가 같고 부위만 다른
- * 상세페이지가 같은 상품을 보여주면 안 되기 때문. 없으면 품목 대표('245')로 떨어진다.
+ *
+ * 찾는 순서
+ *  1) 품종까지 일치하는 키('4301-21') — 소고기 안심/등심/갈비처럼 itemCode가 같고
+ *     부위만 다른 상세페이지가 같은 상품을 보여주면 안 되므로 이게 우선
+ *  2) 품목 대표 키('245')
+ *  3) 같은 품목의 다른 품종 아무거나
+ *
+ * 3번이 있어야 하는 이유: 홈·상세가 보여주는 '대표 품종'은 그날 시세 신호로 정해져
+ * 날마다 바뀜 수 있다. 2026-08-18 평년을 정확하게 바꿔을 때 대표가 실제로 옮겨가
+ * 포도 츠벨얼리→샤인머스켓, 사과 후지→아오리 등 9개 품목의 쿠팡 섹션이 통째로 사라졌다.
+ * 품종이 바뀜어도 사람이 사려는 건 같은 품목이니, 섹션을 숨기는 것보다 보여주는 게 낫다.
  */
 export function coupangProducts(key: string): CoupangProduct[] {
   const table = coupangProductsData as Record<string, CoupangProduct[]>;
-  return table[key] ?? table[codeOf(key)] ?? [];
+  const exact = table[key] ?? table[codeOf(key)];
+  if (exact) return exact;
+  const prefix = `${codeOf(key)}-`;
+  const alt = Object.keys(table).find((k) => k.startsWith(prefix));
+  return alt ? table[alt] : [];
 }
 
 /** 클릭 집계 — 실패해도 사용자 흐름에 영향 없음 */
