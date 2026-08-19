@@ -175,7 +175,14 @@ export async function fetchCategory(
   const url = `${BASE}?${qs({
     action: 'dailyPriceByCategoryList',
     p_product_cls_code: cls,
-    p_country_code: '1101', // 서울
+    // p_country_code를 일부러 안 보낸다 = 전국 평균. 예전엔 '1101'(서울) 고정이었는데,
+    // 같은 화면의 다른 숫자는 전부 전국 기준이라 혼자만 기준이 달랐다(2026-08-20 확인):
+    //   · 평년(dpr7)은 p_country_code와 무관하게 항상 전국 단일값
+    //   · 최근 시세 차트는 periodProductList의 countyname='평균'(=전국) 행만 읽는다
+    // 그래서 오늘가만 서울이었고, 차트 끝에 서울값이 꽂혀 절벽이 생겼다
+    // (신고배 전국 42,017 vs 서울 27,667). 81개 중 9개는 싸요/비싸요 판정까지 바뀌었다.
+    // 미러(data.go.kr) 폴백 경로는 perRegion 데이터셋이라 지역이 필수 — 워커가 1101로 기본값을 넣고,
+    // 그 경로의 평년은 서울로 계산한 baselines.json이라 둘이 서로 일관된다.
     p_regday: regday ?? fmtDate(new Date()),
     p_convert_kg_yn: 'N',
     // 주의: 문서·체감상 'p_category_code'가 아니라 'p_item_category_code'만 동작한다.
@@ -366,35 +373,44 @@ const ANON_MARKET = /^[A-Z][`']?-(대형마트|백화점|SSM|생협|유통)$/;
 const TYPE_LABEL: Record<string, string> = { SSM: '기업형 슈퍼', 유통: '대형마트·체인슈퍼' };
 
 /**
- * 판매처별 최신 가격 — 갈 수 있는 곳만 실명으로.
- * 전통시장(실명)은 개별 행("경동시장"), 익명 코드는 묶어봐야 정보 손실이 없으므로
- * 업태 평균 한 줄("유통점 8곳 평균")로 합친다. 싼 순 정렬.
+ * 판매처별 최신 가격 — 업태 평균만, 전국 기준.
+ *
+ * 2026-08-20 이전엔 서울 매장만 썼고 개별 전통시장을 실명으로 보여줬다.
+ * 오늘 가격을 전국 평균으로 바꾸면서 기준을 맞춘다 — 배추 기준 서울 판매처 평균은
+ * 전국 오늘가와 4.3% 어긋났고 전국 판매처 평균은 0.5% 안에 들었다.
+ * 개별 시장 실명은 뺀다: 전국으로 넓히면 순천·제주 시장까지 15~20줄이 되는데
+ * 사용자가 갈 수 없는 곳이라 목록만 길어진다. 업태 평균은 표본이 늘어 더 견고해진다.
+ *
+ * 주의: 익명 코드('B-유통' 등)는 지역마다 재사용된다(B-유통 = 8개 지역).
+ * 그래서 최신값 맵의 키에 반드시 지역명을 포함해야 한다 — 안 그러면 한 곳만 남는다.
  */
 function groupMarkets(rows: any[]): MarketPrice[] {
-  const latest = new Map<string, { regday: string; price: number }>();
+  const latest = new Map<string, { regday: string; price: number; name: string }>();
   for (const r of rows) {
-    if (!r.marketname) continue;
-    // p_countycode를 줘도 전국 시장 행이 섞여 온다 — 서울 행만 사용 (2026-06-13 확인)
-    if (r.countyname !== '서울') continue;
+    // KAMIS는 빈 필드를 문자열이 아니라 빈 배열 []로 준다 — []는 truthy라 단순 검사를 통과해
+    // 이름 없는 집계행이 '전통시장'으로 둔갑했다(축산은 판매처 조사 자체가 없다). 문자열로 확인한다.
+    const name = typeof r.marketname === 'string' ? r.marketname.trim() : '';
+    if (!name) continue;
+    const county = String(r.countyname ?? '');
+    // '평균'·'평년'·'전국'은 판매처가 아니라 KAMIS가 만든 집계 의사행 — 넣으면 이중 계산된다.
+    if (!county || county === '평균' || county === '평년' || county === '전국') continue;
     const p = parsePrice(r.price);
     if (p == null) continue;
-    const prev = latest.get(r.marketname);
+    const key = `${county}|${name}`;
+    const prev = latest.get(key);
     if (!prev || String(r.regday) >= prev.regday) {
-      latest.set(String(r.marketname), { regday: String(r.regday), price: p });
+      latest.set(key, { regday: String(r.regday), price: p, name });
     }
+  }
+  const byType = new Map<string, number[]>();
+  for (const v of latest.values()) {
+    const m = v.name.match(ANON_MARKET);
+    // 실명 판매처(경동·복조리·부전…)는 전부 전통시장이다 — 한 업태로 묶는다.
+    const type = m ? (TYPE_LABEL[m[1]] ?? m[1]) : '전통시장';
+    byType.set(type, [...(byType.get(type) ?? []), v.price]);
   }
   const out: MarketPrice[] = [];
-  const anonByType = new Map<string, number[]>();
-  for (const [name, v] of latest) {
-    const m = name.match(ANON_MARKET);
-    if (m) {
-      const type = TYPE_LABEL[m[1]] ?? m[1];
-      anonByType.set(type, [...(anonByType.get(type) ?? []), v.price]);
-    } else {
-      out.push({ market: name.endsWith('시장') ? name : `${name}시장`, price: v.price });
-    }
-  }
-  for (const [type, prices] of anonByType) {
+  for (const [type, prices] of byType) {
     const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length / 10) * 10;
     out.push({ market: prices.length > 1 ? `${type} ${prices.length}곳 평균` : type, price: avg });
   }

@@ -169,6 +169,9 @@ async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promi
       'cond[exmn_ymd::LTE]': ymd(end),
       'cond[se_cd::EQ]': sp.get('p_product_cls_code') ?? '01',
       'cond[ctgry_cd::EQ]': sp.get('p_item_category_code') ?? '',
+      // 앱은 2026-08-20부터 p_country_code를 안 보낸다(원본 KAMIS에선 그게 전국 평균).
+      // 미러 데이터셋은 perRegion 구조라 지역이 필수라 서울로 떨어진다 — 이 경로엔
+      // 평년도 서울로 계산한 baselines.json을 주입하므로 둘이 서로 일관된다.
       'cond[sgg_cd::EQ]': sp.get('p_country_code') ?? '1101',
     });
     if (!rows) return null;
@@ -283,7 +286,9 @@ async function liveLevels(env: Env): Promise<[string, Level | null][] | null> {
   };
   const live = new Map<string, Level>();
   for (const cat of ['100', '200', '400', '500']) {
-    const qs = `p_cert_key=${env.KAMIS_KEY}&p_cert_id=${env.KAMIS_ID}&p_returntype=json&action=dailyPriceByCategoryList&p_product_cls_code=01&p_country_code=1101&p_regday=${day}&p_convert_kg_yn=N&p_item_category_code=${cat}`;
+    // p_country_code 생략 = 전국 평균. 앱·verdicts와 같은 기준이어야 레시피가 고르는 'cheap' 품목이
+    // 홈 화면의 판정과 어긋나지 않는다(2026-08-20). 평년(dpr7)은 원래부터 전국 단일값이다.
+    const qs = `p_cert_key=${env.KAMIS_KEY}&p_cert_id=${env.KAMIS_ID}&p_returntype=json&action=dailyPriceByCategoryList&p_product_cls_code=01&p_regday=${day}&p_convert_kg_yn=N&p_item_category_code=${cat}`;
     let j: any;
     try {
       j = await (await fetch(`${KAMIS_BASE}?${qs}`, { headers: KAMIS_HEADERS })).json();

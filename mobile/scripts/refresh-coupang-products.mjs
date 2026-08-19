@@ -230,7 +230,7 @@
   async function fetchCategory(categoryCode, regday) {
     const url =
       `${KAMIS_BASE}?p_returntype=json&action=dailyPriceByCategoryList&p_product_cls_code=01` +
-      `&p_country_code=1101&p_regday=${regday}&p_convert_kg_yn=N&p_item_category_code=${categoryCode}`;
+      `&p_regday=${regday}&p_convert_kg_yn=N&p_item_category_code=${categoryCode}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`KAMIS HTTP ${res.status}`);
     const json = await res.json();

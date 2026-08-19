@@ -91,7 +91,8 @@ async function fetchCategory(categoryCode, regday) {
   const url = `${BASE}?${qs({
     action: 'dailyPriceByCategoryList',
     p_product_cls_code: '01',
-    p_country_code: '1101',
+    // p_country_code 생략 = 전국 평균. 앱 kamis.ts fetchCategory와 반드시 같은 기준이어야 한다 —
+    // 여기서 나오는 today·normal이 홈 카드와 상세의 판정 근거다(2026-08-20).
     p_regday: regday,
     p_convert_kg_yn: 'N',
     p_item_category_code: categoryCode,
