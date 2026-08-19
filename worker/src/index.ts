@@ -109,9 +109,10 @@ function baselineOf(
   return typeof fb === 'number' && fb > 0 ? fb : null;
 }
 
-/** data.go.kr price 조회 — cond[...] 필터 배열, 최근→과거 정렬. 실패 시 null. */
-async function datagoQuery(key: string, cond: Record<string, string>, extra: Record<string, string> = {}): Promise<any[] | null> {
-  const p = new URLSearchParams({ serviceKey: key, returnType: 'JSON', numOfRows: '1000', pageNo: '1', ...extra });
+const DATAGO_PAGE = 1000;
+/** data.go.kr 한 페이지 조회. 실패 시 null. */
+async function datagoPage(key: string, cond: Record<string, string>, pageNo: number, extra: Record<string, string>): Promise<any[] | null> {
+  const p = new URLSearchParams({ serviceKey: key, returnType: 'JSON', numOfRows: String(DATAGO_PAGE), pageNo: String(pageNo), ...extra });
   for (const [k, v] of Object.entries(cond)) p.append(k, v);
   let res: Response;
   try {
@@ -129,6 +130,23 @@ async function datagoQuery(key: string, cond: Record<string, string>, extra: Rec
   if (j?.response?.header?.resultCode !== '0') return null; // 인증 실패·오류
   const item = j?.response?.body?.items?.item;
   return Array.isArray(item) ? item : [];
+}
+
+/**
+ * data.go.kr price 조회 — cond[...] 필터 배열. 페이지를 끝까지 이어 받는다.
+ * 지역 고정을 푸는 순간 한 질의가 25개 도시×일수만큼 불어나 1000행 상한을 넘는다
+ * (2026-08-18: 5년치 단일 요청이 조용히 잘려 2021~2023만 돌아오는 것을 확인).
+ * 페이지네이션 없이는 데이터가 무음으로 사라진다.
+ */
+async function datagoQuery(key: string, cond: Record<string, string>, extra: Record<string, string> = {}): Promise<any[] | null> {
+  const out: any[] = [];
+  for (let page = 1; page <= 6; page++) {
+    const rows = await datagoPage(key, cond, page, extra);
+    if (rows == null) return page === 1 ? null : out; // 첫 페이지 실패만 전체 실패로 본다
+    out.push(...rows);
+    if (rows.length < DATAGO_PAGE) break;
+  }
+  return out;
 }
 
 /** 미러 → 원본 KAMIS 포맷 변환. action별로 dailyPriceByCategoryList / period* 를 재구성. null이면 폴백 실패. */
@@ -201,6 +219,16 @@ async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promi
   // 친환경 데이터는 se_cd=07(신규)에 있다 — 03(구)은 데이터 0건(2026-08-08 확인). 등급(07유기농/08무농약)은 grd_cd로.
   const isEco = action === 'periodEcoPriceList';
   const seCd = isEco ? '07' : sp.get('p_productclscode') ?? '01';
+  // 지역은 서울(1101) 고정을 유지한다.
+  //
+  // 알면서 남기는 한계: 원본 KAMIS의 countyname='평균' 행은 서울이 아니라 전국 조사처의
+  // 평균이다(2026-08-18 확인: 친환경 평균 6,101 = 서울 5곳·부산·광주 판매처 7개의 산술평균,
+  // 우리 값 5,832 = 서울 5곳 평균). 평년(dpr7)도 p_country_code와 무관하게 전국 단일값이라,
+  // 우리 시계열은 서울 기준인데 비교 대상은 전국 기준이라 2~5% 계통 오차가 남는다.
+  //
+  // sgg_cd를 빼면 data.go.kr이 조회 자체를 실패시켜(2026-08-18 시도 — 모든 창 크기에서
+  // 미러가 null이 돼 KV stale로 떨어졌다) 전국 평균을 그대로 받을 수 없다.
+  // 제대로 하려면 지역별로 나눴 조회해 평균내야 하고(요청이 25배) 그건 별도 과제로 둔다.
   const cond: Record<string, string> = {
     'cond[exmn_ymd::GTE]': s.replace(/-/g, ''),
     'cond[exmn_ymd::LTE]': e.replace(/-/g, ''),
@@ -218,23 +246,27 @@ async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promi
   if (!rows) return null;
   const priced = rows.filter((r) => r.exmn_dd_avg_prc && r.exmn_dd_avg_prc !== '0'); // 0원 껍데기 행 제거
   if (priced.length === 0) return null;
-  // 같은 조사일에 여러 등급이면 상품(04) 우선, 없으면 첫값. 친환경은 04 없어 첫값. 원본 '평균' 행 1개/일에 대응.
-  const byDay = new Map<string, any>();
+  // 조사일별로 전국 조사처를 평균 낸다 — 원본 '평균' 행의 정의와 같게.
+  // 등급이 여러개면 질의에서 이미 grd_cd로 걸러져 오고, 친환경은 등급이 계약별로 섮여
+  // 들어올 수 있지만 그역시 원본이 모두 섮어 평균내므로 같은 방식이 맞다.
+  const byDay = new Map<string, { sum: number; cnt: number }>();
   for (const r of priced) {
     const d = String(r.exmn_ymd);
-    if (!byDay.has(d) || r.grd_cd === '04') byDay.set(d, r);
+    const v = Number(String(r.exmn_dd_avg_prc).replace(/,/g, ''));
+    if (!Number.isFinite(v) || v <= 0) continue;
+    const cur = byDay.get(d) ?? { sum: 0, cnt: 0 };
+    cur.sum += v;
+    cur.cnt += 1;
+    byDay.set(d, cur);
   }
-  const item = [...byDay.values()]
-    .sort((a, b) => String(a.exmn_ymd).localeCompare(String(b.exmn_ymd)))
-    .map((r) => {
-      const y = String(r.exmn_ymd);
-      return {
-        countyname: '평균',
-        yyyy: y.slice(0, 4),
-        regday: `${y.slice(4, 6)}/${y.slice(6, 8)}`,
-        price: r.exmn_dd_avg_prc || '-',
-      };
-    });
+  const item = [...byDay.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([y, v]) => ({
+      countyname: '평균',
+      yyyy: y.slice(0, 4),
+      regday: `${y.slice(4, 6)}/${y.slice(6, 8)}`,
+      price: String(Math.round(v.sum / v.cnt)),
+    }));
   return JSON.stringify({ data: { item } });
 }
 // ─────────────────────────────────────────────────────────────────────────────

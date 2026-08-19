@@ -17,8 +17,10 @@ jobs:
           fail=0
           today=$(date -u -d '+9 hours' +%F)  # KST
 
-          # 1) 앱 HTML
-          code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 https://igeobissa.vercel.app)
+          # 1) 앱 HTML — 대표 도메인 기준. 2026-08-17에 커스텀 도메인을 붙이며
+          #    igeobissa.vercel.app을 igeobissa.com으로 308 리다이렉트시켰다. 옛 주소를 그대로
+          #    검사하다 308을 받고 매시간 실패했으므로 대표 주소를 본다(리다이렉트도 따라간다).
+          code=$(curl -sL -o /dev/null -w '%{http_code}' -m 20 https://igeobissa.com)
           [ "$code" = 200 ] || { echo "::error::앱 HTTP $code"; fail=1; }
 
           # 2) 홈 시세 4개 부류 — 라이브든 stale이든 행이 있어야 함. stale이 5일 넘게 묵으면 실패.
@@ -43,5 +45,21 @@ jobs:
           gen=$(curl -s -m 20 https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json | jq -r .generatedAt)
           age_h=$(( ( $(date +%s) - $(date -d "$gen" +%s) ) / 3600 ))
           [ "$age_h" -lt 49 ] || { echo "::error::verdicts ${age_h}시간 묵음 — CI 확인 필요"; fail=1; }
+
+          # 4) 평년(dpr7) 주입 — 2026-08-18 새벽, 가격은 멀쩡한데 평년만 통째로 비어
+          #    홈 목록이 백지가 된 장애가 있었다. 홈은 '평년 대비 %'가 있는 품목만 추리기 때문이다.
+          #    행 수만 보는 위 검사로는 안 잡혔으므로 평년이 실제로 채워졌는지 따로 본다.
+          norm=$(curl -s -m 25 "https://igeobissa-recipes.designerxyzi.workers.dev/kamis?action=dailyPriceByCategoryList&p_product_cls_code=01&p_item_category_code=200&p_country_code=1101&p_regday=$today&p_convert_kg_yn=N&p_returntype=json" \
+            | jq '[.data.item[] | select(.dpr7 != null and .dpr7 != "-" and .dpr7 != "")] | length' 2>/dev/null || echo 0)
+          [ "${norm:-0}" -ge 20 ] || { echo "::error::채소류 평년(dpr7)이 ${norm}행뿐 — baselines 주입 실패 의심"; fail=1; }
+
+          # 5) baselines 신선도 — 주 1회 갱신이므로 10일까지 허용.
+          bgen=$(curl -s -m 20 https://igeobissa.com/baselines.json | jq -r .generatedAt 2>/dev/null)
+          if [ -n "$bgen" ] && [ "$bgen" != "null" ]; then
+            bage=$(( ( $(date +%s) - $(date -d "$bgen" +%s) ) / 86400 ))
+            [ "$bage" -lt 10 ] || { echo "::error::baselines ${bage}일 묵음 — 주간 CI 확인 필요"; fail=1; }
+          else
+            echo "::error::baselines.json을 읽지 못함"; fail=1
+          fi
 
           exit $fail
