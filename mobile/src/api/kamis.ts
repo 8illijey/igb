@@ -90,6 +90,10 @@ function displayName(name: string, code: string, kindName: string): string {
  * 포도는 '거봉'·'샤인머스켓'만 두면 검색에서 '포도'로 안 걸려 품목명을 붙인다.
  */
 const KIND_LABEL: Record<string, string> = {
+  // 꾬리·청양·오이맛은 그 자체로 통용하는 이름이라 '풋고추'를 앎 붙이지 않는다(2026-08-20 사용자 요청).
+  '242-02': '꽈리고추',
+  '242-03': '청양고추',
+  '242-04': '오이맛고추',
   '411-05': '후지사과',
   '411-06': '아오리사과',
   '414-01': '캠벨얼리포도',
@@ -119,6 +123,16 @@ function kindLabel(item: PriceItem, kindsInItem: number): string {
   if (v.includes(base)) return v;
   const stutter = v.slice(-1) === base.slice(0, 1);
   return [...v].length <= 2 && !stutter ? `${v}${base}` : `${base} ${v}`;
+}
+
+/**
+ * 홈 목록과 똑같은 표시명을 만든다. 상세·도매 화면이 홈과 다른 이름을 쓰지 않게 규칙을 공유한다.
+ * (2026-08-20: 홈 '거봉포도' ↔ 도매 '포도'처럼 18개 품목이 화면마다 다르게 보였다.)
+ */
+export function labelOf(
+  item: Pick<PriceItem, 'itemCode' | 'kindCode' | 'itemName' | 'kindName'>,
+): string {
+  return kindLabel(item as PriceItem, 2); // 2 = 품종명까지 드러내는 다품종 규칙
 }
 
 export function judge(today: number | null, base: number | null): SignalLevel | null {

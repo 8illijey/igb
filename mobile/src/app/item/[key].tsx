@@ -13,6 +13,7 @@ import {
   fetchMarketPrices,
   fetchSeries,
   judge,
+  labelOf,
   MarketPrice,
   PriceItem,
   SeriesPoint,
@@ -283,14 +284,13 @@ export default function ItemDetailScreen() {
   const verdicts = useVerdicts();
   // 대표 품종(kind)은 홈과 verdicts가 서로 다른 시점에 뽑아 어긋날 수 있다(예: 봄배추 211-01 vs 고랭지 211-02).
   // 같은 품목 verdict가 유일하면 그걸 쓴다. 고기는 부위(kind)마다 가격이 달라 정확 일치만(prices.resolve와 동일 원칙).
-  const MEAT_CODES = ['4301', '4304', '4401', '4402', '9901'];
-  const vKey = useMemo(() => {
-    if (verdicts[key]) return key;
-    const code = key.split('-')[0];
-    if (MEAT_CODES.includes(code)) return key;
-    const same = Object.keys(verdicts).filter((k) => k.startsWith(`${code}-`));
-    return same.length === 1 ? same[0] : key;
-  }, [verdicts, key]);
+  // 형제 품종의 verdict를 빌리지 않는다. 예전엔 '대표 품종'이 홈과 verdicts 사이에
+  // 어긋날 수 있어 같은 품목 verdict가 하나뿐이면 그걸 가져다 썼는데, 홈이 품종을 전부
+  // 노출하게 바뀌면서 사전계산이 없는 품종이 형제의 것을 통째로 썼다 — 후지사과 상세가
+  // 아오리사과의 이름·최근1년평균·연간흐름을 그대로 보여줬다(2026-08-20 사용자 신고).
+  // build-verdicts가 모든 품종을 계산하므로 이젠 빌릴 이유가 없고,
+  // 혹시 빠졌다면 라이브 365일로 떨어지는 쪽(느리지만 정확)이 옳다.
+  const vKey = key;
   const precomputedRecentAvg =
     market === 'wholesale'
       ? verdicts[vKey]?.wholesaleRecentAvg ?? null
@@ -317,13 +317,21 @@ export default function ItemDetailScreen() {
   const isSplitItem = verdicts[vKey]?.spanVarieties ?? false;
   const annualSpanVarieties = market === 'eco' ? false : isSplitItem;
   // hero 품종명 — 도매는 '도매 데이터 자체'(보고 있는 wsItem의 kind="봄(20kg)"→봄무), 소매는 대표 품종.
-  // 차트 병합(월동무 데이터)과 무관 — 분할 품목이면 wsItem의 실제 품종을 그대로 표기.
+  // 연간흐름 캐션 전용 — hero 제목엔 더 이상 쓰지 않는다(아래 heroName 참고).
   const heroVariety =
     market === 'wholesale' ? (active ? varietyName(active.kindName, active.itemName) : null) : verdicts[vKey]?.variety ?? null;
-  // 도매는 실제 조사 단위 이름으로 — 소매와 조사 단위가 다른 품목(닭고기 육계9호 vs 육계(kg))에서
-  // 소매 이름을 그대로 두면 다른 상품의 가격처럼 읽힌다. 분할 품목은 기존 품종명 우선.
-  const heroName =
-    (isSplitItem && heroVariety) || (market === 'wholesale' && active ? active.itemName : item?.itemName) || '';
+  // 표시명은 항상 홈 목록과 같아야 한다(2026-08-20 사용자 신고 — 홈 '거봉포도'가
+  // 도매에선 '포도', 홈 '무'가 상세에선 '고랭지무'로 보였다).
+  //  · 소매·유기농: 홈 이름 그대로. 제철 품종명은 연간흐름 캐션이 이미 알려준다.
+  //  · 도매: 같은 품종이 조사되면 홈 이름 그대로(61개 중 57개).
+  //    다른 품종으로 폴백했을 때만(쌀 10kg→20kg, 가시오이→다다기오이 등 4건)
+  //    그 품종 이름을 홈과 같은 규칙(labelOf)으로 만들어 보여준다 — 홈 이름을 그대로 쓰면
+  //    다른 품종 가격을 이 품종 가격처럼 읽게 된다.
+  const heroName = useMemo(() => {
+    const home = item?.itemName ?? '';
+    if (market !== 'wholesale' || !active) return home;
+    return active.kindCode === item?.kindCode ? home : labelOf(active);
+  }, [market, active, item]);
   // 연간흐름 '철마다 품종 달라요' 캡션 — 소매는 사전계산(품종별 가격), 도매는 현재 품종명만(가격 캡션은 소매가라 제외).
   const annualThisMonthVarieties =
     market === 'retail'

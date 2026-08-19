@@ -12,18 +12,23 @@ import { colors } from '../theme/tokens';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  // woff2 — OTF 4종 6.01MB가 전부 받혀야 했던 걸 2.99MB로 줄였다(metro.config.js에 assetExts 추가).
   const [loaded] = useFonts({
-    'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.otf'),
-    'Pretendard-SemiBold': require('../../assets/fonts/Pretendard-SemiBold.otf'),
-    'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.otf'),
-    'Pretendard-ExtraBold': require('../../assets/fonts/Pretendard-ExtraBold.otf'),
+    'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.woff2'),
+    'Pretendard-SemiBold': require('../../assets/fonts/Pretendard-SemiBold.woff2'),
+    'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.woff2'),
+    'Pretendard-ExtraBold': require('../../assets/fonts/Pretendard-ExtraBold.woff2'),
   });
 
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
 
-  if (!loaded) return null;
+  // 폰트를 기다리며 화면을 비워두지 않는다. 예전엔 여기서 null을 되돌려
+  // 한글 폰트 수 MB가 다 받아질 때까지 빈 화면이었다 — 처음 들어올 때 로딩이 길던 주원인(2026-08-20).
+  // 웹은 폰트가 없어도 시스템 산세리프로 먼저 그려지고(FOUT) 로드되면 자연스럽게 바뀌므로
+  // 기다릴 이유가 없다. 네이티브는 미로드 패밀리가 빈 화면으로 보일 수 있어 기존대로 기다린다.
+  if (!loaded && Platform.OS !== 'web') return null;
 
   return (
     <PricesProvider>
