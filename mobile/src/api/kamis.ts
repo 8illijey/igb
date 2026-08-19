@@ -76,9 +76,49 @@ function parsePrice(v: unknown): number | null {
 const NAME_FIX: Record<string, string> = { 소: '소고기', 돼지: '돼지고기', 닭: '닭고기' };
 /** 고기류 — 부위(kindName)가 핵심이므로 이름에 붙인다. 계란·우유는 제외. */
 const MEAT_CODES = new Set(['4301', '4304', '4401', '4402', '9901']);
+/** 품종명 끝의 단위 괄호를 둔다. "육계(kg)"→"육계", "풋고추(녹광 등)"→"풋고추" */
+const cleanKind = (k: string) => String(k ?? '').replace(/\([^)]*\)\s*$/, '').trim();
+
 function displayName(name: string, code: string, kindName: string): string {
   const fixed = NAME_FIX[name] ?? name;
-  return MEAT_CODES.has(code) && kindName ? `${fixed} ${kindName}` : fixed;
+  const k = cleanKind(kindName);
+  return MEAT_CODES.has(code) && k ? `${fixed} ${k}` : fixed;
+}
+
+/**
+ * 자동 규칙이 어색한 품종만 손으로 정한다.
+ * 포도는 '거봉'·'샤인머스켓'만 두면 검색에서 '포도'로 안 걸려 품목명을 붙인다.
+ */
+const KIND_LABEL: Record<string, string> = {
+  '411-05': '후지사과',
+  '411-06': '아오리사과',
+  '414-01': '캠벨얼리포도',
+  '414-02': '거봉포도',
+  '414-12': '샤인머스켓포도',
+  '223-01': '가시오이',
+  '223-02': '다다기오이',
+  '223-03': '취청오이',
+  '224-02': '쥬키니호박',
+  '9903-21': '계란 10구',
+  '9903-23': '계란 30구',
+};
+
+/**
+ * 한 품목에 품종이 여럿일 때 구분되는 표시명을 만든다.
+ * 규칙: 품종명이 품목명을 품으면 그대로(대파·쪽파), 짧으면 붙이고(적상추),
+ * 길면 띄어쓴다(건고추 화건). 끝글자와 첫글자가 겹치면 붙이지 않는다.
+ */
+function kindLabel(item: PriceItem, kindsInItem: number): string {
+  const override = KIND_LABEL[`${item.itemCode}-${item.kindCode}`];
+  if (override) return override;
+  if (MEAT_CODES.has(item.itemCode)) return item.itemName; // 이미 '소고기 안심' 형태
+  if (kindsInItem <= 1) return item.itemName;
+  const v = cleanKind(item.kindName);
+  const base = item.itemName;
+  if (!v || v === base) return base;
+  if (v.includes(base)) return v;
+  const stutter = v.slice(-1) === base.slice(0, 1);
+  return [...v].length <= 2 && !stutter ? `${v}${base}` : `${base} ${v}`;
 }
 
 export function judge(today: number | null, base: number | null): SignalLevel | null {
@@ -193,19 +233,13 @@ export async function fetchAllCategories(): Promise<PriceItem[]> {
   });
   // 2차: 표시명이 같은 여러 단위(예: 계란 10구/30구, 오이 3계통)는 신호가 가장 좋은 단위를 대표로.
   //  싸거나 적정한 단위가 있으면 그걸 보여줘야 한다 (cheap<fair<expensive<없음, 동급이면 더 싼 쪽).
-  const rank = (lv: SignalLevel | null) => (lv === 'cheap' ? 0 : lv === 'fair' ? 1 : lv === 'expensive' ? 2 : 3);
-  const best = new Map<string, PriceItem>();
-  for (const it of unique) {
-    const prev = best.get(it.itemName);
-    if (
-      !prev ||
-      rank(it.level) < rank(prev.level) ||
-      (rank(it.level) === rank(prev.level) && (it.vsNormalPct ?? 999) < (prev.vsNormalPct ?? 999))
-    ) {
-      best.set(it.itemName, it);
-    }
-  }
-  return [...best.values()];
+  // 품종을 접지 않고 모두 내보낸다. 예전엔 표시명이 같은 품종 중 신호가 가장 좋은 하나만
+  // 남겼는데, 그 '대표'가 날마다 시세로 바뀜어 같은 URL이 어제는 츠벨얼리, 오늘은
+  // 샤인머스켓을 가리켰다. 그 탓에 쿠팡 상품·사진이 품종과 어긋나는 문제가 생겼다(2026-08-18).
+  // 품종별로 가격도 단위도 다른 이상 각각을 독립된 항목으로 다룬다.
+  const kindCounts = new Map<string, number>();
+  for (const i of unique) kindCounts.set(i.itemCode, (kindCounts.get(i.itemCode) ?? 0) + 1);
+  return unique.map((i) => ({ ...i, itemName: kindLabel(i, kindCounts.get(i.itemCode) ?? 1) }));
 }
 
 /**

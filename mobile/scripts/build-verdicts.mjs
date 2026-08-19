@@ -164,18 +164,10 @@ async function fetchAll() {
     seen.add(k);
     return true;
   });
-  const best = new Map();
-  for (const it of unique) {
-    const prev = best.get(it.itemName);
-    if (
-      !prev ||
-      lvRank(it.level) < lvRank(prev.level) ||
-      (lvRank(it.level) === lvRank(prev.level) && (it.vsNormalPct ?? 999) < (prev.vsNormalPct ?? 999))
-    ) {
-      best.set(it.itemName, it);
-    }
-  }
-  return { reps: [...best.values()], kindsByItem };
+  // 품종을 접지 않고 모두 계산한다. 앱이 품종을 각각 독립 항목으로 보여주게 바뀌었으므로
+  // (kamis.ts 참조) 여기서 대표 하나만 만들면 나머지 품종 상세는 사전계산이 없어
+  // 365일 라이브 호출(≈27s)로 떨어진다.
+  return { reps: unique, kindsByItem };
 }
 
 // ---- 365일 시계열 → 월별 데이터 포인트 (앱 fetchSeries와 동일 rank 후보·파싱) ----
