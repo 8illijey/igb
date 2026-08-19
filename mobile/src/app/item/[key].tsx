@@ -543,7 +543,7 @@ export default function ItemDetailScreen() {
               <Sparkline series={eco.series} baseline={ecoBaseline?.avg ?? null} level={ecoLevel} />
             </View>
             <BuySection markets={eco.markets} reference={eco.latest} />
-            <ShopSection itemCode={itemKey(item)} />
+            <ShopSection itemCode={itemKey(item)} market="eco" />
             <Text style={styles.source}>
               자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}
               {'\n'}유기농·무농약은 주 1회 화요일에 업데이트
@@ -793,8 +793,8 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
  * 제휴 설정이 안 된 몰 행은 숨김 — 네이버(무수익 검색 링크)는 항상 있어 섹션이 비지 않는다.
  */
 /** 지금 쿠팡에서 사기 — 상품 카드 리스트(이미지·상품명·로켓 배지·가격). Figma 933:2564 1:1. */
-function ShopSection({ itemCode }: { itemCode: string }) {
-  const products = coupangProducts(itemCode);
+function ShopSection({ itemCode, market = 'retail' }: { itemCode: string; market?: 'retail' | 'eco' }) {
+  const products = coupangProducts(itemCode, market);
   if (products.length === 0) return null;
   return (
     <View style={styles.buySection}>

@@ -48,14 +48,25 @@ export const ROCKET_LOGO_W: Record<RocketType, number> = { rocket: 64, seller_ro
  * 포도 캠벨얼리→샤인머스켓, 사과 후지→아오리 등 9개 품목의 쿠팡 섹션이 통째로 사라졌다.
  * 품종이 바뀜어도 사람이 사려는 건 같은 품목이니, 섹션을 숨기는 것보다 보여주는 게 낫다.
  */
-export function coupangProducts(key: string): CoupangProduct[] {
+export function coupangProducts(key: string, market: 'retail' | 'eco' = 'retail'): CoupangProduct[] {
   const table = coupangProductsData as Record<string, CoupangProduct[]>;
-  const exact = table[key] ?? table[codeOf(key)];
+  // 유기농·무농약 탭은 eco: 상품만 보여준다. 없으면 섹션을 감춘다(빈 배열) —
+  // 일반 상품으로 폴백하면 유기농 시세 옆에 일반 가격이 붙어 다른 물건처럼 읽힌다.
+  // (2026-08-20: 대추방울토마토 유기농 12,150원/kg 아래에 일반 5,550원 상품이 붙어 있었다.)
+  const ns = market === 'eco' ? 'eco:' : '';
+  const exact = table[`${ns}${key}`] ?? table[`${ns}${codeOf(key)}`];
   if (exact) return exact;
-  const prefix = `${codeOf(key)}-`;
+  // 3번(형제 품종) 폴백을 금지하는 품목 — 한 KAMIS 품목에 서로 다른 재료가 묶여 있을 때.
+  // 파(246)는 대파와 쪽파가 같은 품목코드라, 쪽파 페이지에 대파 상품이 붙었다(2026-08-20).
+  if (NO_KIND_FALLBACK.has(codeOf(key))) return [];
+  const prefix = `${ns}${codeOf(key)}-`;
   const alt = Object.keys(table).find((k) => k.startsWith(prefix));
-  return alt ? table[alt] : [];
+  if (alt) return table[alt];
+  return [];
 }
+
+/** 품종끼리 서로 대체할 수 없는 품목코드 */
+const NO_KIND_FALLBACK = new Set(['246']);
 
 /** 클릭 집계 — 실패해도 사용자 흐름에 영향 없음 */
 export function trackShoppingClick(store: string, key: string): void {

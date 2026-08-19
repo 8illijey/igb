@@ -19,7 +19,9 @@
  *     쿠키는 로그인한 크롬의 partners.coupang.com 요청 헤더에서 통째로 복사.
  *     옵션: --dry-run(파일 미기록)  --only=245,211(특정 itemCode만)  --rpm=35
  *
- * 산출물: mobile/src/coupang-products.json  (키 = `itemCode-kindCode`)
+ * 산출물: mobile/src/coupang-products.json
+ *   · 일반 키 = `itemCode-kindCode`
+ *   · 유기농 키 = `eco:itemCode-kindCode` (상세의 유기농·무농약 탭 전용)
  */
 
 (function () {
@@ -93,6 +95,23 @@
     '111-10': ['쌀'],
   };
 
+  /**
+   * 유기농·무농약 시세가 있는 품목(2026-08-20 KAMIS periodEcoPriceList로 실측, 82개 중 29개).
+   * 이 품목만 유기농 상품을 따로 뽑는다 — 나머지는 앱이 유기농 탭을 '시세 없음'으로 막고 있어
+   * 검색해봐야 호출만 낭비된다.
+   */
+  const ECO_KEYS = new Set([
+    '112-01', '141-01', '151-00', '152-01', '212-00', '213-00', '214-01', '221-00', '222-00',
+    '223-02', '224-01', '225-00', '232-01', '242-00', '242-02', '242-03', '242-04', '245-00',
+    '246-00', '246-02', '247-00', '253-00', '257-00', '258-01', '422-01', '411-05', '412-01',
+    '414-01', '415-02',
+  ]);
+
+  /** 상품명에 이 중 하나가 있어야 유기농 상품으로 인정한다. */
+  const ECO_TOKENS = ['유기농', '유기재배', '무농약', '친환경'];
+  /** 유기농처럼 보이지만 아닌 것 — GAP·무항생제는 친환경 인증이 아니다. */
+  const ECO_EXCLUDE = ['무항생제', 'GAP', '유기농인증준', '유기농풍'];
+
   /** 품종별 배제어 — 형제 품종이 서로를 잔아먹지 않게. */
   const KIND_EXCLUDE = {
     '214-01': ['청상추'], '214-02': ['적상추'],
@@ -136,6 +155,16 @@
     무: ['배추', '무말랭이', '무순', '메밀', '무염'],
     파: ['파프리카', '파인애플', '파슬리'],
     콩: ['콩나물', '두부', '콩기름', '땅콩'],
+    // 애플수박·미니수박은 1.6kg짜리 다른 품종 — KAMIS 수박(1개 약 7kg) 시세와 단위가 안 맞는다.
+    수박: ['애플수박', '미니수박', '수박바', '수박맛', '수박주스'],
+    // 생과일 시세 페이지에 가공품(주스·청·건조)이 붙으면 단위당 가격이 전혀 다른 물건이 된다.
+    // 2026-08-20 유기농 검색에서 '유기농 감귤주스'가 1위로 올라왔다.
+    감귤: ['주스', '쥬스', '착즙', '음료', '청', '말랭', '건조', '차', '슬라이스'],
+    오렌지: ['주스', '쥬스', '착즙', '음료', '청', '건조'],
+    // '산돌배·돌배'는 야생종이라 KAMIS 신고배와 다른 물건이다.
+    배: ['산돌배', '돌배', '주스', '쥬스', '착즙', '청', '양배추', '배추'],
+    사과: ['주스', '쥬스', '착즙', '청', '건조', '칩', '식초'],
+    포도: ['주스', '쥬스', '착즙', '청', '건포도', '식초', '와인'],
   };
 
   /** KAMIS 조사 기준의 원산지 — 국산 품목에 수입육이, 수입 품목에 한우가 붙는 것을 막는다 */
@@ -259,7 +288,7 @@
   }
 
   // ── 2) 상품 선정 ────────────────────────────────────────────────────────
-  function scoreProduct(p, item) {
+  function scoreProduct(p, item, eco = false) {
     if (p.type !== 'PRODUCT' || p.isSoldOut || p.travel) return -1;
     const title = p.title || '';
     const kindKey = `${item.itemCode}-${item.kindCode}`;
@@ -267,6 +296,13 @@
     if (!tokens.some((t) => title.includes(t.trim()))) return -1;
     for (const bad of [...(EXCLUDE[item.itemName] || []), ...(KIND_EXCLUDE[kindKey] || [])])
       if (title.includes(bad)) return -1;
+    // 유기농 탭은 인증 표기가 제목에 있는 상품만. 그냥 일반 상품을 붙이면
+    // 유기농 시세(대추방울토마토 12,150원/kg) 옆에 일반 상품(5,550원)이 붙어
+    // 다른 물건 가격으로 읽힌다(2026-08-20 수정).
+    if (eco) {
+      if (!ECO_TOKENS.some((t) => title.includes(t))) return -1;
+      if (ECO_EXCLUDE.some((t) => title.includes(t))) return -1;
+    }
 
     let s = 0;
     const dct = p.deliveryChargeType || [];
@@ -292,9 +328,9 @@
     return s;
   }
 
-  function pickTop(products, item) {
+  function pickTop(products, item, eco = false) {
     const ranked = products
-      .map((p) => ({ p, s: scoreProduct(p, item) }))
+      .map((p) => ({ p, s: scoreProduct(p, item, eco) }))
       .filter((x) => x.s >= 0)
       .sort((a, b) => b.s - a.s);
     const seenProduct = new Set();
@@ -345,7 +381,63 @@
     if (only && only.length) catalog = catalog.filter((i) => only.includes(i.itemCode));
 
     const data = {};
-    const stats = { items: 0, products: 0, reused: 0, created: 0, searchCalls: 0, linkCalls: 0, skipped: [], aborted: null };
+    const stats = { items: 0, ecoItems: 0, products: 0, reused: 0, created: 0, searchCalls: 0, linkCalls: 0, skipped: [], aborted: null };
+
+    // 한 품목(또는 그 품목의 유기농판)을 검색·선별해 상품 배열로. 일반/유기농 두 번 돌린다.
+    const collect = async (item, key, keyword, eco) => {
+      const res = await call('/api/v1/search', {
+        page: { pageNumber: 0, size: SEARCH_SIZE },
+        filter: keyword,
+        deliveryTypes: [],
+      });
+      stats.searchCalls++;
+      const picks = pickTop(res?.data?.products || [], item, eco);
+      if (!picks.length) {
+        stats.skipped.push(`${key} ${item.itemName} (후보 0개)`);
+        return [];
+      }
+      const out = [];
+      for (const p of picks) {
+        const vid = String(p.vendorItemId);
+        let url = linkByVendorItem.get(vid);
+        if (url) {
+          stats.reused++;
+        } else {
+          const gen = await call('/api/v1/banner/iframe/url', {
+            product: {
+              type: 'PRODUCT',
+              itemId: p.itemId,
+              productId: p.productId,
+              vendorItemId: p.vendorItemId,
+              image: p.image,
+              title: p.title,
+              discountRate: p.discountRate || 0,
+              originPrice: p.originPrice,
+              salesPrice: p.salesPrice,
+              travel: 'false',
+            },
+          });
+          stats.linkCalls++;
+          url = gen?.data?.shortUrl;
+          if (!url) {
+            stats.skipped.push(`${key} ${p.title} (링크 생성 실패)`);
+            continue;
+          }
+          linkByVendorItem.set(vid, url);
+          stats.created++;
+        }
+        out.push({
+          name: p.title,
+          price: p.salesPrice,
+          imageUrl: p.image,
+          url,
+          status: statusOf(p.deliveryChargeType, p.badges),
+          vendorItemId: p.vendorItemId,
+          productId: p.productId,
+        });
+      }
+      return out;
+    };
 
     for (const item of catalog) {
       const key = `${item.itemCode}-${item.kindCode}`;
@@ -356,66 +448,24 @@
         continue;
       }
       try {
-        const res = await call('/api/v1/search', {
-          page: { pageNumber: 0, size: SEARCH_SIZE },
-          filter: keyword,
-          deliveryTypes: [],
-        });
-        stats.searchCalls++;
-        const picks = pickTop(res?.data?.products || [], item);
-        if (!picks.length) {
-          stats.skipped.push(`${key} ${item.itemName} (후보 0개)`);
-          continue;
-        }
-
-        const list = [];
-        for (const p of picks) {
-          const vid = String(p.vendorItemId);
-          let url = linkByVendorItem.get(vid);
-          if (url) {
-            stats.reused++;
-          } else {
-            const gen = await call('/api/v1/banner/iframe/url', {
-              product: {
-                type: 'PRODUCT',
-                itemId: p.itemId,
-                productId: p.productId,
-                vendorItemId: p.vendorItemId,
-                image: p.image,
-                title: p.title,
-                discountRate: p.discountRate || 0,
-                originPrice: p.originPrice,
-                salesPrice: p.salesPrice,
-                travel: 'false',
-              },
-            });
-            stats.linkCalls++;
-            url = gen?.data?.shortUrl;
-            if (!url) {
-              stats.skipped.push(`${key} ${p.title} (링크 생성 실패)`);
-              continue;
-            }
-            linkByVendorItem.set(vid, url);
-            stats.created++;
-          }
-          list.push({
-            name: p.title,
-            price: p.salesPrice,
-            imageUrl: p.image,
-            url,
-            status: statusOf(p.deliveryChargeType, p.badges),
-            vendorItemId: p.vendorItemId,
-            productId: p.productId,
-          });
-        }
+        const list = await collect(item, key, keyword, false);
         if (list.length) {
           data[key] = list;
           stats.items++;
           stats.products += list.length;
         }
+        // 유기농 시세가 있는 품목만 한 번 더 — '유기농 {검색어}'로 뽑아 eco: 네임스페이스에 넣는다.
+        if (ECO_KEYS.has(key)) {
+          const ecoList = await collect(item, `eco:${key}`, `유기농 ${keyword}`, true);
+          if (ecoList.length) {
+            data[`eco:${key}`] = ecoList;
+            stats.ecoItems++;
+            stats.products += ecoList.length;
+          }
+        }
       } catch (e) {
         if (e instanceof RateLimitError) {
-          // 3회째 초과 = 계정 제한. 남은 품목을 버리더라도 여기서 확실히 멈춘다.
+          // 3회째 초과 = 계정 제한. 남은 품목을 포기하더라도 여기서 확실히 멈춘다.
           stats.aborted = `분당 한도 초과로 중단 — ${e.message}`;
           log(`!! ${stats.aborted}`);
           break;
@@ -430,7 +480,7 @@
     }
 
     log(
-      `품목 ${stats.items} / 상품 ${stats.products} / 링크 재사용 ${stats.reused} · 신규 ${stats.created} ` +
+      `품목 ${stats.items}(유기농 ${stats.ecoItems}) / 상품 ${stats.products} / 링크 재사용 ${stats.reused} · 신규 ${stats.created} ` +
         `/ API 호출 검색 ${stats.searchCalls} + 링크 ${stats.linkCalls}`,
     );
     if (stats.skipped.length) log(`건너뜀 ${stats.skipped.length}건: ${stats.skipped.join(' | ')}`);
@@ -439,10 +489,18 @@
 
   // 키 순서를 안정적으로 — 커밋 diff가 '실제 변경'만 보이게 한다.
   function serialize(data) {
+    // eco: 키는 같은 품목 바로 뒤에 붙여 놓는다(diff가 읽히게).
+    const parse = (k) => {
+      const eco = k.startsWith('eco:');
+      const [c, kk] = (eco ? k.slice(4) : k).split('-');
+      return { eco, c: Number(c), k: kk ?? '' };
+    };
     const keys = Object.keys(data).sort((a, b) => {
-      const [ac, ak] = a.split('-');
-      const [bc, bk] = b.split('-');
-      return ac === bc ? ak.localeCompare(bk) : Number(ac) - Number(bc);
+      const pa = parse(a);
+      const pb = parse(b);
+      if (pa.c !== pb.c) return pa.c - pb.c;
+      if (pa.k !== pb.k) return pa.k.localeCompare(pb.k);
+      return Number(pa.eco) - Number(pb.eco);
     });
     const ordered = {};
     for (const k of keys) ordered[k] = data[k];
