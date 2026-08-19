@@ -45,7 +45,7 @@ export const ROCKET_LOGO_W: Record<RocketType, number> = { rocket: 64, seller_ro
  *
  * 3번이 있어야 하는 이유: 홈·상세가 보여주는 '대표 품종'은 그날 시세 신호로 정해져
  * 날마다 바뀜 수 있다. 2026-08-18 평년을 정확하게 바꿔을 때 대표가 실제로 옮겨가
- * 포도 츠벨얼리→샤인머스켓, 사과 후지→아오리 등 9개 품목의 쿠팡 섹션이 통째로 사라졌다.
+ * 포도 캠벨얼리→샤인머스켓, 사과 후지→아오리 등 9개 품목의 쿠팡 섹션이 통째로 사라졌다.
  * 품종이 바뀜어도 사람이 사려는 건 같은 품목이니, 섹션을 숨기는 것보다 보여주는 게 낫다.
  */
 export function coupangProducts(key: string): CoupangProduct[] {

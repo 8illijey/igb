@@ -551,7 +551,7 @@
     {
       "name": "국내산 애호박, 1개입, 3개",
       "price": 4240,
-      "imageUrl": "https://t3a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/f8728af6-d84f-41fe-894f-97d4f569eb2c2370714167319002014.png",
+      "imageUrl": "https://t1c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/f8728af6-d84f-41fe-894f-97d4f569eb2c2370714167319002014.png",
       "url": "https://link.coupang.com/a/glx9P4PrhY",
       "status": "rocket_fresh",
       "vendorItemId": 86340367428,
@@ -560,7 +560,7 @@
     {
       "name": "못생겨도 맛있는 애호박 1입, 1개입, 1개",
       "price": 1390,
-      "imageUrl": "https://t1c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1845911457723088-8911a3cc-0274-4ad7-bb6f-696aea588fc2.jpg",
+      "imageUrl": "https://thumbnail2.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1845911457723088-8911a3cc-0274-4ad7-bb6f-696aea588fc2.jpg",
       "url": "https://link.coupang.com/a/ghHJYPiTuK",
       "status": "rocket_fresh",
       "vendorItemId": 82400627614,
@@ -574,6 +574,34 @@
       "status": "rocket_fresh",
       "vendorItemId": 73639651773,
       "productId": 4876518010
+    }
+  ],
+  "224-02": [
+    {
+      "name": "쥬키니호박 5kg(10~15입), 5kg, 1개입, 1개",
+      "price": 16000,
+      "imageUrl": "https://thumbnail5.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/233964839980982-d756a853-8f92-4348-ab32-89f50af7a033.jpg",
+      "url": "https://link.coupang.com/a/glGzumy67o",
+      "status": "rocket_fresh",
+      "vendorItemId": 95049671871,
+      "productId": 4778232815
+    },
+    {
+      "name": "마당발 쥬키니 호박 다이스 (냉동), 1개, 1kg",
+      "price": 4160,
+      "imageUrl": "https://thumbnail7.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/277715081369011-018527d8-d067-4de4-a893-c737c10dbca5.jpg",
+      "url": "https://link.coupang.com/a/glGzB54bfw",
+      "status": "rocket_fresh",
+      "vendorItemId": 91897708210,
+      "productId": 8586012040
+    },
+    {
+      "name": "클릭마켓 국내산 쥬키니호박 주키니호박 못난이호박, 1박스, 상 3kg",
+      "price": 9800,
+      "imageUrl": "https://thumbnail11.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/bb92/13ee77ffb98271eed485551147796bfa5d28b0cab91902bb7fdd9474f428.jpg",
+      "url": "https://link.coupang.com/a/glGzJWetCS",
+      "vendorItemId": 91728822856,
+      "productId": 8538632767
     }
   ],
   "225-00": [
@@ -752,7 +780,7 @@
     {
       "name": "국내산 풋고추, 150g, 1개",
       "price": 2440,
-      "imageUrl": "https://t3c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/12354864724830-56c81f47-9181-49b8-8814-46a177ca027e.jpg",
+      "imageUrl": "https://thumbnail12.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/12354864724830-56c81f47-9181-49b8-8814-46a177ca027e.jpg",
       "url": "https://link.coupang.com/a/ghHKwGcRNY",
       "status": "rocket_fresh",
       "vendorItemId": 73402572034,
@@ -761,7 +789,7 @@
     {
       "name": "국내산 친환경 풋고추, 150g, 2개",
       "price": 4730,
-      "imageUrl": "https://thumbnail9.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/247284729078240-06048a24-c624-4999-9b6a-58f328c2eb4a.png",
+      "imageUrl": "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/247284729078240-06048a24-c624-4999-9b6a-58f328c2eb4a.png",
       "url": "https://link.coupang.com/a/glya6Izgya",
       "status": "rocket_fresh",
       "vendorItemId": 86341166985,
@@ -770,18 +798,47 @@
     {
       "name": "밀양 모닝고추, 150g, 1개",
       "price": 2790,
-      "imageUrl": "https://t4a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/9718946253563683-d81a8a6c-5a16-43f7-b0d9-12e3800d3580.jpg",
+      "imageUrl": "https://t4c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/9718946253563683-d81a8a6c-5a16-43f7-b0d9-12e3800d3580.jpg",
       "url": "https://link.coupang.com/a/gjsZTCWhFc",
       "status": "rocket_fresh",
       "vendorItemId": 79110018492,
       "productId": 6146972747
     }
   ],
+  "242-02": [
+    {
+      "name": "국내산 꽈리고추, 300g, 1개",
+      "price": 5230,
+      "imageUrl": "https://t3a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1767035181951557-3acc97b5-b185-42c7-9d96-6be7bf21b6fd.jpg",
+      "url": "https://link.coupang.com/a/glGz7tuyL6",
+      "status": "rocket_fresh",
+      "vendorItemId": 73210034184,
+      "productId": 2320455679
+    },
+    {
+      "name": "친환경 꽈리고추, 100g, 1개",
+      "price": 2490,
+      "imageUrl": "https://thumbnail13.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/77056810212546-b9434795-455c-4540-a5eb-66296cb7d08f.jpg",
+      "url": "https://link.coupang.com/a/glGAfn0752",
+      "status": "rocket_fresh",
+      "vendorItemId": 79599027785,
+      "productId": 6204240593
+    },
+    {
+      "name": "프리미엄 꽈리고추, 150g, 1개",
+      "price": 3310,
+      "imageUrl": "https://thumbnail2.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/106498525114580-98b4afa9-5fc8-4bd6-a34f-fd45c2182a56.jpg",
+      "url": "https://link.coupang.com/a/glGAnbHBJY",
+      "status": "rocket_fresh",
+      "vendorItemId": 95049672128,
+      "productId": 9444636206
+    }
+  ],
   "242-03": [
     {
       "name": "국내산 청양고추, 150g, 1개",
       "price": 1590,
-      "imageUrl": "https://thumbnail13.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/4277012004459-c7710d73-f1c9-4fe3-bb5d-a9ca72f84383.jpg",
+      "imageUrl": "https://thumbnail14.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/4277012004459-c7710d73-f1c9-4fe3-bb5d-a9ca72f84383.jpg",
       "url": "https://link.coupang.com/a/gjs0odDWOi",
       "status": "rocket_fresh",
       "vendorItemId": 73402571318,
@@ -790,7 +847,7 @@
     {
       "name": "국내산 청양고추, 300g, 1개",
       "price": 2960,
-      "imageUrl": "https://t5c.coupangcdn.com/thumbnails/remote/212x212ex/image/1025_amir_coupang_oct_80k/a2d3/fe18c24ec711eb3625633e47c96b07f5193282592b1ef4cbb1a2fd97589f.jpg",
+      "imageUrl": "https://t4a.coupangcdn.com/thumbnails/remote/212x212ex/image/1025_amir_coupang_oct_80k/a2d3/fe18c24ec711eb3625633e47c96b07f5193282592b1ef4cbb1a2fd97589f.jpg",
       "url": "https://link.coupang.com/a/gjs0wckAw0",
       "status": "rocket_fresh",
       "vendorItemId": 78926356481,
@@ -799,7 +856,7 @@
     {
       "name": "못생겨도 맛있는 청양고추, 300g, 1개",
       "price": 2490,
-      "imageUrl": "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1842902070004084-308bb028-5c24-40b4-84b0-7bf0bfb35202.jpg",
+      "imageUrl": "https://thumbnail3.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1842902070004084-308bb028-5c24-40b4-84b0-7bf0bfb35202.jpg",
       "url": "https://link.coupang.com/a/gjs0D69qxw",
       "status": "rocket_fresh",
       "vendorItemId": 82390667171,
@@ -810,7 +867,7 @@
     {
       "name": "국내산 오이맛 고추, 200g, 1개",
       "price": 2930,
-      "imageUrl": "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/438265277431284-c11ada6b-cf05-47e6-860c-b82d07286662.jpg",
+      "imageUrl": "https://thumbnail10.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/438265277431284-c11ada6b-cf05-47e6-860c-b82d07286662.jpg",
       "url": "https://link.coupang.com/a/gjs0TJoY6m",
       "status": "rocket_fresh",
       "vendorItemId": 73210034179,
@@ -819,7 +876,7 @@
     {
       "name": "못생겨도 맛있는 오이맛고추, 300g, 1개",
       "price": 2990,
-      "imageUrl": "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1842976650061885-6b60814e-5cdb-404c-ba52-1cba5991b1c2.jpg",
+      "imageUrl": "https://t1c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1842976650061885-6b60814e-5cdb-404c-ba52-1cba5991b1c2.jpg",
       "url": "https://link.coupang.com/a/gjs01AsQqi",
       "status": "rocket_fresh",
       "vendorItemId": 82390667175,
@@ -828,7 +885,7 @@
     {
       "name": "국내산 친환경 오이맛 고추, 200g, 1개",
       "price": 2480,
-      "imageUrl": "https://thumbnail1.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/9757203690526-88ca5930-aa9f-4132-b707-93d982b91222.jpg",
+      "imageUrl": "https://thumbnail14.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/9757203690526-88ca5930-aa9f-4132-b707-93d982b91222.jpg",
       "url": "https://link.coupang.com/a/gjs09v55H2",
       "status": "rocket_fresh",
       "vendorItemId": 73639808484,
@@ -1417,67 +1474,67 @@
   ],
   "414-01": [
     {
-      "name": "만나다 미국산 씨없는 적포도, 450g, 1개",
-      "price": 8080,
-      "imageUrl": "https://thumbnail3.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2022/06/30/10/6/16472707-7a3b-43fa-b0a2-f62f14a40b78.jpg",
-      "url": "https://link.coupang.com/a/glyhHpNRLg",
+      "name": "아주마 영동 상주산 캠벨포도, 1kg, 1개",
+      "price": 10200,
+      "imageUrl": "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2021/08/24/14/3/a4d99f4c-3ab0-4ad2-b33a-c7d79578c147.jpg",
+      "url": "https://link.coupang.com/a/glGASCj88q",
       "status": "rocket_fresh",
-      "vendorItemId": 82237738416,
-      "productId": 4789241317
+      "vendorItemId": 78399291170,
+      "productId": 6056607686
     },
     {
       "name": "유명산지 캠벨포도 2~5송이, 1kg, 1개",
       "price": 9990,
-      "imageUrl": "https://t4c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/215183086787537-712812b1-b0da-4fb6-9f2b-6ddcd45dfb19.jpg",
+      "imageUrl": "https://thumbnail12.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/215183086787537-712812b1-b0da-4fb6-9f2b-6ddcd45dfb19.jpg",
       "url": "https://link.coupang.com/a/glyhO2lb2G",
       "status": "rocket_fresh",
       "vendorItemId": 90395206985,
       "productId": 8176083373
     },
     {
-      "name": "해풍머금은 잎맞춤 GAP 인증 송산 포도, 1.5kg(3~6송이), 1개",
-      "price": 16180,
-      "imageUrl": "https://t2c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2021/08/25/10/4/d6e1a331-e4d8-4e8c-b6ca-85801bcea2e8.jpg",
-      "url": "https://link.coupang.com/a/glyhW1Fd1g",
+      "name": "산들이랑 캠벨포도, 1개, 500g",
+      "price": 6420,
+      "imageUrl": "https://thumbnail5.coupangcdn.com/thumbnails/remote/212x212ex/image/rs_quotation_api/upr77eg0/a2c4a85a187d4b3ab310c82703c51549.jpg",
+      "url": "https://link.coupang.com/a/glGA0wQIsm",
       "status": "rocket_fresh",
-      "vendorItemId": 78405649662,
-      "productId": 6057872282
+      "vendorItemId": 92778282656,
+      "productId": 8847727475
     }
   ],
   "414-02": [
     {
-      "name": "김천앤 거봉 2개입, 900g, 1개",
-      "price": 9750,
-      "imageUrl": "https://thumbnail2.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/448078116546706-7a349f58-5b24-4cdb-b86c-3e81c6958757.jpg",
-      "url": "https://link.coupang.com/a/glyicDXLZk",
+      "name": "산들이랑 비파괴당도선별 거봉, 1kg, 1개",
+      "price": 8990,
+      "imageUrl": "https://thumbnail4.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/104709453673693-fcdce767-6176-44e0-8f3e-a3ce417eabe7.jpg",
+      "url": "https://link.coupang.com/a/glGBgeV8jA",
       "status": "rocket_fresh",
-      "vendorItemId": 77454349759,
-      "productId": 5848730067
-    },
-    {
-      "name": "산들이랑 비파괴당도선별 거봉, 500g, 3개",
-      "price": 17150,
-      "imageUrl": "https://thumbnail12.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/c9a8abb7-4f22-408b-b50e-860f00e08ac488518783505118006.png",
-      "url": "https://link.coupang.com/a/glyikxTquG",
-      "status": "rocket_fresh",
-      "vendorItemId": 90395267827,
+      "vendorItemId": 90395207132,
       "productId": 8176083405
     },
     {
       "name": "영길팜 당도선별 거봉, 500g, 2개",
       "price": 11670,
-      "imageUrl": "https://t3a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/9477b17e-7cc8-4fec-ad80-f6b2f1db04b17093282842206308947.png",
+      "imageUrl": "https://thumbnail9.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/9477b17e-7cc8-4fec-ad80-f6b2f1db04b17093282842206308947.png",
       "url": "https://link.coupang.com/a/glyiska1Ku",
       "status": "rocket_fresh",
       "vendorItemId": 90395345367,
       "productId": 8176118243
+    },
+    {
+      "name": "모아바이오팜 거봉포도 1~2송이, 1개, 1kg",
+      "price": 9990,
+      "imageUrl": "https://thumbnail15.coupangcdn.com/thumbnails/remote/212x212ex/image/rs_quotation_api/tldiij21/7dbee3b53e2d45d1a7b8e9628291afdd.jpg",
+      "url": "https://link.coupang.com/a/glGBn6pjcy",
+      "status": "rocket_fresh",
+      "vendorItemId": 95665522716,
+      "productId": 9010033973
     }
   ],
   "414-12": [
     {
       "name": "당도선별 샤인머스캣, 2kg(2~4수), 1박스",
       "price": 17800,
-      "imageUrl": "https://thumbnail15.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/327417244281148-6417d458-129e-49f9-ac00-b361645ddff6.jpg",
+      "imageUrl": "https://t2a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/327417244281148-6417d458-129e-49f9-ac00-b361645ddff6.jpg",
       "url": "https://link.coupang.com/a/gjtair7eMe",
       "status": "rocket_fresh",
       "vendorItemId": 77583447249,
@@ -1486,7 +1543,7 @@
     {
       "name": "영길팜 당도선별 샤인머스캣, 500g, 1개",
       "price": 6870,
-      "imageUrl": "https://thumbnail14.coupangcdn.com/thumbnails/remote/212x212ex/image/rs_quotation_api/wakvmj7s/d13341cd595f4ce9a19ca5b58465bb5a.jpg",
+      "imageUrl": "https://t2a.coupangcdn.com/thumbnails/remote/212x212ex/image/rs_quotation_api/wakvmj7s/d13341cd595f4ce9a19ca5b58465bb5a.jpg",
       "url": "https://link.coupang.com/a/gjtax52AeG",
       "status": "rocket_fresh",
       "vendorItemId": 90395323583,
@@ -1495,7 +1552,7 @@
     {
       "name": "샤인머스캣, 500g, 1팩",
       "price": 5870,
-      "imageUrl": "https://thumbnail8.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/179576773302640-888fbb07-0d4b-409c-9547-83f51b2c10e7.jpg",
+      "imageUrl": "https://thumbnail4.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/179576773302640-888fbb07-0d4b-409c-9547-83f51b2c10e7.jpg",
       "url": "https://link.coupang.com/a/gjtaqbz7Aa",
       "status": "rocket_fresh",
       "vendorItemId": 77583447451,

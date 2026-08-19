@@ -184,12 +184,28 @@ export default function ItemDetailScreen() {
     setEcoBaseline(undefined);
   }, [key]);
 
+  // 축산(500)은 KAMIS가 도매를 아예 조사하지 않는데, 빈 응답이나 에러 대신 '소매 응답을 그대로' 돌려준다.
+  // 2026-08-20 확인: 축산 17행 전부 cls=01과 가격·단위가 완전히 동일했다
+  //   (삼겹살 2,867원/100g, 계란 특란30구 7,275원/30구, 우유 2,928원/1L …).
+  // 단위까지 소매 단위(100g·30구·1L)라 그대로 두면 '도매' 라벨을 단 소매가가 표시된다 —
+  // wsItem이 null이 아니라 값이 있으니 EmptyState도 안 걸리고, signalHidden 때문에
+  // '이맘때 평균'과 싸요/비싸요 배지만 조용히 사라져 사용자 눈엔 정상 화면으로 보인다.
+  // → 같은 날짜·같은 파라미터로 소매(cls=01)도 같이 받아 '가격 AND 단위'가 둘 다 같으면 도매 없음 처리.
+  //   단위만 같은 정상 도매(쌀 20kg·수박 1개·대파/쪽파 1kg·거봉/샤인머스캣 2kg)를 죽이지 않으려면
+  //   반드시 둘을 함께 봐야 한다 — 3일치(8/12·8/18·8/19) 검증에서 축산 17/17 정탐, 오탐 0.
   useEffect(() => {
     if (market !== 'wholesale' || wsItem !== undefined || !item) return;
-    fetchCategory(item.categoryCode, undefined, '02')
-      .then((list) => {
-        const matches = list.filter((x) => x.itemCode === item.itemCode && x.today != null);
-        setWsItem(matches.find((x) => x.kindCode === item.kindCode) ?? matches[0] ?? null);
+    Promise.all([
+      fetchCategory(item.categoryCode, undefined, '02'),
+      fetchCategory(item.categoryCode, undefined, '01'),
+    ])
+      .then(([wholesale, retail]) => {
+        const matches = wholesale.filter((x) => x.itemCode === item.itemCode && x.today != null);
+        const picked = matches.find((x) => x.kindCode === item.kindCode) ?? matches[0] ?? null;
+        if (!picked) return setWsItem(null);
+        const twin = retail.find((x) => x.itemCode === picked.itemCode && x.kindCode === picked.kindCode);
+        const mirrorsRetail = twin != null && twin.today === picked.today && twin.unit === picked.unit;
+        setWsItem(mirrorsRetail ? null : picked);
       })
       .catch(() => setWsItem(null));
   }, [market, wsItem, item]);
