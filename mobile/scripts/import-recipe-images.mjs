@@ -26,23 +26,26 @@ const titles = JSON.parse(readFileSync(path.join(ROOT, 'src', 'recipes.gen.json'
 function resolve(base) {
   for (let i = 0; i < titles.length; i++) {
     const t = titles[i];
-    if (base === t) return { i, asset: `r${i}.png`, key: t, label: `${t} (히어로)` };
-    if (base === `${t} 재료모음`) return { i, asset: `r${i}_ing.png`, key: `${t}__ingredients`, label: `${t} (재료모음)` };
+    if (base === t) return { i, asset: `r${i}.jpg`, key: t, label: `${t} (히어로)` };
+    if (base === `${t} 재료모음`) return { i, asset: `r${i}_ing.jpg`, key: `${t}__ingredients`, label: `${t} (재료모음)` };
     if (base.startsWith(t + ' ')) {
       const rest = base.slice(t.length + 1).trim();
-      if (/^\d+$/.test(rest)) return { i, asset: `r${i}_s${rest}.png`, key: `${t}__${rest}`, label: `${t} (${rest}단계)` };
+      if (/^\d+$/.test(rest)) return { i, asset: `r${i}_s${rest}.jpg`, key: `${t}__${rest}`, label: `${t} (${rest}단계)` };
     }
   }
   return null;
 }
 
+// JPEG q80 — PNG로 두면 히어로 한 장이 900KB라 레시피 에셋만 11MB였다(2026-08-20).
+// 표시 크기 기준으로 줄인다: 앱 최대 폭이 480px이라 히어로는 900px이면 2배수까지 충분하고,
+// 단계 사진은 64px로 그리므로 192px(3배수)면 된다. 30장 11MB → 0.9MB.
 function optimize(file, square) {
   if (square) {
     const h = execSync(`sips -g pixelHeight "${file}"`).toString().match(/pixelHeight:\s*(\d+)/)?.[1];
     if (h) execSync(`sips -c ${h} ${h} "${file}" --out "${file}"`, { stdio: 'ignore' });
-    execSync(`sips -Z 256 "${file}" --out "${file}"`, { stdio: 'ignore' }); // 단계 썸네일
+    execSync(`sips -Z 192 -s format jpeg -s formatOptions 80 "${file}" --out "${file}"`, { stdio: 'ignore' }); // 단계 썸네일(64px 표시)
   } else {
-    execSync(`sips -Z 1000 "${file}" --out "${file}"`, { stdio: 'ignore' }); // 히어로(가로형 유지)
+    execSync(`sips -Z 900 -s format jpeg -s formatOptions 80 "${file}" --out "${file}"`, { stdio: 'ignore' }); // 히어로(가로형 유지)
   }
 }
 
@@ -50,7 +53,7 @@ function regenMap() {
   const files = existsSync(OUT) ? readdirSync(OUT).filter((f) => /^r\d/.test(f)) : [];
   const lines = [];
   files.forEach((f) => {
-    const m = f.match(/^r(\d+)(?:_s(\d+)|(_ing))?\.png$/);
+    const m = f.match(/^r(\d+)(?:_s(\d+)|(_ing))?\.jpg$/);
     if (!m) return;
     const t = titles[Number(m[1])];
     if (!t) return;

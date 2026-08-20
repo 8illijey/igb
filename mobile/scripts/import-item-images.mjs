@@ -8,6 +8,7 @@
 // 매핑: 파일명을 KAMIS 품목/종류명과 대조.
 //   "토마토.png"        → 225            (품목 대표)
 //   "소고기 안심.png"   → 4301_21        (품목+종류)
+// 저장 형식: assets/items/{code}.jpg (500px, q80). 입력은 png/jpg/webp 뭐든 된다.
 //   "청오이.png"        → 223            (오이 대표, 종류 미매칭 시 품목)
 // 매칭 안 되는 파일(피자·로고 등)은 건너뜀. dry-run으로 먼저 확인 후 --apply.
 import { execSync } from 'node:child_process';
@@ -72,16 +73,21 @@ function resolve(base, rows) {
   return { key: `${item.itemCode}`, label: item.itemName };
 }
 
+// 500px JPEG q80 — 예전엔 600px PNG였는데 사진을 PNG로 두면 장당 500~600KB라
+// 홈 첫 화면에 보이는 7장만 3.6MB였다(2026-08-20 측정). 전부 JPEG로 바꿔 49MB→3.4MB.
+// · 표시 크기는 최대 146px(홈 그리드 카드) — 3배수 대응으로 500px면 충분하다.
+// · 96장 전부 투명 픽셀이 0개라(캔버스로 전수 검사) 알파가 필요 없다.
+// · WebP가 30%가량 더 작지만 macOS sips가 webp 출력을 못 해 별도 설치가 필요하다 —
+//   이 스크립트를 맥OS 기본 도구만으로 돌아가게 두려고 JPEG을 택했다.
 function optimize(file) {
-  execSync(`sips -s format png "${file}" --out "${file}"`, { stdio: 'ignore' }); // jpeg 등 → png 보장
   const h = execSync(`sips -g pixelHeight "${file}"`).toString().match(/pixelHeight:\s*(\d+)/)?.[1];
   if (h) execSync(`sips -c ${h} ${h} "${file}" --out "${file}"`, { stdio: 'ignore' }); // 가운데 정사각
-  execSync(`sips -Z 600 "${file}" --out "${file}"`, { stdio: 'ignore' }); // 600px
+  execSync(`sips -Z 500 -s format jpeg -s formatOptions 80 "${file}" --out "${file}"`, { stdio: 'ignore' });
 }
 
 function regenMap() {
-  const files = readdirSync(OUT_DIR).filter((f) => f.endsWith('.png')).sort();
-  const lines = files.map((f) => `  '${f.replace(/\.png$/, '')}': require('../assets/items/${f}'),`);
+  const files = readdirSync(OUT_DIR).filter((f) => f.endsWith('.jpg')).sort();
+  const lines = files.map((f) => `  '${f.replace(/\.jpg$/, '')}': require('../assets/items/${f}'),`);
   writeFileSync(
     path.join(ROOT, 'src', 'thumbnails.gen.ts'),
     `// 자동 생성 — scripts/import-item-images.mjs. 직접 수정 금지.\n// 키: \`{itemCode}\` 또는 종류별 \`{itemCode}_{kindCode}\`. 조회는 thumbFor() 사용.\nexport const THUMBS: Record<string, number> = {\n${lines.join('\n')}\n};\n`,
@@ -104,13 +110,13 @@ for (const f of files) {
 
 console.log(`\n입력: ${FROM}  (png ${files.length}개, KAMIS 카탈로그 ${rows.length}행)  —  ${APPLY ? 'APPLY' : 'DRY-RUN(미리보기)'}\n`);
 console.log('매핑됨:');
-for (const m of mapped) console.log(`  ${m.f}  →  ${m.key}.png  (${m.label})${m.warn ? '  ⚠ ' + m.warn : ''}`);
+for (const m of mapped) console.log(`  ${m.f}  →  ${m.key}.jpg  (${m.label})${m.warn ? '  ⚠ ' + m.warn : ''}`);
 console.log(`\n건너뜀(품목 매칭 없음): ${skipped.length}개`);
 if (skipped.length) console.log('  ' + skipped.join(', '));
 
 if (APPLY) {
   for (const m of mapped) {
-    const dst = path.join(OUT_DIR, `${m.key}.png`);
+    const dst = path.join(OUT_DIR, `${m.key}.jpg`);
     copyFileSync(path.join(FROM, m.f), dst);
     optimize(dst);
   }
