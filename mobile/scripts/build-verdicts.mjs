@@ -80,10 +80,15 @@ const lvRank = (lv) => (lv === 'cheap' ? 0 : lv === 'fair' ? 1 : lv === 'expensi
 const pct = (a, b) => (a == null || b == null ? null : Math.round(((a - b) / b) * 100));
 // 품종명 — kindName 맨 끝 괄호(단위)만 떼고 품목명 붙임.
 //  "봄(1포기)"→"봄배추",  "수미(노지)(100g)"→"수미(노지)감자" (노지/시설 구분 유지),  "여름(고랭지)(1포기)"→"여름(고랭지)배추"
+// 길면 띄어쓴다 — 앞선 무조건 붙여서 '햇산화건'+'건고추' = "햇산화건건고추" 같은 말이 나왔다
+// (2026-08-20 연간흐름 캐션에서 발견). 앱 kamis.ts의 kindLabel과 같은 규칙을 쓴다.
 const varietyName = (kindName, itemName) => {
   const v = String(kindName).replace(/\([^)]*\)\s*$/, '').trim();
-  // 변종명이 이미 품목명을 포함/끝나면(대파·쪽파→파) 그대로. 아니면(봄→무) 붙인다.
-  return !v || v === itemName ? itemName : v.endsWith(itemName) ? v : `${v}${itemName}`;
+  if (!v || v === itemName) return itemName;
+  if (v.includes(itemName)) return v; // 대파·쪽파 → 그대로
+  // 붙이는 게 기본(봄무·고랭지무·여름(고랭지)배추). 단, 품종명 끝글자와 품목명 첫글자가
+  // 같으면 붙여서 읽힐 말이 된다 — '햇산화건'+'건고추' = "햇산화건건고추". 그때만 띄운다.
+  return v.slice(-1) === itemName.slice(0, 1) ? `${itemName} ${v}` : `${v}${itemName}`;
 };
 
 // ---- 당일 카테고리 시세 (앱 fetchCategory와 동일 파싱) ----
@@ -213,7 +218,15 @@ async function fetchYearPoints(item, cls = '01') {
     const pts = parts
       .flat()
       .filter((r) => r.countyname === '평균')
-      .map((r) => ({ m: parseInt(String(r.regday).split('/')[0], 10) - 1, price: parsePrice(r.price) }))
+      .map((r) => ({
+        m: parseInt(String(r.regday).split('/')[0], 10) - 1,
+        price: parsePrice(r.price),
+        // 일자도 남긴다 — 상세 '최근 시세' 차트용 일별 시계열(series.json)을 같이 만들기 위해.
+        // 예전엔 월 버킷만 쓰고 버렸는데, 그 탓에 앱이 상세를 열 때마다
+        // 같은 1년치를 KAMIS에서 다시 받았다(분할 4회 × 3~7초).
+        y: r.yyyy != null ? String(r.yyyy) : null,
+        d: String(r.regday),
+      }))
       .filter((p) => p.price != null && p.m >= 0 && p.m < 12);
     if (pts.length) return pts;
   }
@@ -235,6 +248,17 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
   console.log(`대표 품목 ${reps.length}개 — 연간 흐름·최근 1년 평균 계산 중...`);
 
   const out = {};
+  // 상세 '최근 시세' 차트용 일별 시계열. 이미 받아둔 1년치 포인트를 그대로 쓰므로
+  // KAMIS 추가 호출이 0이다. 형식: { "211-02": { r: [["2026-08-20", 4985], …], w: […] } }
+  const series = {};
+  const toSeries = (pts) => {
+    const seen = new Set();
+    return pts
+      .filter((p) => p.y && p.d && p.price != null)
+      .map((p) => [`${p.y}-${String(p.d).replace('/', '-')}`, p.price])
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .filter(([k]) => (seen.has(k) ? false : (seen.add(k), true)));
+  };
   let done = 0;
   let merged = 0;
   for (const it of reps) {
@@ -317,6 +341,12 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
       }
     }
 
+    const sr = toSeries(repPts);
+    const sw = toSeries(wsPts);
+    if (sr.length || sw.length) {
+      series[`${it.itemCode}-${it.kindCode}`] = { ...(sr.length ? { r: sr } : {}), ...(sw.length ? { w: sw } : {}) };
+    }
+
     out[`${it.itemCode}-${it.kindCode}`] = {
       level,
       recentAvg,
@@ -366,6 +396,16 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
   const dir = new URL('../public/', import.meta.url);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir.pathname, 'verdicts.json'), JSON.stringify(payload));
+  // 시계열은 별도 파일 — verdicts.json은 워커가 매 응답마다 읽으므로 가벼야 한다.
+  // 빈 결과로 직전 파일을 덮어쓰지 않는다(KAMIS 장애 때 차트가 통째로 비는 사고 방지).
+  const seriesPath = path.join(dir.pathname, 'series.json');
+  if (Object.keys(series).length) {
+    fs.writeFileSync(seriesPath, JSON.stringify({ generatedAt: new Date().toISOString(), items: series }));
+    const pts = Object.values(series).reduce((n, v) => n + (v.r?.length ?? 0) + (v.w?.length ?? 0), 0);
+    console.log(`완료 → public/series.json (${Object.keys(series).length}개 품목, 포인트 ${pts}개, ${Math.round(fs.statSync(seriesPath).size / 1024)}KB)`);
+  } else {
+    console.warn('시계열 0건 — series.json 유지(덮어쓰지 않음)');
+  }
   const counts = Object.values(out).reduce((m, v) => ((m[v.level] = (m[v.level] ?? 0) + 1), m), {});
   console.log(`완료 → public/verdicts.json (${reps.length}개, 다품종 병합 ${merged}개)`, counts);
 })().catch((e) => {

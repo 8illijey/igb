@@ -28,7 +28,7 @@
       ]
     },
     {
-      "source": "/(verdicts|baselines).json",
+      "source": "/(verdicts|baselines|series).json",
       "headers": [
         {
           "key": "Cache-Control",

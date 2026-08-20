@@ -20,6 +20,7 @@ import {
   won,
 } from '../../api/kamis';
 import { coupangProducts, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
+import { usePrecomputedSeries } from '../../api/series';
 import { useVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
@@ -224,6 +225,18 @@ export default function ItemDetailScreen() {
   const active = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
   const cls = market === 'wholesale' ? '02' : '01';
 
+  // 사전계산 일별 시계열(series.json) — 상세 차트가 KAMIS 1년치를 다시 받지 않게 한다.
+  // 아래 두 effect(28일·365일)가 의존하므로 그보다 먼저 선언해야 한다(TDZ).
+  // 도매는 보고 있는 품종이 상세 키와 같을 때만 사전계산을 쓴다 — 다른 품종으로 폴백한
+  // 경우(쌀 10kg→20kg 등 4건) 사전계산은 상세 키의 품종 것이라 화면과 어긋난다.
+  const preKindMatches = market !== 'wholesale' || (active != null && active.kindCode === item?.kindCode);
+  const preSeries = usePrecomputedSeries(key, market === 'wholesale' ? 'wholesale' : 'retail');
+  const preUsable = preSeries != null && preKindMatches;
+  // 차트는 30포인트 미만이면 28일 폴백으로 떨어진다. 제철이 짧은 품종(건고추 햇산화건 18개)은
+  // 사전계산이 있어도 그것만으로 차트를 못 채우므로 28일을 같이 받아야 한다 —
+  // 안 그러면 스켈레톤이 영영 안 걷힌다.
+  const preEnough = preUsable && (preSeries as SeriesPoint[]).length >= 30;
+
   // 가벼운 호출만 여기서: 마켓·28일 차트. 둘 다 ~3s, 병렬.
   // 무거운 365일(≈27s)은 verdicts가 최근1년평균을 못 줄 때만 아래 별도 effect에서.
   useEffect(() => {
@@ -236,10 +249,14 @@ export default function ItemDetailScreen() {
     cached(`mk-${ck}`, () => fetchMarketPrices(active, cls))
       .then(setMarkets)
       .catch(() => setMarkets([]));
+    // 28일은 1년 시계열이 없거나 부족할 때만 쓰는 폴백이다.
+    // 사전계산(series.json)이 있으면 차트가 이미 채워지므로 이 호출을 생략한다
+    // (2026-08-20 실측 4.4s — 쓰지도 않고 상세 진입마다 KAMIS를 때렸다).
+    if (preSeries === undefined || preEnough) return;
     cached(`c28-${ck}`, () => fetchSeries(active, 28, cls))
       .then(setChart28)
       .catch(() => setChart28([]));
-  }, [key, market, active?.itemCode, active?.kindCode]);
+  }, [key, market, active?.itemCode, active?.kindCode, preSeries, preEnough]);
 
   // 평년 대비 신호 (±1% judge) — 차트 한 줄 결론·진입 가드용
   const view = useMemo(() => {
@@ -299,14 +316,24 @@ export default function ItemDetailScreen() {
         : null;
   const recentAvg = precomputedRecentAvg ?? yearDerived?.recentAvg ?? null;
 
-  // 365일 일별 — 최근 시세 차트가 항상 필요(1년 표시). 같은 날 캐시로 재방문은 즉시.
-  // (추천 판정은 precomputed recentAvg로 이미 즉시 확정 — 이 무거운 호출을 기다리지 않는다.)
+  // 365일 일별 — '최근 시세' 차트에 항상 필요하다.
+  // 사전계산(series.json)이 있으면 그걸 쓰고 KAMIS를 아예 안 부른다 —
+  // 1년치 라이브 조회는 92일 4분할 병렬인데 2026-08-20 실측으로 분할 하나가 3~7초라
+  // 상세를 열 때마다 차트가 수 초간 스켈레톤이었다.
+  // 도매는 보고 있는 품종이 상세 키와 같을 때만 사전계산을 쓴다 — 다른 품종으로
+  // 폴백한 경우(쌀 10kg→20kg 등 4건) 사전계산은 상세 키의 품종 것이라 화면과 어긋난다.
   useEffect(() => {
     if (market === 'eco' || !active) return;
+    if (preSeries === undefined) return; // series.json 로딩 중 — 잠긐 기다린다(CDN, 보통 수십 ms)
+    // 사전계산이 있으면 짧더라도 그걸 쓴다 — 라이브를 불러도 같은 값이 오고 3~7초만 더 걸린다.
+    if (preUsable) {
+      setYearSeries(preSeries);
+      return;
+    }
     cached(`y2-${itemKey(active)}-${cls}`, () => fetchSeries(active, 365, cls))
       .then(setYearSeries)
       .catch(() => setYearSeries([]));
-  }, [key, market, active?.itemCode, active?.kindCode]);
+  }, [key, market, active?.itemCode, active?.kindCode, preSeries, preUsable]);
   // 연간 흐름 — 사전계산(다품종 병합) 우선, 없으면 365일 단일 품종에서 파생
   // 도매는 도매 데이터(품종 병합)만. 사전계산 없으면 라이브(yearDerived)로 폴백 — 소매가는 안 빌림.
   const annualMonths =

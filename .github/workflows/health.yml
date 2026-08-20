@@ -62,4 +62,16 @@ jobs:
             echo "::error::baselines.json을 읽지 못함"; fail=1
           fi
 
+          # 6) series 신선도·분량 — 상세 '최근 시세' 차트의 사전계산. 이게 비면 상세가
+          #    품목마다 KAMIS 1년치를 다시 받아(3~7초) 느려진다. verdicts와 같이 매일 갱신된다.
+          sgen=$(curl -s -m 20 https://igeobissa.com/series.json | jq -r .generatedAt 2>/dev/null)
+          if [ -n "$sgen" ] && [ "$sgen" != "null" ]; then
+            sage=$(( ( $(date +%s) - $(date -d "$sgen" +%s) ) / 3600 ))
+            [ "$sage" -lt 49 ] || { echo "::error::series ${sage}시간 묵음 — CI 확인 필요"; fail=1; }
+            scount=$(curl -s -m 25 https://igeobissa.com/series.json | jq '.items | length' 2>/dev/null || echo 0)
+            [ "${scount:-0}" -ge 60 ] || { echo "::error::series 품목이 ${scount}개뿐 — 생성 실패 의심"; fail=1; }
+          else
+            echo "::error::series.json을 읽지 못함"; fail=1
+          fi
+
           exit $fail
