@@ -84,7 +84,28 @@ const NAME_FIX: Record<string, string> = {
 /** 고기류 — 부위(kindName)가 핵심이므로 이름에 붙인다. 계란·우유는 제외. */
 const MEAT_CODES = new Set(['4301', '4304', '4401', '4402', '9901']);
 /** 품종명 끝의 단위 괄호를 둔다. "육계(kg)"→"육계", "풋고추(녹광 등)"→"풋고추" */
-const cleanKind = (k: string) => String(k ?? '').replace(/\([^)]*\)\s*$/, '').trim();
+/**
+ * 품종명 끝의 '단위 괄호' 한 덩어리만 떼어낸다. "육계(kg)"→"육계", "여름(고랭지)(1포기)"→"여름(고랭지)".
+ *
+ * 정규식 \([^)]*\)$ 로는 안 된다 — 도매 품종명은 괄호가 중첩된다:
+ * "여름(고랭지)(10kg(그물망 3포기))". 안쪽에 ')'가 있어 매치가 실패하고,
+ * 그대로 남아 "여름(고랭지)(10kg(그물망 3포기))배추"로 표시됐다(2026-08-20).
+ * 그래서 뒤에서부터 괄호 짝을 세어 마지막 덩어리 하나만 정확히 제거한다.
+ */
+export function stripUnitParen(k: string): string {
+  const s = String(k ?? '').trim();
+  if (!s.endsWith(')')) return s;
+  let depth = 0;
+  for (let i = s.length - 1; i >= 0; i--) {
+    if (s[i] === ')') depth += 1;
+    else if (s[i] === '(') {
+      depth -= 1;
+      if (depth === 0) return i === 0 ? s : s.slice(0, i).trim(); // 통째로 괄호면 이름이 사라지니 그대로 둔다
+    }
+  }
+  return s; // 짝이 안 맞으면 건드리지 않는다
+}
+const cleanKind = (k: string) => stripUnitParen(k);
 
 function displayName(name: string, code: string, kindName: string): string {
   const fixed = NAME_FIX[name] ?? name;
@@ -412,8 +433,10 @@ function groupMarkets(rows: any[]): MarketPrice[] {
   const byType = new Map<string, number[]>();
   for (const v of latest.values()) {
     const m = v.name.match(ANON_MARKET);
-    // 실명 판매처(경동·복조리·부전…)는 전부 전통시장이다 — 한 업태로 묶는다.
-    const type = m ? (TYPE_LABEL[m[1]] ?? m[1]) : '전통시장';
+    // 실명 판매처는 소매면 전통시장(경동·복조리·부전…), 도매면 도매시장(가락도매·엄궁도매…)이다.
+    // 둘을 같은 '전통시장'으로 묶으면 도매 탭에 "전통시장 5곳 평균 36,200원"처럼
+    // 사실과 다른 말이 된다(2026-08-20).
+    const type = m ? (TYPE_LABEL[m[1]] ?? m[1]) : v.name.includes('도매') ? '도매시장' : '전통시장';
     byType.set(type, [...(byType.get(type) ?? []), v.price]);
   }
   const out: MarketPrice[] = [];

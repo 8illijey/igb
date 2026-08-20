@@ -14,6 +14,7 @@ import {
   fetchSeries,
   judge,
   labelOf,
+  stripUnitParen,
   MarketPrice,
   PriceItem,
   SeriesPoint,
@@ -40,7 +41,7 @@ type Market = 'retail' | 'eco' | 'wholesale';
 const MONTHS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 // kindName "봄(20kg)" → "봄무" (단위 괄호 떼고 품목명 붙임). build-verdicts.mjs와 동일 규칙.
 const varietyName = (kindName: string, itemName: string) => {
-  const v = kindName.replace(/\([^)]*\)\s*$/, '').trim();
+  const v = stripUnitParen(kindName);
   // 변종명이 이미 품목명을 포함/끝나면(대파·쪽파→파) 그대로. 아니면(봄→무) 붙인다.
   return !v || v === itemName ? itemName : v.endsWith(itemName) ? v : `${v}${itemName}`;
 };
@@ -634,6 +635,7 @@ export default function ItemDetailScreen() {
                 name={item.itemName}
                 spanVarieties={annualSpanVarieties}
                 thisMonthVarieties={annualThisMonthVarieties}
+                isWholesale={market === 'wholesale'}
               />
             </View>
 
@@ -689,11 +691,14 @@ function AnnualFlow({
   name,
   spanVarieties,
   thisMonthVarieties,
+  isWholesale,
 }: {
   months: (number | null)[] | null;
   name: string;
   spanVarieties?: boolean;
   thisMonthVarieties?: { name: string; price: number }[] | null;
+  /** 도매 탭인지 — 소매와 흐름이 달라 보이는 이유를 한 줄 붙인다. */
+  isWholesale?: boolean;
 }) {
   const thisMonth = new Date().getMonth(); // 0-based
   // 분할 품목 캡션 (한 Text 안 \n 두 줄 — 별도 div 아님):
@@ -783,6 +788,13 @@ function AnnualFlow({
             )}
             {valid.length < 12 && (
               <Text style={styles.flowCaption}>자료가 없는 달은 비워뒀어요.</Text>
+            )}
+            {/* 소매·도매를 번갈아 보면 막대 모양이 서로 달라 버그처럼 보인다(2026-08-20 사용자 질문).
+                둘은 애초에 다른 조사다 — 그 사실을 숫자 옆에서 바로 알려준다. */}
+            {isWholesale && (
+              <Text style={styles.flowCaption}>
+                도매는 도매시장 경락가라, 소매와 조사하는 곳·단위·품종이 달라요.{'\n'}그래서 소매와 흐름이 달라 보일 수 있어요.
+              </Text>
             )}
           </View>
         </>

@@ -82,8 +82,25 @@ const pct = (a, b) => (a == null || b == null ? null : Math.round(((a - b) / b) 
 //  "봄(1포기)"→"봄배추",  "수미(노지)(100g)"→"수미(노지)감자" (노지/시설 구분 유지),  "여름(고랭지)(1포기)"→"여름(고랭지)배추"
 // 길면 띄어쓴다 — 앞선 무조건 붙여서 '햇산화건'+'건고추' = "햇산화건건고추" 같은 말이 나왔다
 // (2026-08-20 연간흐름 캐션에서 발견). 앱 kamis.ts의 kindLabel과 같은 규칙을 쓴다.
+// 끝의 '단위 괄호' 한 덩어리만 제거. 정규식으로는 중첩 괄호를 못 뗀다 —
+// 도매 품종명 "여름(고랭지)(10kg(그물망 3포기))"가 그대로 남아 이름에 붙었다(2026-08-20).
+// 앱 kamis.ts의 stripUnitParen과 같은 규칙.
+const stripUnitParen = (k) => {
+  const s = String(k ?? '').trim();
+  if (!s.endsWith(')')) return s;
+  let depth = 0;
+  for (let i = s.length - 1; i >= 0; i--) {
+    if (s[i] === ')') depth += 1;
+    else if (s[i] === '(') {
+      depth -= 1;
+      if (depth === 0) return i === 0 ? s : s.slice(0, i).trim();
+    }
+  }
+  return s;
+};
+
 const varietyName = (kindName, itemName) => {
-  const v = String(kindName).replace(/\([^)]*\)\s*$/, '').trim();
+  const v = stripUnitParen(kindName);
   if (!v || v === itemName) return itemName;
   if (v.includes(itemName)) return v; // 대파·쪽파 → 그대로
   // 붙이는 게 기본(봄무·고랭지무·여름(고랭지)배추). 단, 품종명 끝글자와 품목명 첫글자가
