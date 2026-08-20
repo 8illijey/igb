@@ -425,6 +425,8 @@ export default function ItemDetailScreen() {
   // 보고 있는 탭은 절대 숨기지 않는다(숨기면 돌아갈 길이 없다).
   const showWholesaleTab = market === 'wholesale' || (verdicts[vKey]?.hasWholesale ?? true);
   const showEcoTab = market === 'eco' || (verdicts[vKey]?.hasEco ?? true);
+  /** 일반/유기농 토글을 실제로 그리는지 — hero 상단 패딩도 이 값을 따른다(간격 어긋남 방지). */
+  const showEcoToggle = market !== 'wholesale' && showEcoTab;
   // 푸터 '기준일' = 지금 보는 차트의 실제 최근 조사일 (오늘 날짜 아님).
   const surveyDate = useMemo(
     () => latestSurveyDate(market === 'eco' ? eco?.series : chartDisplay),
@@ -470,11 +472,13 @@ export default function ItemDetailScreen() {
             />
           )}
         </View>
-        {/* content-01: 흰 배경 — (소매면) 일반/유기농 토글 + 가격 헤드 */}
-        {/* 도매는 일반/유기농 토글이 없어 디자인이 hero 상단 패딩을 20으로 키움(소매=12) */}
-        <View style={[styles.content01, market === 'wholesale' && { paddingTop: spacing.s5 }]}>
-          {/* 재배방식(일반/유기농)은 소매 하위 토글 — hero 바로 위. 도매엔 유기농 데이터 없어 숨김. */}
-          {market !== 'wholesale' && showEcoTab && (
+        {/* content-01: 흰 배경 — (토글이 있으면) 일반/유기농 토글 + 가격 헤드 */}
+        {/* 토글이 없으면 hero 상단 패딩을 20으로 키운다(토글 있을 땐 12).
+            예전엔 이 조건이 market==='wholesale'로만 걸려 있어, 유기농 데이터가 없어
+            토글을 숨긴 소매 화면만 간격이 즐어들었다(2026-08-20 사용자 지적).
+            렌더 조건과 패딩 조건을 한 변수로 묶어 다시 어긋나지 않게 한다. */}
+        <View style={[styles.content01, !showEcoToggle && { paddingTop: spacing.s5 }]}>
+          {showEcoToggle && (
             <Tabs
               variant="pill"
               value={market}
