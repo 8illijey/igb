@@ -18,6 +18,13 @@ export interface Verdict {
   wholesaleMonths?: (number | null)[];
   /** 연간 흐름이 여러 계절 품종(봄·여름·가을·월동)에 걸쳐 있음 — 안내 표시용 */
   spanVarieties?: boolean;
+  /**
+   * 탭을 그릴지 말지 — 열어봐야 빈 안내문이 뜨는 탭은 버그처럼 보인다(2026-08-20 사용자 지적).
+   * 앱은 탭을 누르기 전까지 데이터 유무를 모르므로 서버에서 미리 계산해 넣는다.
+   * 필드가 없는 구본 verdicts에선 undefined — 그때는 예전처럼 둘 다 보여준다.
+   */
+  hasWholesale?: boolean;
+  hasEco?: boolean;
   /** 대표 품종명 — 분할 품목 히어로에 표시 (예: "봄배추") */
   variety?: string;
   /** 이번 달 실제 조사된 품종들 + 가격 (싼 순) — 연간 흐름 캡션용 */

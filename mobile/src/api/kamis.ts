@@ -73,7 +73,14 @@ function parsePrice(v: unknown): number | null {
 }
 
 /** KAMIS 축산 품목명은 가축명(소·돼지·닭)으로 와서 식품명으로 보정한다 */
-const NAME_FIX: Record<string, string> = { 소: '소고기', 돼지: '돼지고기', 닭: '닭고기' };
+const NAME_FIX: Record<string, string> = {
+  소: '소고기',
+  돼지: '돼지고기',
+  닭: '닭고기',
+  // 참다래 = 키위의 국산 품종명(KAMIS 공식 명칭). 그대로 두면 뭐지 모른다는 질문을 받았다
+  // (2026-08-20). 둘 다 적어 검색에서 '참다래'도 '키위'도 잡히게 한다(search는 부분일치).
+  참다래: '참다래(키위)',
+};
 /** 고기류 — 부위(kindName)가 핵심이므로 이름에 붙인다. 계란·우유는 제외. */
 const MEAT_CODES = new Set(['4301', '4304', '4401', '4402', '9901']);
 /** 품종명 끝의 단위 괄호를 둔다. "육계(kg)"→"육계", "풋고추(녹광 등)"→"풋고추" */
@@ -456,11 +463,19 @@ function assignYears(series: SeriesPoint[]): SeriesPoint[] {
 
 export async function fetchEco(
   item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode'>,
+  allowItemLevel = true,
 ): Promise<EcoData | null> {
   const end = new Date();
   const start = new Date();
   start.setDate(end.getDate() - 365); // 1년 (친환경 주간 발행 — 가벼움)
-  const kinds = [...new Set([item.kindCode, '00', '01', '02', '03'])];
+  // 자기 품종만 본다. 품목 단위('00')는 KAMIS가 그 품목을 품종으로 안 나누고 조사할 때만 쓴다(allowItemLevel)
+  // — 파(대파·쪽파)나 풋고추(녹광·꽈리·청양·오이맛)처럼 품종이 여럿이면 '00'은 그중 한 품종이라
+  // 쪽파 페이지에 대파 유기농 가격이 뜬다(2026-08-20 사용자 신고). '01','02','03'까지 훑으면 자기 유기농 데이터가
+  // 없는 품종이 형제 품종 것을 가져다 쓴다 — 2026-08-20 확인: 거봉포도·샤인머스켓 유기농 탭이
+  // 캠벨얼리 가격을, 쥬키니호박이 애호박을, 취청오이가 다다기오이를, 쌀 10kg이 20kg을 보여줬다.
+  // '00'은 와일드카드가 아니라 실제 품종코드다(포도·방울토마토는 '00' 자체가 없음).
+  // 당근·감귤·풋고추·파처럼 KAMIS가 품종을 안 나누고 조사하는 품목만 여기에 걸린다.
+  const kinds = [...new Set(allowItemLevel ? [item.kindCode, '00'] : [item.kindCode])];
   const combos = kinds.flatMap((kind) => ['07', '08'].map((rank) => ({ kind, rank })));
   // 순차 대신 병렬 — 빈 조합이 많은 품목(사과 등)도 안 느리게.
   const results = await Promise.all(
@@ -508,12 +523,20 @@ export async function fetchEco(
  *  주간 발행이라 좁은 창은 점이 듬성(±3주 ≈ 3점) → 3개월(≈13점)로 넓혀 궤적이 살게 한다. */
 export async function fetchEcoLastYear(
   item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode'>,
+  allowItemLevel = true,
 ): Promise<SeriesPoint[]> {
   const start = new Date();
   start.setDate(start.getDate() - 365);
   const end = new Date();
   end.setDate(end.getDate() - 365 + 90);
-  const kinds = [...new Set([item.kindCode, '00', '01', '02', '03'])];
+  // 자기 품종만 본다. 품목 단위('00')는 KAMIS가 그 품목을 품종으로 안 나누고 조사할 때만 쓴다(allowItemLevel)
+  // — 파(대파·쪽파)나 풋고추(녹광·꽈리·청양·오이맛)처럼 품종이 여럿이면 '00'은 그중 한 품종이라
+  // 쪽파 페이지에 대파 유기농 가격이 뜬다(2026-08-20 사용자 신고). '01','02','03'까지 훑으면 자기 유기농 데이터가
+  // 없는 품종이 형제 품종 것을 가져다 쓴다 — 2026-08-20 확인: 거봉포도·샤인머스켓 유기농 탭이
+  // 캠벨얼리 가격을, 쥬키니호박이 애호박을, 취청오이가 다다기오이를, 쌀 10kg이 20kg을 보여줬다.
+  // '00'은 와일드카드가 아니라 실제 품종코드다(포도·방울토마토는 '00' 자체가 없음).
+  // 당근·감귤·풋고추·파처럼 KAMIS가 품종을 안 나누고 조사하는 품목만 여기에 걸린다.
+  const kinds = [...new Set(allowItemLevel ? [item.kindCode, '00'] : [item.kindCode])];
   for (const kind of kinds) {
     for (const rank of ['07', '08']) {
       const url = `${BASE}?${qs({
@@ -541,8 +564,16 @@ export async function fetchEcoLastYear(
  *  ⚠️ KAMIS 평년(5년·이상치 제외 공식통계)과 다른 2년 단순평균 — '평년'이 아니라 '이맘때 평균'으로만 표기. */
 export async function fetchEcoSeasonalBaseline(
   item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode'>,
+  allowItemLevel = true,
 ): Promise<{ avg: number; count: number } | null> {
-  const kinds = [...new Set([item.kindCode, '00', '01', '02', '03'])];
+  // 자기 품종만 본다. 품목 단위('00')는 KAMIS가 그 품목을 품종으로 안 나누고 조사할 때만 쓴다(allowItemLevel)
+  // — 파(대파·쪽파)나 풋고추(녹광·꽈리·청양·오이맛)처럼 품종이 여럿이면 '00'은 그중 한 품종이라
+  // 쪽파 페이지에 대파 유기농 가격이 뜬다(2026-08-20 사용자 신고). '01','02','03'까지 훑으면 자기 유기농 데이터가
+  // 없는 품종이 형제 품종 것을 가져다 쓴다 — 2026-08-20 확인: 거봉포도·샤인머스켓 유기농 탭이
+  // 캠벨얼리 가격을, 쥬키니호박이 애호박을, 취청오이가 다다기오이를, 쌀 10kg이 20kg을 보여줬다.
+  // '00'은 와일드카드가 아니라 실제 품종코드다(포도·방울토마토는 '00' 자체가 없음).
+  // 당근·감귤·풋고추·파처럼 KAMIS가 품종을 안 나누고 조사하는 품목만 여기에 걸린다.
+  const kinds = [...new Set(allowItemLevel ? [item.kindCode, '00'] : [item.kindCode])];
   // 창(작년·재작년) × 품종 × 랭크를 전부 병렬 — 순차면 사과처럼 표본 없는 품목이 ~30s.
   const windows = await Promise.all(
     [365, 730].map(async (back) => {

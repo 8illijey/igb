@@ -37,36 +37,22 @@ export const ROCKET_LOGO_W: Record<RocketType, number> = { rocket: 64, seller_ro
 /**
  * 품목의 쿠팡 상품 리스트. 없으면 빈 배열(섹션 숨김).
  *
- * 찾는 순서
- *  1) 품종까지 일치하는 키('4301-21') — 소고기 안심/등심/갈비처럼 itemCode가 같고
- *     부위만 다른 상세페이지가 같은 상품을 보여주면 안 되므로 이게 우선
- *  2) 품목 대표 키('245')
- *  3) 같은 품목의 다른 품종 아무거나
+ * 찾는 순서: 품종까지 일치하는 키('4301-21') → 품목 대표 키('245'). 그게 없으면 안 보여준다.
  *
- * 3번이 있어야 하는 이유: 홈·상세가 보여주는 '대표 품종'은 그날 시세 신호로 정해져
- * 날마다 바뀜 수 있다. 2026-08-18 평년을 정확하게 바꿔을 때 대표가 실제로 옮겨가
- * 포도 캠벨얼리→샤인머스켓, 사과 후지→아오리 등 9개 품목의 쿠팡 섹션이 통째로 사라졌다.
- * 품종이 바뀜어도 사람이 사려는 건 같은 품목이니, 섹션을 숨기는 것보다 보여주는 게 낫다.
+ * 예전엔 3순위로 '같은 품목의 다른 품종 아무거나'가 있었다. 대표 품종이 날마다 바뀌던 시절,
+ * 키가 어긋나면 섹션이 통째로 사라져서 넣은 안전망이었다. 지금은 두 가지 이유로 뺐다.
+ *  · 홈이 품종을 각각 독립 항목으로 보여주므로 품종마다 자기 키가 있다.
+ *  · 갱신 스크립트가 이번 회차에 못 뽑은 키를 지우지 않고 직전 값을 유지하므로 키가 안 사라진다.
+ * 남겨두면 해롭기만 했다 — 2026-08-20 갱신이 411-05를 놓치자 후지사과 페이지에
+ * 아오리사과 상품이 붙었고, 쪽파 페이지엔 대파가 붙었다. 없으면 없다고 하는 게 낫다.
  */
 export function coupangProducts(key: string, market: 'retail' | 'eco' = 'retail'): CoupangProduct[] {
   const table = coupangProductsData as Record<string, CoupangProduct[]>;
-  // 유기농·무농약 탭은 eco: 상품만 보여준다. 없으면 섹션을 감춘다(빈 배열) —
-  // 일반 상품으로 폴백하면 유기농 시세 옆에 일반 가격이 붙어 다른 물건처럼 읽힌다.
-  // (2026-08-20: 대추방울토마토 유기농 12,150원/kg 아래에 일반 5,550원 상품이 붙어 있었다.)
+  // 유기농·무농약 탭은 eco: 상품만. 일반 상품으로 폴백하면 유기농 시세 옆에 일반 가격이 붙어
+  // 다른 물건처럼 읽힌다(2026-08-20: 대추방울토마토 유기농 12,150원/kg 아래 일반 5,550원).
   const ns = market === 'eco' ? 'eco:' : '';
-  const exact = table[`${ns}${key}`] ?? table[`${ns}${codeOf(key)}`];
-  if (exact) return exact;
-  // 3번(형제 품종) 폴백을 금지하는 품목 — 한 KAMIS 품목에 서로 다른 재료가 묶여 있을 때.
-  // 파(246)는 대파와 쪽파가 같은 품목코드라, 쪽파 페이지에 대파 상품이 붙었다(2026-08-20).
-  if (NO_KIND_FALLBACK.has(codeOf(key))) return [];
-  const prefix = `${ns}${codeOf(key)}-`;
-  const alt = Object.keys(table).find((k) => k.startsWith(prefix));
-  if (alt) return table[alt];
-  return [];
+  return table[`${ns}${key}`] ?? table[`${ns}${codeOf(key)}`] ?? [];
 }
-
-/** 품종끼리 서로 대체할 수 없는 품목코드 */
-const NO_KIND_FALLBACK = new Set(['246']);
 
 /** 클릭 집계 — 실패해도 사용자 흐름에 영향 없음 */
 export function trackShoppingClick(store: string, key: string): void {

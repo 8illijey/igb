@@ -247,6 +247,73 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
   const { reps, kindsByItem } = await fetchAll();
   console.log(`대표 품목 ${reps.length}개 — 연간 흐름·최근 1년 평균 계산 중...`);
 
+  // ── 탭 표시 여부 ──
+  // 데이터가 없는 탭을 열어보면 빈 안내문이 뜨는게 버그처럼 보인다(2026-08-20 사용자 지적).
+  // 앱이 탭을 그리기 전에 알아야 하므로 여기서 미리 판정해 넣는다.
+  //
+  // 도매: 축산은 KAMIS가 도매를 조사하지 않는데 cls=02 요청에 소매 응답을 그대로 돌려준다.
+  //   앱과 똑같이 '가격 AND 단위가 모두 같으면 도매 없음'으로 본다.
+  const wsDaily = new Map();
+  const rtDaily = new Map();
+  for (const cat of CATEGORIES) {
+    for (const [cls, m] of [['01', rtDaily], ['02', wsDaily]]) {
+      const url = `${BASE}?${qs({
+        action: 'dailyPriceByCategoryList',
+        p_product_cls_code: cls,
+        p_regday: fmtDate(new Date()),
+        p_convert_kg_yn: 'N',
+        p_item_category_code: cat,
+      })}`;
+      try {
+        const rows = (await (await fetchT(url)).json())?.data?.item ?? [];
+        for (const r of Array.isArray(rows) ? rows : []) {
+          if (!r.item_code) continue;
+          const k = `${r.item_code}-${r.kind_code ?? '00'}`;
+          if (!m.has(k)) m.set(k, { price: String(r.dpr1 ?? ''), unit: String(r.unit ?? '') });
+        }
+      } catch {
+        // 이 검사는 부가 정보다 — 실패하면 그냥 판정을 못 할 뿐 빌드를 막지 않는다.
+      }
+    }
+  }
+  const hasWholesaleFor = (k) => {
+    const w = wsDaily.get(k);
+    if (!w || !w.price || w.price === '-') return false;
+    const r = rtDaily.get(k);
+    return !(r && r.price === w.price && r.unit === w.unit); // 소매 미러면 도매 없음
+  };
+
+  // 유기농: 자기 품종과 품목 단위('00')만 본다 — 형제 품종을 빌리면 다른 물건 가격이 뜬다.
+  const ecoStart = new Date();
+  ecoStart.setDate(ecoStart.getDate() - 365);
+  async function hasEcoFor(it) {
+    // 앱 kamis.ts와 같은 규칙 — 품목 단위('00')는 KAMIS가 이 품목을 품종으로 안 나눌 때만.
+    // 여러 품종이면 '00'은 그중 한 품종이라 다른 품종 가격을 빌리게 된다(쪽파←대파).
+    const kindCount = new Set((kindsByItem.get(it.itemCode) || []).map((k) => k.kindCode)).size;
+    const cands = kindCount <= 1 ? [it.kindCode, '00'] : [it.kindCode];
+    for (const kind of [...new Set(cands)]) {
+      for (const rank of ['07', '08']) {
+        const url = `${BASE}?${qs({
+          action: 'periodEcoPriceList',
+          p_startday: fmtDate(ecoStart),
+          p_endday: fmtDate(new Date()),
+          p_itemcategorycode: it.categoryCode,
+          p_itemcode: it.itemCode,
+          p_kindcode: kind,
+          p_productrankcode: rank,
+          p_convert_kg_yn: 'N',
+        })}`;
+        try {
+          const rows = (await (await fetchT(url)).json())?.data?.item ?? [];
+          if (Array.isArray(rows) && rows.length >= 2) return true; // 앱과 같은 기준(2점 미만은 무효)
+        } catch {
+          // 다음 조합
+        }
+      }
+    }
+    return false;
+  }
+
   const out = {};
   // 상세 '최근 시세' 차트용 일별 시계열. 이미 받아둔 1년치 포인트를 그대로 쓰므로
   // KAMIS 추가 호출이 0이다. 형식: { "211-02": { r: [["2026-08-20", 4985], …], w: […] } }
@@ -347,7 +414,10 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
       series[`${it.itemCode}-${it.kindCode}`] = { ...(sr.length ? { r: sr } : {}), ...(sw.length ? { w: sw } : {}) };
     }
 
-    out[`${it.itemCode}-${it.kindCode}`] = {
+    const key = `${it.itemCode}-${it.kindCode}`;
+    out[key] = {
+      hasWholesale: hasWholesaleFor(key),
+      hasEco: await hasEcoFor(it).catch(() => false),
       level,
       recentAvg,
       today: it.today,

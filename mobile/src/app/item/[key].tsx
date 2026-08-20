@@ -93,6 +93,17 @@ const AVG_GRAMS: Record<string, number> = {
   '420': 1500, // 파인애플 1개
   '428': 300, // 망고 1개
   '430': 200, // 아보카도 1개
+  // '10개' 단위로 조사되는 과일·채소 — 이게 없으면 100g당이 안 나와
+  // 유기농 탭(보통 300g 단위)과 숫자를 비교할 수가 없다 — 신고배 41,982원/10개 vs
+  // 유기농 2,995원/300g가 유기농이 싸 것처럼 보였다(2026-08-20 사용자 질문).
+  '411': 280, // 사과 1개 (10개 ≈ 2.8kg)
+  '412': 550, // 배 1개 — 신고는 크다 (10개 ≈ 5.5kg)
+  '413': 200, // 복숭아 1개
+  '415': 100, // 감귀 1개
+  '419': 100, // 참다래(키위) 1개
+  '421': 200, // 오렌지 1개
+  '222': 250, // 참외 1개
+  '223': 200, // 오이 1개
 };
 
 /** "1개 약 X원 · 100g당 Y원" 캡션. 단위에서 무게/개수를 파싱하고,
@@ -107,13 +118,17 @@ function perUnitCaption(itemCode: string, today: number | null, unit: string): s
   const g = unit.match(/([\d.]+)\s*g(?![a-z])/i);
   let grams = kg ? parseFloat(kg[1]) * 1000 : g ? parseFloat(g[1]) : null;
   let estimated = false;
-  if (grams == null && AVG_GRAMS[itemCode] != null) {
-    grams = AVG_GRAMS[itemCode];
+  // AVG_GRAMS는 '1개'의 무게인데 today는 단위 전체('10개') 가격이다 — 개수를 곱해야 한다.
+  // 기존 항목이 전부 '1포기·1개'라 드러나지 않던 버그 — 신고배(10개)를 넣자 100g당이 10배로 나왔다.
+  const oneGrams = AVG_GRAMS[itemCode] ?? null;
+  if (grams == null && oneGrams != null) {
+    grams = oneGrams * (count ?? 1);
     estimated = true;
   }
   if (grams) {
     const per = `100g당 ${won(Math.round(today / (grams / 100)))}원`;
-    const wLabel = grams >= 1000 ? `${grams / 1000}kg` : `${grams}g`;
+    const one = estimated ? (oneGrams as number) : grams;
+    const wLabel = one >= 1000 ? `${one / 1000}kg` : `${one}g`;
     const uLabel = unit.replace(/^\d+\s*/, '');
     parts.push(estimated ? `${per} (1${uLabel} 약 ${wLabel})` : per);
   } else {
@@ -212,15 +227,21 @@ export default function ItemDetailScreen() {
       .catch(() => setWsItem(null));
   }, [market, wsItem, item]);
 
+  // KAMIS가 이 품목을 품종으로 나눠 조사하는가. 한 품종뿐이면 유기농의 품목단위('00') 자료를 써도 되지만,
+  // 여러 품종이면 '00'은 그중 한 품종이라 다른 품종 가격을 보여주게 된다(쪽파←대파).
+  const ecoAllowItemLevel = useMemo(
+    () => new Set(items.filter((i) => i.itemCode === item?.itemCode).map((i) => i.kindCode)).size <= 1,
+    [items, item?.itemCode],
+  );
   useEffect(() => {
     if (market !== 'eco' || eco !== undefined || !item) return;
-    fetchEco(item)
+    fetchEco(item, ecoAllowItemLevel)
       .then(setEco)
       .catch(() => setEco(null));
-    fetchEcoSeasonalBaseline(item)
+    fetchEcoSeasonalBaseline(item, ecoAllowItemLevel)
       .then(setEcoBaseline)
       .catch(() => setEcoBaseline(null));
-  }, [market, eco, item]);
+  }, [market, eco, item, ecoAllowItemLevel]);
 
   const active = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
   const cls = market === 'wholesale' ? '02' : '01';
@@ -398,6 +419,11 @@ export default function ItemDetailScreen() {
   const signalHidden = market === 'wholesale' && !recReady && active?.today != null;
   // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
   const chartReady = chartDisplay != null;
+  // 데이터가 없는 탭은 아예 안 그린다 — 눌렀을 때 빈 안내문만 뜨면 버그처럼 보인다.
+  // 플래그가 없는 구본 verdicts(배포 과도기)에선 undefined라 예전처럼 둘 다 보여준다.
+  // 보고 있는 탭은 절대 숨기지 않는다(숨기면 돌아갈 길이 없다).
+  const showWholesaleTab = market === 'wholesale' || (verdicts[vKey]?.hasWholesale ?? true);
+  const showEcoTab = market === 'eco' || (verdicts[vKey]?.hasEco ?? true);
   // 푸터 '기준일' = 지금 보는 차트의 실제 최근 조사일 (오늘 날짜 아님).
   const surveyDate = useMemo(
     () => latestSurveyDate(market === 'eco' ? eco?.series : chartDisplay),
@@ -431,21 +457,23 @@ export default function ItemDetailScreen() {
         <View style={styles.marketTabs}>
           {/* 풀블리드 하단 디바이더 — Figma처럼 밑줄 바 '뒤'에 깔린다(활성 바가 자기 칸에서 디바이더를 덮음). */}
           <View style={styles.marketTabsLine} pointerEvents="none" />
-          <Tabs
-            variant="underline"
-            value={market === 'wholesale' ? 'wholesale' : 'retail'}
-            onChange={(v) => setMarket(v as Market)}
-            options={[
-              { value: 'retail', label: '소매' },
-              { value: 'wholesale', label: '도매' },
-            ]}
-          />
+          {showWholesaleTab && (
+            <Tabs
+              variant="underline"
+              value={market === 'wholesale' ? 'wholesale' : 'retail'}
+              onChange={(v) => setMarket(v as Market)}
+              options={[
+                { value: 'retail', label: '소매' },
+                { value: 'wholesale', label: '도매' },
+              ]}
+            />
+          )}
         </View>
         {/* content-01: 흰 배경 — (소매면) 일반/유기농 토글 + 가격 헤드 */}
         {/* 도매는 일반/유기농 토글이 없어 디자인이 hero 상단 패딩을 20으로 키움(소매=12) */}
         <View style={[styles.content01, market === 'wholesale' && { paddingTop: spacing.s5 }]}>
           {/* 재배방식(일반/유기농)은 소매 하위 토글 — hero 바로 위. 도매엔 유기농 데이터 없어 숨김. */}
-          {market !== 'wholesale' && (
+          {market !== 'wholesale' && showEcoTab && (
             <Tabs
               variant="pill"
               value={market}
