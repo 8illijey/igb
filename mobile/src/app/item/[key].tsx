@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Info } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Linking, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ import { useVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { Tabs } from '../../components/igb/Tabs';
+import { Tooltip } from '../../components/igb/Tooltip';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Sparkline } from '../../components/igb/Sparkline';
 import { useFavorites } from '../../store/favorites';
@@ -704,6 +705,7 @@ function AnnualFlow({
   /** 도매 탭인지 — 소매와 흐름이 달라 보이는 이유를 한 줄 붙인다. */
   isWholesale?: boolean;
 }) {
+  const [noteOpen, setNoteOpen] = useState(false); // 도매 (i) 설명 펼침 여부
   const thisMonth = new Date().getMonth(); // 0-based
   // 분할 품목 캡션 (한 Text 안 \n 두 줄 — 별도 div 아님):
   //  · 이달 품종 2+ : "6월 무는 보통 봄무와 월동무가 있어요 / 봄무가 월동무보다 낮은 편이에요"
@@ -779,7 +781,34 @@ function AnnualFlow({
   return (
     <View style={styles.flowCard}>
       <View style={styles.flowTitleRow}>
-        <Text style={styles.sectionTitle}>연간 가격 흐름</Text>
+        {/* 도매는 소매와 다른 조사라 흐름이 달라 보인다 — 그 설명을 본문에 길게 깔아두면
+            매번 읽힐 잔소리가 된다. 제목 옆 (i)로 접어두고 누를 때만 펜친다. */}
+        <View style={styles.flowTitleGroup}>
+          <Text style={styles.sectionTitle}>연간 가격 흐름</Text>
+          {isWholesale && (
+            <View style={styles.infoAnchor}>
+              <Pressable
+                onPress={() => setNoteOpen((v) => !v)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="도매 시세가 소매와 다른 이유"
+                accessibilityState={{ expanded: noteOpen }}
+              >
+                <Info size={16} color={colors.iconInactive} strokeWidth={2} />
+              </Pressable>
+              {noteOpen && (
+                // 아이콘 아래로 뜨는 말풍선(꼬리가 위). 눌러서 닫는다.
+                <Pressable style={styles.infoTip} onPress={() => setNoteOpen(false)}>
+                  <Tooltip
+                    position="left-center"
+                    maxWidth={196}
+                    text={'도매는 도매시장 경락가라, 소매와 조사하는 곳·단위·품종이 달라요. 그래서 소매와 흐름이 달라 보일 수 있어요.'}
+                  />
+                </Pressable>
+              )}
+            </View>
+          )}
+        </View>
       </View>
       {ready ? (
         <>
@@ -795,11 +824,6 @@ function AnnualFlow({
             )}
             {/* 소매·도매를 번갈아 보면 막대 모양이 서로 달라 버그처럼 보인다(2026-08-20 사용자 질문).
                 둘은 애초에 다른 조사다 — 그 사실을 숫자 옆에서 바로 알려준다. */}
-            {isWholesale && (
-              <Text style={styles.flowCaption}>
-                도매는 도매시장 경락가라, 소매와 조사하는 곳·단위·품종이 달라요.{'\n'}그래서 소매와 흐름이 달라 보일 수 있어요.
-              </Text>
-            )}
           </View>
         </>
       ) : insufficient ? (
@@ -1015,7 +1039,29 @@ const styles = StyleSheet.create({
 
   // 연간 가격 흐름
   flowCard: { backgroundColor: colors.bgElevated, borderRadius: radius.l, padding: spacing.s5, gap: spacing.s4 },
-  flowTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.s2 },
+  // 툴팁이 아래 막대 위로 떠야 한다 — RN Web은 DOM 순서가 나중인 형제가 위에 그려지므로
+  // 제목 행 자체에 zIndex를 줘야 자식(툴팁)이 막대를 덮는다. 자식 zIndex만으론 부족하다.
+  flowTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.s2, zIndex: 30 },
+  // 제목 + (i) — 바깥 행은 baseline 정렬이라 아이콘이 떠 보인다. 안쪽을 center로 묶어 맞춘다.
+  flowTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: spacing.s1, zIndex: 30 },
+  // (i) 기준 말풍선 위치 — 아이콘 바로 아래, 왼쪽 정렬. zIndex로 막대 위에 뜬다.
+  infoAnchor: { position: 'relative', zIndex: 30 },
+  // 아이콘 오른쪽에 서고 꼬리가 왼쪽을 가리키는 말풍선(<▢).
+  //  · 폭을 반드시 준다 — position:absolute 자식은 앵커(아이콘 16px) 폭으로 줄어들어
+  //    글자가 한 자씩 줄바꿈된다(2026-08-20: 35px 폭 × 808px 높이로 찌그러졌다).
+  //  · top:0/bottom:0 + center — 앵커(16px)보다 버블이 크지만 flex는 넘치는 자식도
+  //    위아래로 균등하게 넘기므로 꼬리가 아이콘 한가운데를 가리킨다. 높이를 몰라도 된다.
+  //  · left 22 = 아이콘(16) + 여백 6. 폭 196: 좁은 화면(375)에서 카드 안쪽이 343이고
+  //    아이콘이 카드 왼쪽에서 119이므로 141 + 196 = 337 < 343.
+  infoTip: {
+    position: 'absolute',
+    left: 22,
+    top: 0,
+    bottom: 0,
+    width: 196,
+    justifyContent: 'center',
+    zIndex: 30,
+  },
   flowThisMonth: { ...type.size[13], ...type.w.regular, color: colors.textSecondary } as const,
   flowBars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 60, paddingHorizontal: spacing.s2 },
   flowCol: { alignItems: 'center', gap: spacing.s1 },
