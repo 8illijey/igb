@@ -516,28 +516,21 @@ export default {
       params.set('p_returntype', 'json');
       // last-good 폴백 — 2026-07-15 KAMIS 전면 장애(무응답·방화벽 페이지)로 프로덕션이 백지가 됐다.
       // 성공 응답을 KV에 저장해두고, 상류가 죽으면 그걸 내보낸다. 키에서 날짜를 뺀다 —
-      // 날짜와 무관하게 '가장 최근 성공한 같은 질의'가 잡히도록. 기간 질의는 날짜 대신
-      // 기간 길이(s)·현재로부터의 거리(개월, b)로 버킷팅해 28일 차트와 작년 창이 섞이지 않게 한다.
-      // 주의: 키 산식은 시드 스크립트(scratchpad seed-period.mjs)와 동일해야 함.
+      // 날짜와 무관하게 '가장 최근 성공한 같은 질의'가 잡히도록.
+      //
+      // 홈 목록(dailyPriceByCategoryList)에만 건다. 기간 질의(periodProductList·periodEcoPriceList)는
+      // 뺐다 — 2026-08-21 Cloudflare가 'KV requests are temporarily blocked' 메일을 보냈고,
+      // 확인해보니 무료 티어 쓰기 한도(1,000/일)를 5일 중 3일 초과하고 있었다(1,180·1,440·1,090).
+      // 원인은 기간 질의다: 키가 품목×품종×등급×소매도매×기간버킷이라 3,444개까지 불어났고,
+      // 값이 바뀔 때마다(=매일) 쓰기가 나간다. 게다가 한 요청마다 비교용 get이 한 번씩 든다.
+      // 지금은 기간 질의를 KV로 지킬 이유도 없다 — 상세 '최근 시세' 차트는 2026-08-20부터
+      // series.json(CDN 사전계산)이 담당한다. 판매처·유기농은 장애 중 비지만 부차적이고,
+      // 홈 목록은 미러 → daily last-good 순으로 그대로 보호된다(키 8개, 쓰기 하루 최대 8회).
       const action = url.searchParams.get('action') ?? '';
-      let staleKey: string | null = null;
-      if (action === 'dailyPriceByCategoryList') {
-        staleKey = `kamis:daily:${url.searchParams.get('p_product_cls_code') ?? '01'}:${url.searchParams.get('p_item_category_code') ?? ''}`;
-      } else {
-        const s = Date.parse(url.searchParams.get('p_startday') ?? '');
-        const e = Date.parse(url.searchParams.get('p_endday') ?? '');
-        if (Number.isFinite(s) && Number.isFinite(e)) {
-          const span = Math.round((e - s) / 86400000);
-          const back = Math.max(0, Math.round((Date.now() - e) / 86400000 / 30));
-          const IGNORE = new Set(['p_cert_key', 'p_cert_id', 'p_returntype', 'p_startday', 'p_endday']);
-          const base = [...url.searchParams.entries()]
-            .filter(([k]) => !IGNORE.has(k))
-            .sort()
-            .map((p) => p.join('='))
-            .join('&');
-          staleKey = `kamis:period:${base}:s${span}:b${back}`;
-        }
-      }
+      const staleKey: string | null =
+        action === 'dailyPriceByCategoryList'
+          ? `kamis:daily:${url.searchParams.get('p_product_cls_code') ?? '01'}:${url.searchParams.get('p_item_category_code') ?? ''}`
+          : null;
       let upstream: Response | null = null;
       if (Date.now() >= kamisDownUntil) {
         try {
