@@ -4,6 +4,10 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/naver9065560d94bc811802d7eeb1b299ec6e.html",
+      "destination": "/naver9065560d94bc811802d7eeb1b299ec6e"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
