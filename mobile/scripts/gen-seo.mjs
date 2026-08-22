@@ -28,8 +28,10 @@ if (items.length < 40) {
   process.exit(1);
 }
 
+// price를 같이 넣는다 — 상세 제목이 '배추 5,684원 | 이거비싸?' 형태라 정적 HTML에도 값이 있어야 한다.
+// 매일 verdicts CI가 이 스크립트를 돌리고 커밋 → Vercel 재배포라 제목의 가격도 매일 갱신된다.
 const rows = items
-  .map((i) => ({ key: `${i.itemCode}-${i.kindCode}`, name: i.itemName, unit: i.unit }))
+  .map((i) => ({ key: `${i.itemCode}-${i.kindCode}`, name: i.itemName, unit: i.unit, price: i.today ?? null }))
   .sort((a, b) => a.key.localeCompare(b.key));
 
 // ── src/seo.gen.ts ──────────────────────────────────────────────────────────
@@ -43,6 +45,8 @@ export interface SeoItem {
   key: string;
   name: string;
   unit: string;
+  /** 빌드 시점 가격 — 정적 HTML의 제목에 쓴다. 라이브 값이 오면 그걸로 덮는다. */
+  price: number | null;
 }
 export const SEO_ITEMS: SeoItem[] = ${JSON.stringify(rows, null, 2)};
 export const SEO_BY_KEY: Record<string, SeoItem> = Object.fromEntries(SEO_ITEMS.map((i) => [i.key, i]));

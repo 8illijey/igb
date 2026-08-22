@@ -21,6 +21,9 @@ export default function Root({ children }: PropsWithChildren) {
             여기에 같은 걸 또 두면 head에 title이 두 개 남아 크롤러가 헷갈린다(2026-08-21 정리).
             주의: 라우트가 <Head>를 안 주면 helmet이 **빈** <title data-rh>를 심어 제목이 사라진다.
             새 라우트를 만들면 반드시 <Head>로 제목을 정할 것. */}
+        {/* 구글 서치콘솔 소유권 확인(URL 접두어 속성). 지우면 인증이 풀린다.
+            가비아 DNS에 TXT를 못 넣어 도메인 속성 대신 URL 접두어로 등록했다(2026-08-22). */}
+        <meta name="google-site-verification" content="Icvvq1P86jYLoo9mgWVVFEC6qkUIleZH2wSDSEvCfj0" />
         <meta name="theme-color" content="#f6f8fa" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* 공유 프리뷰 공통값 — 개별 제목·설명·URL은 라우트에서. */}

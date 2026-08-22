@@ -727,9 +727,13 @@ function Skeleton({ style, children }: { style?: StyleProp<ViewStyle>; children?
  */
 function SeoHead({ item, today, unit }: { item: SeoItem; today?: number | null; unit?: string }) {
   const u = unit || item.unit;
-  const price = today != null ? `${won(today)}원(${u}) · ` : '';
-  const title = `${item.name} 가격 — 오늘 시세와 평년 비교 | 이거비싸?`;
-  const desc = `${item.name} 오늘 시세. ${price}이맘때 평년 가격과 비교해 지금 사도 되는 값인지 알려드려요. 최근 1년 추이·소매/도매 가격 제공.`;
+  // 라이브 값이 있으면 그걸, 없으면(정적 렌더링) 빌드 시점 값을 쓴다.
+  const p = today ?? item.price;
+  // 제목에 가격을 박는다 — 검색 결과에서 클릭 전에 값을 알 수 있다.
+  // 가격이 없는 품목(조사 중단 등)은 '가격'으로 떨어뜨린다.
+  const title = p != null ? `${item.name} ${won(p)}원 | 이거비싸?` : `${item.name} 가격 | 이거비싸?`;
+  const priceText = p != null ? `${won(p)}원(${u}) · ` : '';
+  const desc = `${item.name} 오늘 시세. ${priceText}이맘때 평년 가격과 비교해 지금 사도 되는 값인지 알려드려요. 최근 1년 추이·소매/도매 가격 제공.`;
   const url = `https://igeobissa.com/item/${item.key}`;
   return (
     <Head>
