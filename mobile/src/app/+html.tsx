@@ -24,6 +24,8 @@ export default function Root({ children }: PropsWithChildren) {
         {/* 구글 서치콘솔 소유권 확인(URL 접두어 속성). 지우면 인증이 풀린다.
             가비아 DNS에 TXT를 못 넣어 도메인 속성 대신 URL 접두어로 등록했다(2026-08-22). */}
         <meta name="google-site-verification" content="Icvvq1P86jYLoo9mgWVVFEC6qkUIleZH2wSDSEvCfj0" />
+        {/* 네이버 서치어드바이저 소유확인. 구글과 같은 메타태그 방식으로 통일했다(2026-08-22). */}
+        <meta name="naver-site-verification" content="1aeb61369aa03f299df9bce52b610814e03871ae" />
         <meta name="theme-color" content="#f6f8fa" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* 공유 프리뷰 공통값 — 개별 제목·설명·URL은 라우트에서. */}
