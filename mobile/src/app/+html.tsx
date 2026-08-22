@@ -17,24 +17,21 @@ export default function Root({ children }: PropsWithChildren) {
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
         />
-        {/* 타이틀·설명·테마·아이콘 */}
-        <title>이거비싸? — 마트에서 10초, 사도 될지 알려주는 장보기 앱</title>
-        <meta name="description" content="KAMIS 농수산물 시세로 오늘 사도 되는 값인지 한눈에. 1인가구 장보기 판단 앱." />
+        {/* 전 페이지 공통 메타만 둔다. 제목·설명·canonical·og:url은 라우트가 <Head>로 준다.
+            여기에 같은 걸 또 두면 head에 title이 두 개 남아 크롤러가 헷갈린다(2026-08-21 정리).
+            주의: 라우트가 <Head>를 안 주면 helmet이 **빈** <title data-rh>를 심어 제목이 사라진다.
+            새 라우트를 만들면 반드시 <Head>로 제목을 정할 것. */}
         <meta name="theme-color" content="#f6f8fa" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        {/* 공유 프리뷰 — Open Graph / Twitter Card */}
+        {/* 공유 프리뷰 공통값 — 개별 제목·설명·URL은 라우트에서. */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="이거비싸?" />
-        <meta property="og:title" content="이거비싸? — 마트에서 10초, 사도 될지 알려주는 장보기 앱" />
-        <meta property="og:description" content="KAMIS 농수산물 시세로 오늘 사도 되는 값인지 한눈에." />
-        <meta property="og:url" content="https://igeobissa.vercel.app/" />
-        <meta property="og:image" content="https://igeobissa.vercel.app/og.png" />
+        <meta property="og:locale" content="ko_KR" />
+        <meta property="og:image" content="https://igeobissa.com/og.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="이거비싸? — 마트에서 10초, 사도 될지 알려주는 장보기 앱" />
-        <meta name="twitter:description" content="KAMIS 농수산물 시세로 오늘 사도 되는 값인지 한눈에." />
-        <meta name="twitter:image" content="https://igeobissa.vercel.app/og.png" />
+        <meta name="twitter:image" content="https://igeobissa.com/og.png" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: GUARD_JS }} />

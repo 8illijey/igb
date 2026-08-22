@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
+import Head from 'expo-router/head';
 import { ChevronRight, Heart } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -56,6 +57,12 @@ export default function FavoritesScreen() {
 
   return (
     <View style={styles.screen}>
+      <Head>
+        <title>관심 품목 시세 | 이거비싸?</title>
+        <meta name="description" content="관심 등록한 품목의 오늘 가격과 평년 대비 변화를 한 화면에서 확인하세요." />
+        <link rel="canonical" href="https://igeobissa.com/favorites" />
+        <meta property="og:url" content="https://igeobissa.com/favorites" />
+      </Head>
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>
           <Wordmark />

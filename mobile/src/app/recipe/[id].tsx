@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import Head from 'expo-router/head';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -48,6 +49,13 @@ export default function RecipeDetailScreen() {
 
   return (
     <View style={styles.screen}>
+      <Head>
+        <title>{recipe ? `${recipe.title} — 오늘 재료 시세로 보는 레시피 | 이거비싸?` : '레시피 | 이거비싸?'}</title>
+        <meta
+          name="description"
+          content={recipe ? `${recipe.title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.` : '오늘 시세가 싼 재료로 만드는 레시피.'}
+        />
+      </Head>
       <GlassHeader onHeight={setTopH}>
         <Header />
       </GlassHeader>

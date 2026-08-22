@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import Head from 'expo-router/head';
 import Svg, { Path } from 'react-native-svg';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -199,6 +200,16 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* 홈 제목·설명 — 라우트가 <Head>를 안 주면 helmet이 빈 <title>을 심어 전 페이지 제목이 빈다. */}
+      <Head>
+        <title>오늘 장보기 시세 — 배추·삼겹살·계란 가격 한눈에 | 이거비싸?</title>
+        <meta
+          name="description"
+          content="배추·양파·삼겹살·계란 등 82개 품목의 오늘 가격. 이맘때 평년과 비교해 지금 사도 되는 값인지 알려드려요. 소매·도매·유기농 시세 제공."
+        />
+        <link rel="canonical" href="https://igeobissa.com/" />
+        <meta property="og:url" content="https://igeobissa.com/" />
+      </Head>
       {/* 상단 고정 글래스 — 워드마크 + 검색 입구. 콘텐츠가 아래로 스크롤되며 블러됨 */}
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>

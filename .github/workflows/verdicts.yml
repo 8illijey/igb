@@ -16,17 +16,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24 # gen-seo.mjs가 src/api/kamis.ts를 그대로 import한다 — TS 타입 스트리핑은 22+ 필요
       - name: Build verdicts.json
         working-directory: mobile
         env:
           # KAMIS 직접 호출은 해외 러너 IP에서 막힐 수 있어 워커 프록시 경유 — 키는 워커에 있어 시크릿 불필요.
           KAMIS_PROXY: https://igeobissa-recipes.designerxyzi.workers.dev/kamis
         run: node scripts/build-verdicts.mjs
+      # 검색엔진용 품목 목록·사이트맵 — KAMIS 품목이 늘거나 품종이 바뀌면 상세 정적 페이지와
+      # sitemap이 같이 따라가야 한다. verdicts와 같은 회차에 돌려 한 번에 커밋한다.
+      - name: Build SEO data
+        working-directory: mobile
+        # kamis.ts는 워커 URL이 하드코딩돼 있어 KAMIS_PROXY가 필요 없다.
+        run: node scripts/gen-seo.mjs
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add mobile/public/verdicts.json mobile/public/series.json
+          git add mobile/public/verdicts.json mobile/public/series.json mobile/src/seo.gen.ts mobile/public/robots.txt mobile/public/sitemap.xml
           git commit -m "chore: update verdicts $(date -u +%F)" || { echo "변동 없음"; exit 0; }
           git push

@@ -1,4 +1,5 @@
 import { router, type Href } from 'expo-router';
+import Head from 'expo-router/head';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { EmptyState } from '../../components/igb/EmptyState';
@@ -64,6 +65,12 @@ export default function RecipesScreen() {
 
   return (
     <View style={styles.screen}>
+      <Head>
+        <title>오늘 싼 재료로 만드는 레시피 | 이거비싸?</title>
+        <meta name="description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
+        <link rel="canonical" href="https://igeobissa.com/recipes" />
+        <meta property="og:url" content="https://igeobissa.com/recipes" />
+      </Head>
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>
           <Wordmark />

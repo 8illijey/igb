@@ -21,6 +21,8 @@ import {
   won,
 } from '../../api/kamis';
 import { coupangProducts, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
+import Head from 'expo-router/head';
+import { SEO_BY_KEY, SEO_ITEMS, type SeoItem } from '../../seo.gen';
 import { usePrecomputedSeries } from '../../api/series';
 import { useVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
@@ -156,8 +158,21 @@ function monthlyAverages(series: SeriesPoint[]): (number | null)[] {
   return sums.map((s, i) => (cnts[i] ? s / cnts[i] : null));
 }
 
+/**
+ * 상세 82개를 정적 HTML로 뽑는다. 이게 없으면 /item/211-02 같은 주소가 실제 파일이 아니라
+ * catch-all rewrite로 홈 HTML이 응답된다 — 2026-08-21 실측으로 상세 82개가 홈과 1바이트도
+ * 다르지 않았고(38,060 bytes 동일) 품목명·가격이 HTML에 아예 없었다.
+ * 구글은 JS를 실행하지만 네이버 크롤러는 못 하므로 한국 서비스엔 정적 HTML이 필수다.
+ */
+export async function generateStaticParams(): Promise<{ key: string }[]> {
+  return SEO_ITEMS.map((i) => ({ key: i.key }));
+}
+
 export default function ItemDetailScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
+  // 빌드 시점 품목명 — 정적 렌더링 땐 라이브 시세가 없어 이름이 비고,
+  // 사용자가 주소로 바로 들어와도 시세가 올 때까지 제목이 비어 보였다. 둘 다 이걸로 메운다.
+  const seo = SEO_BY_KEY[key];
   const { find, items, resolve } = usePrices();
   const { keys, isFavorite, toggle } = useFavorites();
   const item = find(key) ?? resolve(key);
@@ -378,7 +393,8 @@ export default function ItemDetailScreen() {
   //    그 품종 이름을 홈과 같은 규칙(labelOf)으로 만들어 보여준다 — 홈 이름을 그대로 쓰면
   //    다른 품종 가격을 이 품종 가격처럼 읽게 된다.
   const heroName = useMemo(() => {
-    const home = item?.itemName ?? '';
+    // 라이브 목록이 아직 없으면(정적 렌더링·주소 직접 진입) 빌드 시점 이름을 쓴다.
+    const home = item?.itemName ?? seo?.name ?? '';
     if (market !== 'wholesale' || !active) return home;
     return active.kindCode === item?.kindCode ? home : labelOf(active);
   }, [market, active, item]);
@@ -441,20 +457,36 @@ export default function ItemDetailScreen() {
   const ecoLevel: SignalLevel =
     ecoSeasonalPct == null ? 'fair' : ecoSeasonalPct < 0 ? 'cheap' : ecoSeasonalPct > 0 ? 'expensive' : 'fair';
   if (!item) {
+    // 정적 렌더링(SSG)과 주소 직접 진입은 여기로 온다 — 라이브 시세가 아직 없다.
+    // 예전엔 '찾지 못했어요'만 내보내서 검색엔진이 보는 HTML에 품목명조차 없었다.
+    // 아는 품목이면 제목·설명·본문을 채워 내보내고, 시세는 클라이언트에서 채워진다.
     return (
       <View style={styles.screen}>
+        {seo && <SeoHead item={seo} />}
         <GlassHeader>
-          <Header title="" fav={false} onFav={() => {}} />
+          <Header title={seo?.name ?? ''} fav={false} onFav={() => {}} />
         </GlassHeader>
-        <EmptyState title="품목 정보를 찾지 못했어요" description="목록에서 다시 진입해 보세요" />
+        {seo ? (
+          <View style={styles.content01}>
+            <Text style={styles.seoHeading}>{seo.name} 가격</Text>
+            <Text style={styles.seoBody}>
+              {seo.name} 오늘 시세를 확인하세요. 단위는 {seo.unit} 기준이며, 이맘때 평년 가격과 비교해
+              지금 사도 되는 값인지 알려드려요. 최근 1년 추이와 연간 가격 흐름, 소매·도매 가격도 함께 볼 수 있어요.
+            </Text>
+            <ActivityIndicator style={{ marginVertical: spacing.s10 }} color={colors.textTertiary} />
+          </View>
+        ) : (
+          <EmptyState title="품목 정보를 찾지 못했어요" description="목록에서 다시 진입해 보세요" />
+        )}
       </View>
     );
   }
 
   return (
     <View style={styles.screen}>
+      {seo && <SeoHead item={seo} today={active?.today ?? null} unit={active?.unit} />}
       <GlassHeader onHeight={setTopH}>
-        <Header title={item.itemName} fav={isFavorite(favKey)} onFav={() => toggle(favKey)} />
+        <Header title={item.itemName || seo?.name || ''} fav={isFavorite(favKey)} onFav={() => toggle(favKey)} />
       </GlassHeader>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topH }]}>
         {/* 소매/도매 — 헤더 바로 아래 풀폭 밑줄 탭(content 밖). 헤어라인 full-bleed + 탭 16 인셋 */}
@@ -684,6 +716,34 @@ function Skeleton({ style, children }: { style?: StyleProp<ViewStyle>; children?
     return () => loop.stop();
   }, [opacity]);
   return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
+}
+
+/**
+ * 페이지별 제목·설명 — 검색 결과에 그대로 노출된다.
+ *
+ * expo-router는 react-helmet을 쓰는데, 아무 라우트도 제목을 안 정하면
+ * <title data-rh="true"></title> 빈 태그를 +html.tsx의 제목 **앞에** 심는다.
+ * 브라우저·크롤러는 앞의 것을 쓰므로 전 페이지 제목이 빈 채로 나갔다(2026-08-21 실측).
+ */
+function SeoHead({ item, today, unit }: { item: SeoItem; today?: number | null; unit?: string }) {
+  const u = unit || item.unit;
+  const price = today != null ? `${won(today)}원(${u}) · ` : '';
+  const title = `${item.name} 가격 — 오늘 시세와 평년 비교 | 이거비싸?`;
+  const desc = `${item.name} 오늘 시세. ${price}이맘때 평년 가격과 비교해 지금 사도 되는 값인지 알려드려요. 최근 1년 추이·소매/도매 가격 제공.`;
+  const url = `https://igeobissa.com/item/${item.key}`;
+  return (
+    <Head>
+      <title>{title}</title>
+      <meta name="description" content={desc} />
+      <link rel="canonical" href={url} />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={desc} />
+      <meta property="og:url" content={url} />
+      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={desc} />
+    </Head>
+  );
 }
 
 /**
@@ -1038,6 +1098,8 @@ const styles = StyleSheet.create({
   legendLine: { width: 12, height: 0, marginTop: 8 },
 
   // 연간 가격 흐름
+  seoHeading: { ...type.size[24], ...type.w.bold, color: colors.textPrimary } as const,
+  seoBody: { ...type.size[15], ...type.w.regular, color: colors.textSecondary } as const,
   flowCard: { backgroundColor: colors.bgElevated, borderRadius: radius.l, padding: spacing.s5, gap: spacing.s4 },
   // 툴팁이 아래 막대 위로 떠야 한다 — RN Web은 DOM 순서가 나중인 형제가 위에 그려지므로
   // 제목 행 자체에 zIndex를 줘야 자식(툴팁)이 막대를 덮는다. 자식 zIndex만으론 부족하다.
