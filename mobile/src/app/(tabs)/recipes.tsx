@@ -70,6 +70,10 @@ export default function RecipesScreen() {
         <meta name="description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
         <link rel="canonical" href="https://igeobissa.com/recipes" />
         <meta property="og:url" content="https://igeobissa.com/recipes" />
+              <meta property="og:title" content="오늘 싼 재료로 만드는 레시피 | 이거비싸?" />
+        <meta property="og:description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
+        <meta name="twitter:title" content="오늘 싼 재료로 만드는 레시피 | 이거비싸?" />
+        <meta name="twitter:description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
       </Head>
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>

@@ -51,6 +51,10 @@ export default function SearchScreen() {
         <meta name="description" content="배추·양파·삼겹살·계란 등 농수산물 품목을 검색해 오늘 시세와 평년 대비 가격을 확인하세요." />
         <link rel="canonical" href="https://igeobissa.com/search" />
         <meta property="og:url" content="https://igeobissa.com/search" />
+              <meta property="og:title" content="품목 검색 — 오늘 시세 찾기 | 이거비싸?" />
+        <meta property="og:description" content="배추·양파·삼겹살·계란 등 농수산물 품목을 검색해 오늘 시세와 평년 대비 가격을 확인하세요." />
+        <meta name="twitter:title" content="품목 검색 — 오늘 시세 찾기 | 이거비싸?" />
+        <meta name="twitter:description" content="배추·양파·삼겹살·계란 등 농수산물 품목을 검색해 오늘 시세와 평년 대비 가격을 확인하세요." />
       </Head>
       {/* 헤더 44 — back 44×44 + search-field size s(40) 세로 중앙. 상단 고정 글래스 */}
       <GlassHeader onHeight={setTopH}>

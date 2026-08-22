@@ -55,6 +55,14 @@ export default function RecipeDetailScreen() {
           name="description"
           content={recipe ? `${recipe.title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.` : '오늘 시세가 싼 재료로 만드는 레시피.'}
         />
+              <meta
+          property="og:title"
+          content={recipe ? `${recipe.title} — 오늘 재료 시세로 보는 레시피 | 이거비싸?` : '레시피 | 이거비싸?'}
+        />
+        <meta
+          property="og:description"
+          content={recipe ? `${recipe.title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.` : '오늘 시세가 싼 재료로 만드는 레시피.'}
+        />
       </Head>
       <GlassHeader onHeight={setTopH}>
         <Header />

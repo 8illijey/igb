@@ -62,6 +62,10 @@ export default function FavoritesScreen() {
         <meta name="description" content="관심 등록한 품목의 오늘 가격과 평년 대비 변화를 한 화면에서 확인하세요." />
         <link rel="canonical" href="https://igeobissa.com/favorites" />
         <meta property="og:url" content="https://igeobissa.com/favorites" />
+              <meta property="og:title" content="관심 품목 시세 | 이거비싸?" />
+        <meta property="og:description" content="관심 등록한 품목의 오늘 가격과 평년 대비 변화를 한 화면에서 확인하세요." />
+        <meta name="twitter:title" content="관심 품목 시세 | 이거비싸?" />
+        <meta name="twitter:description" content="관심 등록한 품목의 오늘 가격과 평년 대비 변화를 한 화면에서 확인하세요." />
       </Head>
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>
