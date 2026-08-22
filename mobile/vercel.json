@@ -4,8 +4,20 @@
   "framework": null,
   "rewrites": [
     {
-      "source": "/naver9065560d94bc811802d7eeb1b299ec6e.html",
-      "destination": "/naver9065560d94bc811802d7eeb1b299ec6e"
+      "source": "/item/:key",
+      "destination": "/item/:key.html"
+    },
+    {
+      "source": "/search",
+      "destination": "/search.html"
+    },
+    {
+      "source": "/recipes",
+      "destination": "/recipes.html"
+    },
+    {
+      "source": "/favorites",
+      "destination": "/favorites.html"
     },
     {
       "source": "/(.*)",
@@ -40,6 +52,5 @@
         }
       ]
     }
-  ],
-  "cleanUrls": true
+  ]
 }
