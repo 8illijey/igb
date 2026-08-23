@@ -756,6 +756,21 @@ function SeoHead({ item, today, unit }: { item: SeoItem; today?: number | null; 
       <meta name="twitter:image" content={`https://igeobissa.com/og/${item.key}.png?d=${SEO_BUILD_DAY}`} />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={desc} />
+      {/* 검색 썸네일용 이미지를 따로 지정한다.
+          구글은 og:image도 썸네일 후보로 쓰는데, 우리 og는 가격이 큼직하게 박힌
+          카드라 92px로 줄면 글씨가 안 읽힌다(구글도 텍스트 많은 이미지는 피하라고 안내).
+          카톡 카드는 크게 보이니 og는 그대로 두고, 검색용만 품목 사진으로 준다.
+          주소는 scripts/copy-item-images.mjs가 만드는 /items/{key}.jpg. */}
+      <script type="application/ld+json">
+        {JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'WebPage',
+          url,
+          name: title,
+          description: desc,
+          primaryImageOfPage: `https://igeobissa.com/items/${item.key}.jpg`,
+        })}
+      </script>
     </Head>
   );
 }

@@ -24,6 +24,7 @@ import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
 import { colors, font, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
+import { OG_DEFAULT_IMAGE } from '../../og';
 
 const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
 
@@ -221,10 +222,10 @@ export default function HomeScreen() {
           name="twitter:description"
           content="배추·양파·삼겹살·계란 등 82개 품목의 오늘 가격. 이맘때 평년과 비교해 지금 사도 되는 값인지 알려드려요."
         />
-      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta property="og:image" content={OG_DEFAULT_IMAGE} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta name="twitter:image" content="https://igeobissa.com/og.png" />
+      <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>      {/* 상단 고정 글래스 — 워드마크 + 검색 입구. 콘텐츠가 아래로 스크롤되며 블러됨 */}
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>

@@ -14,6 +14,7 @@ import { portionPrice } from '../../portion';
 import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
 import { colors, radius, spacing, type } from '../../theme/tokens';
+import { OG_DEFAULT_IMAGE } from '../../og';
 
 const LEVEL_WORD = { cheap: '싸요', fair: '적당해요', expensive: '비싸요' } as const;
 
@@ -63,10 +64,10 @@ export default function RecipeDetailScreen() {
           property="og:description"
           content={recipe ? `${recipe.title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.` : '오늘 시세가 싼 재료로 만드는 레시피.'}
         />
-      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta property="og:image" content={OG_DEFAULT_IMAGE} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta name="twitter:image" content="https://igeobissa.com/og.png" />
+      <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>
       <GlassHeader onHeight={setTopH}>
         <Header />

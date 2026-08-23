@@ -11,6 +11,7 @@ import { usePrices } from '../../store/prices';
 import { Image } from 'expo-image';
 import { findItem, recipeHero, searchRecipes, setViewedRecipes, useRecipes, type Recipe } from '../../recipes';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
+import { OG_DEFAULT_IMAGE } from '../../og';
 
 const LEVEL_WORD = { cheap: '싸요', fair: '적당해요', expensive: '비싸요' } as const;
 
@@ -74,10 +75,10 @@ export default function RecipesScreen() {
         <meta property="og:description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
         <meta name="twitter:title" content="오늘 싼 재료로 만드는 레시피 | 이거비싸?" />
         <meta name="twitter:description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
-      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta property="og:image" content={OG_DEFAULT_IMAGE} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta name="twitter:image" content="https://igeobissa.com/og.png" />
+      <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>

@@ -13,6 +13,7 @@ import { usePopularity } from '../store/popularity';
 import { itemKey, usePrices } from '../store/prices';
 import { useRecentSearches } from '../store/recentSearches';
 import { colors, palette, radius, spacing, type } from '../theme/tokens';
+import { OG_DEFAULT_IMAGE } from '../og';
 
 // 클릭 데이터가 적을 때 채울 큐레이션 인기 품목 (이름 부분일치)
 const POPULAR_NAMES = ['삼겹살', '계란', '사과', '바나나', '양파', '대파', '배추', '상추', '우유', '감자', '딸기', '오이'];
@@ -55,10 +56,10 @@ export default function SearchScreen() {
         <meta property="og:description" content="배추·양파·삼겹살·계란 등 농수산물 품목을 검색해 오늘 시세와 평년 대비 가격을 확인하세요." />
         <meta name="twitter:title" content="품목 검색 — 오늘 시세 찾기 | 이거비싸?" />
         <meta name="twitter:description" content="배추·양파·삼겹살·계란 등 농수산물 품목을 검색해 오늘 시세와 평년 대비 가격을 확인하세요." />
-      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta property="og:image" content={OG_DEFAULT_IMAGE} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta name="twitter:image" content="https://igeobissa.com/og.png" />
+      <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>
       {/* 헤더 44 — back 44×44 + search-field size s(40) 세로 중앙. 상단 고정 글래스 */}
       <GlassHeader onHeight={setTopH}>
