@@ -2359,11 +2359,20 @@
     {
       "name": "곰곰 방울토마토, 500g, 1팩",
       "price": 3980,
-      "imageUrl": "https://t1c.coupangcdn.com/thumbnails/remote/212x212ex/image/1025_amir_coupang_oct_80k/eb16/8fbaf299c6c7972e6c8fbf5a3024d04b71de0d3c5d7bb5804be89f498270.jpg",
+      "imageUrl": "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/1025_amir_coupang_oct_80k/eb16/8fbaf299c6c7972e6c8fbf5a3024d04b71de0d3c5d7bb5804be89f498270.jpg",
       "url": "https://link.coupang.com/a/glMdTC7ndk",
       "status": "rocket_fresh",
       "vendorItemId": 88318868357,
       "productId": 1113910792
+    },
+    {
+      "name": "프리미엄 방울토마토, 1kg, 1개",
+      "price": 14900,
+      "imageUrl": "https://thumbnail5.coupangcdn.com/thumbnails/remote/212x212ex/image/rs_quotation_api/sg0vvxlr/2d0b17a39cbf434fa968ab4f7b13f933.jpg",
+      "url": "https://link.coupang.com/a/gsqchluAXk",
+      "status": "rocket_fresh",
+      "vendorItemId": 92582633771,
+      "productId": 8792261210
     }
   ],
   "eco:422-01": [
