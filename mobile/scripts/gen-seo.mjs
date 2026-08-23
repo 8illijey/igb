@@ -49,6 +49,9 @@ export interface SeoItem {
   price: number | null;
 }
 export const SEO_ITEMS: SeoItem[] = ${JSON.stringify(rows, null, 2)};
+/** 이 파일을 만든 날(YYYYMMDD). 공유 카드 이미지 URL의 캐시 무효화에 쓴다 —
+ *  카톡은 OG 이미지를 오래 캐싱해서 주소가 같으면 어제 가격이 계속 보인다. */
+export const SEO_BUILD_DAY = '${new Date().toISOString().slice(0, 10).replace(/-/g, '')}';
 export const SEO_BY_KEY: Record<string, SeoItem> = Object.fromEntries(SEO_ITEMS.map((i) => [i.key, i]));
 `,
 );

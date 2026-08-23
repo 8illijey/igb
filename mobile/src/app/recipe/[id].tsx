@@ -63,6 +63,10 @@ export default function RecipeDetailScreen() {
           property="og:description"
           content={recipe ? `${recipe.title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.` : '오늘 시세가 싼 재료로 만드는 레시피.'}
         />
+      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta name="twitter:image" content="https://igeobissa.com/og.png" />
       </Head>
       <GlassHeader onHeight={setTopH}>
         <Header />

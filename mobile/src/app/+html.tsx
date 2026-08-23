@@ -32,11 +32,9 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="이거비싸?" />
         <meta property="og:locale" content="ko_KR" />
-        <meta property="og:image" content="https://igeobissa.com/og.png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
+        {/* card 종류만 공통. 이미지는 라우트가 <Head>로 준다 —
+            상세는 품목별 카드라 여기서 고정하면 중복 태그가 생긴다. */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://igeobissa.com/og.png" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: GUARD_JS }} />

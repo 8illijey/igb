@@ -22,7 +22,7 @@ import {
 } from '../../api/kamis';
 import { coupangProducts, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
 import Head from 'expo-router/head';
-import { SEO_BY_KEY, SEO_ITEMS, type SeoItem } from '../../seo.gen';
+import { SEO_BUILD_DAY, SEO_BY_KEY, SEO_ITEMS, type SeoItem } from '../../seo.gen';
 import { usePrecomputedSeries } from '../../api/series';
 import { useVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
@@ -747,7 +747,13 @@ function SeoHead({ item, today, unit }: { item: SeoItem; today?: number | null; 
       <meta property="og:title" content={title} />
       <meta property="og:description" content={desc} />
       <meta property="og:url" content={url} />
-      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      {/* 품목별 카드(이름+오늘 가격). scripts/gen-og.mjs가 배포 때 84장을 만든다.
+          카톡은 OG를 오래 캐싱해서 파일명이 같으면 옛 가격이 남는다 — 생성일을 붙여 깬다. */}
+      <meta property="og:image" content={`https://igeobissa.com/og/${item.key}.png?d=${SEO_BUILD_DAY}`} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content={`${item.name} 오늘 시세`} />
+      <meta name="twitter:image" content={`https://igeobissa.com/og/${item.key}.png?d=${SEO_BUILD_DAY}`} />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={desc} />
     </Head>

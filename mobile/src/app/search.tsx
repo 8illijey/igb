@@ -55,6 +55,10 @@ export default function SearchScreen() {
         <meta property="og:description" content="배추·양파·삼겹살·계란 등 농수산물 품목을 검색해 오늘 시세와 평년 대비 가격을 확인하세요." />
         <meta name="twitter:title" content="품목 검색 — 오늘 시세 찾기 | 이거비싸?" />
         <meta name="twitter:description" content="배추·양파·삼겹살·계란 등 농수산물 품목을 검색해 오늘 시세와 평년 대비 가격을 확인하세요." />
+      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta name="twitter:image" content="https://igeobissa.com/og.png" />
       </Head>
       {/* 헤더 44 — back 44×44 + search-field size s(40) 세로 중앙. 상단 고정 글래스 */}
       <GlassHeader onHeight={setTopH}>

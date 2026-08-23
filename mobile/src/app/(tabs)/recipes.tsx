@@ -74,6 +74,10 @@ export default function RecipesScreen() {
         <meta property="og:description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
         <meta name="twitter:title" content="오늘 싼 재료로 만드는 레시피 | 이거비싸?" />
         <meta name="twitter:description" content="오늘 시세가 싼 재료를 쓰는 레시피를 골라드려요. 재료별 가격 신호와 함께 확인하세요." />
+      <meta property="og:image" content="https://igeobissa.com/og.png" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta name="twitter:image" content="https://igeobissa.com/og.png" />
       </Head>
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>
