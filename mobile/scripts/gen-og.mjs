@@ -45,6 +45,7 @@ const PRICE = {
   refInk: { text: '1,234원', width: 218 },
   inkBottom: 416,
   unitRatio: 0.58, // 단위 글자 크기(가격 대비)
+  unitGapSpaces: 2, // 가격과 '/' 사이를 공백 몇 칸만큼 띄울지
 };
 
 const FONT_FAMILY = 'OGFont';
@@ -102,6 +103,11 @@ const cal = {
   priceSize: sizeForInkWidth(PRICE.refInk.text, PRICE.refInk.width),
 };
 
+// 공백은 잉크가 없어 bbox로 직접 못 잰다. 글자 사이에 넣었을 때의 폭 차이로 구한다.
+function spaceAdvance(size) {
+  return inkBox('원 원', size).width - inkBox('원원', size).width;
+}
+
 // 잉크 아랫변을 목표에 맞추는 baseline. (아랫변 = baseline + 폰트별 오프셋)
 const baselineFor = (text, size, inkBottom) => inkBottom - inkBox(text, size).bottomFromBaseline;
 
@@ -145,11 +151,17 @@ function buildSvg(name, price, unit) {
   if (price != null) {
     const num = `${price.toLocaleString('ko-KR')}원`;
     const showUnit = unit && !name.includes(unit);
+    // SVG는 연속 공백을 한 칸으로 합친다 — 더 띄우려면 dx로 밀어야 한다.
+    // 공백 폭은 가격 크기 기준으로 재서 '한 칸 더'가 눈에 같은 양으로 보이게 한다.
+    const gap = spaceAdvance(cal.priceSize) * (PRICE.unitGapSpaces - 1);
     const unitTspan = showUnit
-      ? `<tspan font-size="${(cal.priceSize * PRICE.unitRatio).toFixed(2)}" fill="${FG_UNIT}"> / ${esc(unit)}</tspan>`
+      ? `<tspan dx="${gap.toFixed(2)}" font-size="${(cal.priceSize * PRICE.unitRatio).toFixed(2)}" fill="${FG_UNIT}"> / ${esc(unit)}</tspan>`
       : '';
     const y = baselineFor(num, cal.priceSize, PRICE.inkBottom);
-    priceSvg = `<text x="${W / 2}" y="${y.toFixed(2)}" font-family="${FONT_FAMILY}" font-size="${cal.priceSize.toFixed(2)}" fill="${FG}" text-anchor="middle">${esc(num)}${unitTspan}</text>`;
+    // resvg는 dx를 text-anchor 계산에 넣지 않아 줄 전체가 dx만큼 오른쪽으로 밀린다.
+    // 절반만큼 되돌려야 가운데가 맞는다(실측: 보정 없으면 중심이 599→607.5로 어긋난다).
+    const cx = W / 2 - (showUnit ? gap / 2 : 0);
+    priceSvg = `<text x="${cx.toFixed(2)}" y="${y.toFixed(2)}" font-family="${FONT_FAMILY}" font-size="${cal.priceSize.toFixed(2)}" fill="${FG}" text-anchor="middle">${esc(num)}${unitTspan}</text>`;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${BG}"/>${titleSvg}${priceSvg}</svg>`;
