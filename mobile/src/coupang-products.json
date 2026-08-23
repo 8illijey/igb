@@ -175,31 +175,31 @@
   ],
   "142-00": [
     {
-      "name": "엉클탁 대구농산 간편한끼 팥, 1개, 150g",
-      "price": 3490,
-      "imageUrl": "https://thumbnail8.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2026/02/23/12/2/3ba1f3b3-94d0-465c-ba83-36a0269ee0b4.jpg",
-      "url": "https://link.coupang.com/a/ghHIR5Yqzs",
-      "status": "rocket_fresh",
-      "vendorItemId": 94855319985,
-      "productId": 9393559728
-    },
-    {
       "name": "대구농산 건강한밥상 국산 적두 팥, 1kg, 1개",
       "price": 24900,
-      "imageUrl": "https://thumbnail6.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1193252080631500-7b8fbe27-ab3f-4bc8-aaad-27ec7b4730d2.jpg",
+      "imageUrl": "https://t2a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1193252080631500-7b8fbe27-ab3f-4bc8-aaad-27ec7b4730d2.jpg",
       "url": "https://link.coupang.com/a/gmLAQE48Yu",
       "status": "rocket",
       "vendorItemId": 70013800378,
       "productId": 344577608
     },
     {
-      "name": "대구농산 캐나다산 적두 팥, 2kg, 1개",
+      "name": "엉클탁 국산 적두 팥, 500g, 1개",
       "price": 13900,
-      "imageUrl": "https://thumbnail3.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/8b78/ccef48beeb06f751c6e41f7c6c46517c4188fe9ff061e146468c9424d8f9.jpg",
-      "url": "https://link.coupang.com/a/grF54SpQ28",
+      "imageUrl": "https://thumbnail9.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2021/11/24/16/5/ac1f94df-f783-4c80-8f41-b813dca88c42.jpeg",
+      "url": "https://link.coupang.com/a/gsqZqXtKDY",
       "status": "rocket",
-      "vendorItemId": 5514315954,
-      "productId": 328009937
+      "vendorItemId": 79564818203,
+      "productId": 6199861529
+    },
+    {
+      "name": "대구상회 국산 적두 팥, 2kg, 1개",
+      "price": 29900,
+      "imageUrl": "https://t1c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2023/03/09/10/4/2c2eb740-75e8-43bc-b667-db032dad9f9a.jpg",
+      "url": "https://link.coupang.com/a/gsqZC0oFRk",
+      "status": "rocket",
+      "vendorItemId": 85281309082,
+      "productId": 5386988854
     }
   ],
   "143-00": [

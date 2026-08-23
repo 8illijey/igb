@@ -182,8 +182,38 @@
   /** KAMIS 조사 기준의 원산지 — 국산 품목에 수입육이, 수입 품목에 한우가 붙는 것을 막는다 */
   const DOMESTIC_CODES = ['4301', '4304', '9901', '9903', '9908'];
   const IMPORTED_CODES = ['4401', '4402'];
+
+  /**
+   * KAMIS가 품종명에 원산지를 못박은 농산물. 품목이 아니라 **품종** 단위로 잡아야 한다 —
+   * 고춧가루는 248-00이 '국산', 248-01이 '중국'으로 갈려서 품목으로 묶으면
+   * 248-01의 올바른 중국산 상품이 감점을 먹는다.
+   * 2026-08-24 팥(붉은 팥(국산))에 캐나다산 적두가 붙어 있어 추가했다.
+   */
+  const DOMESTIC_KINDS = new Set([
+    '141-01', // 흰 콩(국산)
+    '142-00', // 붉은 팥(국산)
+    '143-00', // 녹두 국산
+    '232-01', // 당근 무세척(국산)
+    '247-00', // 생강 국산
+    '248-00', // 고춧가루 국산
+    '258-01', // 깐마늘(국산)
+    '280-00', // 브로콜리(국산)
+  ]);
+  const IMPORTED_KINDS = new Set([
+    '248-01', // 고춧가루 중국
+    '418-02', // 바나나 수입
+    '420-02', // 파인애플 수입
+    '421-06', // 오렌지 네이블 호주
+    '424-00', // 레몬 수입
+    '425-00', // 체리 수입
+    '428-00', // 망고 수입
+    '430-00', // 아보카도 수입
+  ]);
   const DOMESTIC_WORDS = ['한우', '한돈', '국내산', '국산', '횡성', '토종'];
-  const IMPORTED_WORDS = ['호주산', '미국산', '캐나다산', '뉴질랜드', '수입', '스페인산', '칠레산', '멕시코산'];
+  const IMPORTED_WORDS = [
+    '호주산', '미국산', '캐나다산', '뉴질랜드', '수입', '스페인산', '칠레산', '멕시코산',
+    '중국산', '페루산', '베트남산', '태국산', '필리핀산',
+  ];
 
   const NAME_FIX = { 소: '소고기', 돼지: '돼지고기', 닭: '닭고기' };
   const MEAT_CODES = new Set(['4301', '4304', '4401', '4402', '9901']);
@@ -329,13 +359,18 @@
     if (price > 60000) s -= 25;
     else if (price > 35000) s -= 10;
 
-    if (DOMESTIC_CODES.includes(item.itemCode)) {
-      if (DOMESTIC_WORDS.some((w) => title.includes(w))) s += 40;
-      if (IMPORTED_WORDS.some((w) => title.includes(w))) s -= 45;
+    // '중국산'은 '국산'을 포함한다 — 그냥 includes로 재면 중국산 상품이 국산 가점을
+    // 먹는다(2026-08-24 발견). 수입 표기를 먼저 지운 문자열로 국산 여부를 판단한다.
+    const deImported = IMPORTED_WORDS.reduce((t, w) => t.split(w).join(' '), title);
+    const isImported = IMPORTED_WORDS.some((w) => title.includes(w));
+    const isDomestic = DOMESTIC_WORDS.some((w) => deImported.includes(w));
+    if (DOMESTIC_CODES.includes(item.itemCode) || DOMESTIC_KINDS.has(kindKey)) {
+      if (isDomestic) s += 40;
+      if (isImported) s -= 45;
     }
-    if (IMPORTED_CODES.includes(item.itemCode)) {
-      if (IMPORTED_WORDS.some((w) => title.includes(w))) s += 40;
-      if (DOMESTIC_WORDS.some((w) => title.includes(w))) s -= 45;
+    if (IMPORTED_CODES.includes(item.itemCode) || IMPORTED_KINDS.has(kindKey)) {
+      if (isImported) s += 40;
+      if (isDomestic) s -= 45;
     }
     return s;
   }
