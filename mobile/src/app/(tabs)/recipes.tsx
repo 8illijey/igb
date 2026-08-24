@@ -12,7 +12,6 @@ import { Image } from 'expo-image';
 import { findItem, recipeHero, searchRecipes, setViewedRecipes, useRecipes, type Recipe } from '../../recipes';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../../og';
-import { scrollBottomInset } from '../../theme/bottomInset';
 
 const LEVEL_WORD = { cheap: '싸요', fair: '적당해요', expensive: '비싸요' } as const;
 
@@ -157,7 +156,7 @@ const styles = StyleSheet.create({
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   wordmark: { fontSize: 20, fontFamily: font.extrabold, color: colors.textPrimary },
-  content: { padding: spacing.s4, gap: spacing.s3, paddingBottom: scrollBottomInset },
+  content: { padding: spacing.s4, gap: spacing.s3, paddingBottom: 140 },
   source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center', marginTop: spacing.s2 } as const,
   title: { ...type.size[20], ...type.w.bold, color: colors.textPrimary } as const,
   intro: { ...type.size[15], ...type.w.regular, color: colors.textSecondary } as const,

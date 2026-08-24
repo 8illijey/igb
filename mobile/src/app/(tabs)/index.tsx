@@ -25,7 +25,6 @@ import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
 import { colors, font, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../../og';
-import { scrollBottomInset } from '../../theme/bottomInset';
 
 const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
 
@@ -310,7 +309,7 @@ const styles = StyleSheet.create({
   },
   wordmark: { fontSize: 20, fontFamily: font.extrabold, color: colors.textPrimary },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  scroll: { paddingBottom: scrollBottomInset },
+  scroll: { paddingBottom: 140 },
   content01: { padding: spacing.s4, backgroundColor: colors.bgCanvas },
   content02: {
     padding: spacing.s4,

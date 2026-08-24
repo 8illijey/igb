@@ -62,20 +62,6 @@ html, body { overflow-x: hidden; }
    RN Web이 word-break를 따로 지정하지 않아 여기서 한 번에 건다. 끊을 데가 없는 긴 문자열은
    RN Web이 이미 넣어둔 overflow-wrap: break-word가 처리한다. */
 #root, #root * { word-break: keep-all; }
-/* iOS 사파리의 하단 주소창은 반투명이라 뒤의 콘텐츠가 비친다(네이버도 그렇다).
-   그 느낌을 내려면 페이지가 주소창 밑까지 차 있어야 한다.
-
-   아이폰 실측(2026-08-24, /vp.html):
-     clientHeight 714 = 100dvh — 주소창을 제외한 높이
-     100vh 754                — 주소창까지 포함한 높이
-   Expo 기본값 100%는 714를 따라서 주소창 뒤가 빈채로 남는다. 754가 필요하다.
-
-   문서가 밀릴 걱정은 없다 — expo-reset이 body{overflow:hidden}을 걸어둔다.
-   (한때 밀린다고 판단해 되돌렸는데, 그건 overflow 설정이 없는 진단 페이지를
-   보고 내린 오판이었다.)
-
-   데스크톱은 100vh == 100%라 변화가 없다. */
-html, body, #root { height: 100vh; }
 `;
 
 const GUARD_JS = `

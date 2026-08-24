@@ -13,7 +13,6 @@ import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../../og';
-import { scrollBottomInset } from '../../theme/bottomInset';
 
 export default function FavoritesScreen() {
   const { resolve } = usePrices();
@@ -167,7 +166,7 @@ const styles = StyleSheet.create({
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   wordmark: { fontSize: 20, fontFamily: font.extrabold, color: colors.textPrimary },
-  content: { padding: spacing.s4, paddingBottom: scrollBottomInset },
+  content: { padding: spacing.s4, paddingBottom: 140 },
   sections: { gap: spacing.s6 },
   // 관심 품목 / 관심 레시피 — 동일 위계 섹션 헤더
   sectionHead: {
