@@ -51,7 +51,11 @@ export function GlassTabBar({ state, navigation }: TabBarProps) {
 
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, spacing.s3) }]} pointerEvents="box-none">
-      <BlurView intensity={40} tint="light" style={styles.pill}>
+      <BlurView
+        intensity={40}
+        tint="light"
+        style={[styles.pill, Platform.OS === 'web' ? styles.webFrame : null]}
+      >
         <View style={styles.pillOverlay} />
         {cols[state.index] && <Animated.View style={[styles.tabSelected, styles.indicator, indicatorStyle]} />}
         {state.routes.map((route, idx) => {
@@ -113,10 +117,22 @@ const styles = StyleSheet.create({
   wrap: {
     // 웹은 fixed — iOS 사파리는 fixed 요소를 '보이는 영역' 기준으로 놓아
     // 하단 주소창 위에 앉힌다. absolute로 두면 주소창에 걸려 잘렸다(2026-08-24 제보).
+    //
+    // 단, fixed는 기준이 앱 컨테이너가 아니라 브라우저 창이다. left/right를 그대로
+    // 두면 넓은 화면에서 탭바만 창 폭 전체로 늘어난다(2026-08-25 제보).
+    // 좌우를 풀고 가운데 정렬한 뒤 _layout의 appFrame과 같은 폭으로 묶는다.
     position: (Platform.OS === 'web' ? 'fixed' : 'absolute') as 'absolute',
-    left: spacing.s6,
-    right: spacing.s6,
+    ...Platform.select({
+      web: { left: 0, right: 0 },
+      default: { left: spacing.s6, right: spacing.s6 },
+    }),
     alignItems: 'center',
+  },
+  /** 웹에서 탭바를 앱 폭(_layout.appFrame maxWidth 480)에 맞춘다. 좌우 여백은 s6로 동일. */
+  webFrame: {
+    width: '100%',
+    maxWidth: 480 - spacing.s6 * 2,
+    paddingHorizontal: 0,
   },
   pill: {
     flexDirection: 'row',
