@@ -2,6 +2,18 @@
   "buildCommand": "npx expo export -p web && node scripts/gen-og.mjs --out dist/og && node scripts/copy-item-images.mjs --out dist/items",
   "outputDirectory": "dist",
   "framework": null,
+  "redirects": [
+    {
+      "source": "/t",
+      "destination": "/?utm_source=threads&utm_medium=post&utm_campaign=daily",
+      "permanent": false
+    },
+    {
+      "source": "/ig",
+      "destination": "/?utm_source=instagram&utm_medium=profile&utm_campaign=bio",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/item/:key",
