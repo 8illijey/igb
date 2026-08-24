@@ -91,10 +91,13 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
         <Text style={styles.captionGrey}>오늘 · KAMIS 소매</Text>
       </View>
 
-      {/* Figma: 평가문구는 카드 상단 풀폭 */}
+      {/* Figma: 평가문구는 카드 상단 풀폭.
+          줄바꿈을 강제하지 않는다 — 좀은 화면에선 앞 문장이 한 번 더 접혀
+          '평균보다 / (빈줄) / 39% 싸요'처럼 떨어졌다(2026-08-24 아이폰 제보).
+          그냥 흐르게 두면 폭에 맞춰 알아서 나뉩다. */}
       <Text style={styles.verdict}>
         오늘은 {item.itemName}
-        {subjectParticle(item.itemName)} 이맘때 평균보다{'\n'}
+        {subjectParticle(item.itemName)} 이맘때 평균보다{' '}
         <Text style={{ color: c.main, textDecorationLine: 'underline' }}>{verdictTail}</Text>
       </Text>
 

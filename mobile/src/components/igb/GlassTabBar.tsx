@@ -3,6 +3,7 @@ import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBrowserChromeInset } from '../../hooks/useBrowserChromeInset';
 import { colors, font, motion, palette, radius, shadow, spacing } from '../../theme/tokens';
 import { HeartIcon, HouseIcon, RecipeIcon } from './TabIcons';
 import { AnimatedPressable, usePressScale } from './usePressScale';
@@ -26,6 +27,8 @@ interface TabBarProps {
 /** iOS 26 글래스 필 근사 — 플로팅 + blur + 선택 pill이 탭 사이를 슬라이드. Figma Tab Bar 기준. */
 export function GlassTabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  // iOS 사파리 하단 툴바는 safe-area에 안 잡혀 탭바가 그 뒤에 깔린다. 가려지는 만큼 올린다.
+  const chrome = useBrowserChromeInset();
   const reduced = useReducedMotion();
   const tabs = state.routes.filter((r) => TAB_META[r.name]);
   const [cols, setCols] = React.useState<Record<number, { x: number; width: number }>>({});
@@ -50,7 +53,7 @@ export function GlassTabBar({ state, navigation }: TabBarProps) {
   const indicatorStyle = useAnimatedStyle(() => ({ width: w.value, transform: [{ translateX: x.value }] }));
 
   return (
-    <View style={[styles.wrap, { bottom: Math.max(insets.bottom, spacing.s3) }]} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: Math.max(insets.bottom, spacing.s3) + chrome }]} pointerEvents="box-none">
       <BlurView intensity={40} tint="light" style={styles.pill}>
         <View style={styles.pillOverlay} />
         {cols[state.index] && <Animated.View style={[styles.tabSelected, styles.indicator, indicatorStyle]} />}

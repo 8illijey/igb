@@ -57,6 +57,11 @@ html, body { touch-action: pan-x pan-y; -ms-touch-action: pan-x pan-y; }
 ::-webkit-scrollbar { display: none; width: 0; height: 0; }
 * { scrollbar-width: none; -ms-overflow-style: none; }
 html, body { overflow-x: hidden; }
+/* 한국어는 어절 단위로 줄바꿈해야 한다. 브라우저 기본(normal)은 글자 사이 아무 데서나 끊어서
+   좁은 화면에서 '이맘때 평균보 / 다'처럼 낱글자가 다음 줄로 떨어진다(2026-08-24 아이폰 제보).
+   RN Web이 word-break를 따로 지정하지 않아 여기서 한 번에 건다. 끊을 데가 없는 긴 문자열은
+   RN Web이 이미 넣어둔 overflow-wrap: break-word가 처리한다. */
+#root, #root * { word-break: keep-all; }
 `;
 
 const GUARD_JS = `

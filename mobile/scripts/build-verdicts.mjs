@@ -270,30 +270,57 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
   //
   // 도매: 축산은 KAMIS가 도매를 조사하지 않는데 cls=02 요청에 소매 응답을 그대로 돌려준다.
   //   앱과 똑같이 '가격 AND 단위가 모두 같으면 도매 없음'으로 본다.
+  // 오늘 하루만 보면 안 된다 — KAMIS 발표가 늦거나 요청이 한 번 실패하면 맵이 통째로 비고,
+  // 그러면 전 품목이 '도매 없음'이 되어 멀쩡한 탭이 사라진다.
+  // 2026-08-22 실제로 이 일이 났다(도매 있음 54개 → 0개, 08-24 CI가 돌 때까지 지속).
+  // 그래서 (1) 데이터가 찰 때까지 며칠 거슬러 올라가고 (2) 그래도 비면 판정을 아예 내리지 않는다.
   const wsDaily = new Map();
   const rtDaily = new Map();
-  for (const cat of CATEGORIES) {
-    for (const [cls, m] of [['01', rtDaily], ['02', wsDaily]]) {
-      const url = `${BASE}?${qs({
-        action: 'dailyPriceByCategoryList',
-        p_product_cls_code: cls,
-        p_regday: fmtDate(new Date()),
-        p_convert_kg_yn: 'N',
-        p_item_category_code: cat,
-      })}`;
-      try {
-        const rows = (await (await fetchT(url)).json())?.data?.item ?? [];
-        for (const r of Array.isArray(rows) ? rows : []) {
-          if (!r.item_code) continue;
-          const k = `${r.item_code}-${r.kind_code ?? '00'}`;
-          if (!m.has(k)) m.set(k, { price: String(r.dpr1 ?? ''), unit: String(r.unit ?? '') });
+  const loadDaily = async (regday) => {
+    const ws = new Map();
+    const rt = new Map();
+    for (const cat of CATEGORIES) {
+      for (const [cls, m] of [['01', rt], ['02', ws]]) {
+        const url = `${BASE}?${qs({
+          action: 'dailyPriceByCategoryList',
+          p_product_cls_code: cls,
+          p_regday: regday,
+          p_convert_kg_yn: 'N',
+          p_item_category_code: cat,
+        })}`;
+        try {
+          const rows = (await (await fetchT(url)).json())?.data?.item ?? [];
+          for (const r of Array.isArray(rows) ? rows : []) {
+            if (!r.item_code) continue;
+            const k = `${r.item_code}-${r.kind_code ?? '00'}`;
+            if (!m.has(k)) m.set(k, { price: String(r.dpr1 ?? ''), unit: String(r.unit ?? '') });
+          }
+        } catch {
+          // 이 날짜는 포기하고 다음 날짜로
         }
-      } catch {
-        // 이 검사는 부가 정보다 — 실패하면 그냥 판정을 못 할 뿐 빌드를 막지 않는다.
       }
     }
+    return { ws, rt };
+  };
+  for (let back = 0; back < 5; back += 1) {
+    const d = new Date();
+    d.setDate(d.getDate() - back);
+    const { ws, rt } = await loadDaily(fmtDate(d));
+    // 도매·소매 둘 다 있어야 '소매 미러' 판정이 의미가 있다.
+    if (ws.size && rt.size) {
+      for (const [k, v] of ws) wsDaily.set(k, v);
+      for (const [k, v] of rt) rtDaily.set(k, v);
+      if (back) console.log(`  도매 탭 판정: ${back}일 전(${fmtDate(d)}) 자료로 계산`);
+      break;
+    }
   }
+  const wholesaleUnknown = !wsDaily.size || !rtDaily.size;
+  if (wholesaleUnknown) {
+    console.warn('  도매 일일가를 못 받았다 — hasWholesale을 넣지 않는다(앱이 탭을 그대로 보여준다).');
+  }
+  /** 판정 불가면 undefined를 돌려준다 — 앱은 undefined일 때 예전처럼 탭을 보여준다. */
   const hasWholesaleFor = (k) => {
+    if (wholesaleUnknown) return undefined;
     const w = wsDaily.get(k);
     if (!w || !w.price || w.price === '-') return false;
     const r = rtDaily.get(k);
@@ -308,6 +335,7 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     // 여러 품종이면 '00'은 그중 한 품종이라 다른 품종 가격을 빌리게 된다(쪽파←대파).
     const kindCount = new Set((kindsByItem.get(it.itemCode) || []).map((k) => k.kindCode)).size;
     const cands = kindCount <= 1 ? [it.kindCode, '00'] : [it.kindCode];
+    let ok = false; // 요청이 한 번이라도 성공했는지 — 실패와 '데이터 없음'을 구분한다.
     for (const kind of [...new Set(cands)]) {
       for (const rank of ['07', '08']) {
         const url = `${BASE}?${qs({
@@ -322,13 +350,16 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
         })}`;
         try {
           const rows = (await (await fetchT(url)).json())?.data?.item ?? [];
+          ok = true;
           if (Array.isArray(rows) && rows.length >= 2) return true; // 앱과 같은 기준(2점 미만은 무효)
         } catch {
           // 다음 조합
         }
       }
     }
-    return false;
+    // 한 번도 응답을 못 받았으면 '유기농 없음'이 아니라 '모름'이다. false로 적으면
+    // 멀쩡한 유기농 탭이 사라진다(도매에서 실제로 겪은 문제와 같은 유형).
+    return ok ? false : undefined;
   }
 
   const out = {};
@@ -434,7 +465,7 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     const key = `${it.itemCode}-${it.kindCode}`;
     out[key] = {
       hasWholesale: hasWholesaleFor(key),
-      hasEco: await hasEcoFor(it).catch(() => false),
+      hasEco: await hasEcoFor(it).catch(() => undefined),
       level,
       recentAvg,
       today: it.today,
