@@ -6,10 +6,14 @@
     <meta name="robots" content="noindex" />
     <title>뷰포트 진단</title>
     <style>
-      /* 앱과 같은 조건 — 높이 100%(보이는 영역) + 탭바만 fixed */
+      /* 앱과 똑같은 조건을 만든다 — expo-reset이 body{overflow:hidden}까지 건다.
+         이걸 빼놓고 보다가 '문서가 밀린다'고 오판했다(2026-08-24). */
       #root, body, html { height: 100%; }
+      body { overflow: hidden; }
+      #root { display: flex; }
+      html, body, #root { height: 100vh; }
       body { margin: 0; font: 15px/1.5 -apple-system, system-ui, sans-serif; }
-      #root { display: flex; flex-direction: column; position: relative; background: #f6f8fa; }
+      #root { flex-direction: column; position: relative; background: #f6f8fa; overflow-y: auto; }
       h1 { font-size: 17px; margin: 12px 16px 4px; }
       table { border-collapse: collapse; margin: 0 16px; width: calc(100% - 32px); }
       td { padding: 5px 4px; border-bottom: 1px solid #dee3e7; font-variant-numeric: tabular-nums; }
@@ -36,7 +40,7 @@
       <h1>뷰포트 진단</h1>
       <table id="t"></table>
       <div id="v" class="verdict"></div>
-      <div class="filler">줄무늬이 주소창 바로 위까지 차고, 페이지가 안 밀리면 정상 ↓</div>
+      <div class="filler">줄무늬이 주소창 <b>뒤까지</b> 비치면 정상 ↓</div>
       <div class="tabbar">이 막대가 주소창 위에 온전히 보이면 OK</div>
     </div>
     <script>
@@ -77,12 +81,16 @@
         // 문서 스크롤이 0이어야 한다 — 루트가 보이는 영역보다 크면 페이지가 밀려
         // 헤더가 상태바 밑으로 들어가고, 정작 넘친 부분은 주소창이 덮어 볼 수도 없다.
         const docScroll = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-        if (docScroll <= 1 && Math.abs(rootH - visible) <= 2) {
+        const over = Math.round(rootH - visible);
+        if (over > 2 && docScroll <= 1) {
           v.className = 'verdict ok';
-          v.textContent = '루트 = 보이는 높이, 문서 스크롤 0 → 페이지가 안 밀림 (정상)';
+          v.textContent = '루트가 보이는 높이보다 ' + over + 'px 큼 → 주소창 뒤까지 참 / 문서 스크롤 0 → 페이지 안 밀림';
+        } else if (over <= 2) {
+          v.className = 'verdict bad';
+          v.textContent = '루트 = 보이는 높이 → 주소창 뒤가 빈채로 남는다';
         } else {
           v.className = 'verdict bad';
-          v.textContent = '문서가 ' + Math.round(docScroll) + 'px 스크롤됨 → 페이지가 밀려 상단이 잘린다';
+          v.textContent = '문서가 ' + Math.round(docScroll) + 'px 스크롤됨 → 페이지가 밀린다';
         }
       }
       render();
