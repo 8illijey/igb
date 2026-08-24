@@ -62,6 +62,17 @@ html, body { overflow-x: hidden; }
    RN Web이 word-break를 따로 지정하지 않아 여기서 한 번에 건다. 끊을 데가 없는 긴 문자열은
    RN Web이 이미 넣어둔 overflow-wrap: break-word가 처리한다. */
 #root, #root * { word-break: keep-all; }
+/* iOS 사파리 하단 툴바 대응.
+   Expo가 깔아둔 '#root, body, html { height: 100% }'는 iOS에서 툴바까지 포함한
+   레이아웃 뷰포트 높이로 잡힌다. 그 바닥에 붙인 탭바가 툴바 뒤로 들어간다.
+   dvh는 브라우저 UI를 제외한 '지금 보이는' 높이라 탭바가 항상 툴바 위에 앉는다.
+   env(safe-area-inset-bottom)으로는 못 고친다 — 툴바가 떠 있어도 0이다.
+   window.innerHeight로 재는 방법도 안 된다 — iOS는 innerHeight가 이미 보이는 높이라
+   visualViewport와의 차가 항상 0이다(2026-08-24 실측해서 확인).
+   지원 안 하는 브라우저는 앞의 100% 규칙을 그대로 쓴다. */
+@supports (height: 100dvh) {
+  html, body, #root { height: 100dvh; }
+}
 `;
 
 const GUARD_JS = `
