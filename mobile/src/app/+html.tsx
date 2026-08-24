@@ -36,6 +36,11 @@ export default function Root({ children }: PropsWithChildren) {
             상세는 품목별 카드라 여기서 고정하면 중복 태그가 생긴다. */}
         <meta name="twitter:card" content="summary_large_image" />
         <ScrollViewStyleReset />
+        {/* GA4 — 유입 경로와 재방문을 보려고 깔았다(2026-08-25).
+            async라 렌더를 막지 않는다. 사이트가 SPA라 페이지 이동은
+            gtag의 기본 SPA 감지(History API)가 잡는다. */}
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+        <script dangerouslySetInnerHTML={{ __html: GA_INIT }} />
         <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: GUARD_JS }} />
       </head>
@@ -43,6 +48,16 @@ export default function Root({ children }: PropsWithChildren) {
     </html>
   );
 }
+
+/** GA4 측정 ID — 속성 'igeobissa.com', 계정 '이거비싸'(designerxyzi@gmail.com). */
+const GA_ID = 'G-TV6GZBZXQ4';
+
+const GA_INIT = `
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA_ID}');
+`;
 
 const GLOBAL_CSS = `
 /* 길게눌러 저장/콜아웃, 텍스트 선택 차단 */
