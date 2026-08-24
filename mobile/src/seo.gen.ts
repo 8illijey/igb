@@ -12,415 +12,415 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "111-01",
     "name": "쌀 20kg",
     "unit": "20kg",
-    "price": 60475
+    "price": 61404
   },
   {
     "key": "111-10",
     "name": "쌀 10kg",
     "unit": "10kg",
-    "price": 33756
+    "price": 33024
   },
   {
     "key": "112-01",
     "name": "찹쌀",
     "unit": "1kg",
-    "price": 5247
+    "price": 5275
   },
   {
     "key": "141-01",
     "name": "콩",
     "unit": "500g",
-    "price": 4970
+    "price": 5012
   },
   {
     "key": "142-00",
     "name": "팥",
     "unit": "500g",
-    "price": 13361
+    "price": 13736
   },
   {
     "key": "143-00",
     "name": "녹두",
     "unit": "500g",
-    "price": 12476
+    "price": 12186
   },
   {
     "key": "151-00",
     "name": "고구마",
     "unit": "1kg",
-    "price": 5398
+    "price": 5400
   },
   {
     "key": "152-01",
     "name": "감자",
     "unit": "100g",
-    "price": 299
+    "price": 320
   },
   {
     "key": "211-02",
     "name": "배추",
     "unit": "1포기",
-    "price": 5558
+    "price": 5646
   },
   {
     "key": "212-00",
     "name": "양배추",
     "unit": "1포기",
-    "price": 2891
+    "price": 3044
   },
   {
     "key": "213-00",
     "name": "시금치",
     "unit": "100g",
-    "price": 2380
+    "price": 2118
   },
   {
     "key": "214-01",
     "name": "적상추",
     "unit": "100g",
-    "price": 1566
+    "price": 1499
   },
   {
     "key": "214-02",
     "name": "청상추",
     "unit": "100g",
-    "price": 1644
+    "price": 1625
   },
   {
     "key": "215-00",
     "name": "얼갈이배추",
     "unit": "1kg",
-    "price": 3680
+    "price": 3242
   },
   {
     "key": "221-00",
     "name": "수박",
     "unit": "1개",
-    "price": 27700
+    "price": 26505
   },
   {
     "key": "222-00",
     "name": "참외",
     "unit": "10개",
-    "price": 20460
+    "price": 18043
   },
   {
     "key": "223-01",
     "name": "가시오이",
     "unit": "10개",
-    "price": 16800
+    "price": 11120
   },
   {
     "key": "223-02",
     "name": "다다기오이",
     "unit": "10개",
-    "price": 10629
+    "price": 9616
   },
   {
     "key": "223-03",
     "name": "취청오이",
     "unit": "10개",
-    "price": 14775
+    "price": 14356
   },
   {
     "key": "224-01",
     "name": "애호박",
     "unit": "1개",
-    "price": 1334
+    "price": 1389
   },
   {
     "key": "224-02",
     "name": "쥬키니호박",
     "unit": "1개",
-    "price": 1990
+    "price": 1741
   },
   {
     "key": "225-00",
     "name": "토마토",
     "unit": "1kg",
-    "price": 4544
+    "price": 5092
   },
   {
     "key": "231-02",
     "name": "무",
     "unit": "1개",
-    "price": 2339
+    "price": 2454
   },
   {
     "key": "232-01",
     "name": "당근",
     "unit": "1kg",
-    "price": 3633
+    "price": 3525
   },
   {
     "key": "233-00",
     "name": "열무",
     "unit": "1kg",
-    "price": 3167
+    "price": 3342
   },
   {
     "key": "241-00",
     "name": "건고추 화건",
     "unit": "600g",
-    "price": 20400
+    "price": 18536
   },
   {
     "key": "241-01",
     "name": "건고추 햇산화건",
     "unit": "600g",
-    "price": 17917
+    "price": 17197
   },
   {
     "key": "242-00",
-    "name": "풋고추",
+    "name": "풋고추(녹광 등)",
     "unit": "100g",
-    "price": 1777
+    "price": 1688
   },
   {
     "key": "242-02",
     "name": "꽈리고추",
     "unit": "100g",
-    "price": 1245
+    "price": 1332
   },
   {
     "key": "242-03",
     "name": "청양고추",
     "unit": "100g",
-    "price": 1145
+    "price": 1138
   },
   {
     "key": "242-04",
     "name": "오이맛고추",
     "unit": "100g",
-    "price": 1055
+    "price": 1077
   },
   {
     "key": "243-00",
     "name": "붉은고추",
     "unit": "100g",
-    "price": 2008
+    "price": 1977
   },
   {
     "key": "245-00",
     "name": "양파",
     "unit": "1kg",
-    "price": 1930
+    "price": 1974
   },
   {
     "key": "246-00",
     "name": "대파",
     "unit": "1kg",
-    "price": 3220
+    "price": 3046
   },
   {
     "key": "246-02",
     "name": "쪽파",
     "unit": "1kg",
-    "price": 11293
+    "price": 10553
   },
   {
     "key": "247-00",
     "name": "생강",
     "unit": "1kg",
-    "price": 17325
+    "price": 15013
   },
   {
     "key": "248-00",
     "name": "국산고춧가루",
     "unit": "1kg",
-    "price": 37533
+    "price": 34364
   },
   {
     "key": "248-01",
     "name": "중국고춧가루",
     "unit": "1kg",
-    "price": 14000
+    "price": 13544
   },
   {
     "key": "252-00",
     "name": "미나리",
     "unit": "100g",
-    "price": 1864
+    "price": 1763
   },
   {
     "key": "253-00",
     "name": "깻잎",
     "unit": "50g",
-    "price": 1388
+    "price": 1524
   },
   {
     "key": "255-00",
     "name": "피망",
     "unit": "100g",
-    "price": 1231
+    "price": 1318
   },
   {
     "key": "256-00",
     "name": "파프리카",
     "unit": "1개",
-    "price": 1433
+    "price": 1383
   },
   {
     "key": "257-00",
     "name": "멜론",
     "unit": "1개",
-    "price": 8346
+    "price": 8769
   },
   {
     "key": "258-01",
     "name": "깐마늘(국산)",
     "unit": "1kg",
-    "price": 11262
+    "price": 11828
   },
   {
     "key": "279-00",
     "name": "알배기배추",
     "unit": "1포기",
-    "price": 3909
+    "price": 3613
   },
   {
     "key": "280-00",
     "name": "브로콜리",
     "unit": "1개",
-    "price": 3264
+    "price": 3056
   },
   {
     "key": "411-05",
     "name": "후지사과",
     "unit": "10개",
-    "price": 24500
+    "price": 29067
   },
   {
     "key": "411-06",
     "name": "아오리사과",
     "unit": "10개",
-    "price": 16667
+    "price": 19572
   },
   {
     "key": "412-01",
     "name": "신고배",
     "unit": "10개",
-    "price": 43300
+    "price": 45914
   },
   {
     "key": "412-04",
     "name": "원황배",
     "unit": "10개",
-    "price": 27067
+    "price": 25981
   },
   {
     "key": "413-01",
     "name": "복숭아",
     "unit": "10개",
-    "price": 18278
+    "price": 18771
   },
   {
     "key": "414-01",
     "name": "캠벨얼리포도",
     "unit": "1kg",
-    "price": 10175
+    "price": 8608
   },
   {
     "key": "414-02",
     "name": "거봉포도",
     "unit": "2kg",
-    "price": 16775
+    "price": 17194
   },
   {
     "key": "414-12",
     "name": "샤인머스켓포도",
     "unit": "2kg",
-    "price": 17744
+    "price": 17562
   },
   {
     "key": "415-02",
     "name": "감귤",
     "unit": "10개",
-    "price": 8455
+    "price": 8898
   },
   {
     "key": "418-02",
     "name": "바나나",
     "unit": "100g",
-    "price": 310
+    "price": 313
   },
   {
     "key": "419-02",
     "name": "참다래(키위)",
     "unit": "10개",
-    "price": 11630
+    "price": 11608
   },
   {
     "key": "420-02",
     "name": "파인애플",
     "unit": "1개",
-    "price": 6657
+    "price": 7372
   },
   {
     "key": "421-06",
     "name": "오렌지",
     "unit": "10개",
-    "price": 11750
+    "price": 11453
   },
   {
     "key": "422-01",
     "name": "방울토마토",
     "unit": "1kg",
-    "price": 7653
+    "price": 7288
   },
   {
     "key": "422-02",
     "name": "대추방울토마토",
     "unit": "1kg",
-    "price": 5307
+    "price": 5664
   },
   {
     "key": "424-00",
     "name": "레몬",
     "unit": "10개",
-    "price": 9073
+    "price": 9002
   },
   {
     "key": "425-00",
     "name": "체리",
     "unit": "100g",
-    "price": 2490
+    "price": 2214
   },
   {
     "key": "428-00",
     "name": "망고",
     "unit": "1개",
-    "price": 6793
+    "price": 6190
   },
   {
     "key": "430-00",
     "name": "아보카도",
     "unit": "1개",
-    "price": 1737
+    "price": 1589
   },
   {
     "key": "4301-21",
     "name": "소고기 안심",
     "unit": "100g",
-    "price": 17874
+    "price": 17900
   },
   {
     "key": "4301-22",
     "name": "소고기 등심",
     "unit": "100g",
-    "price": 15664
+    "price": 15682
   },
   {
     "key": "4301-36",
     "name": "소고기 설도",
     "unit": "100g",
-    "price": 6223
+    "price": 6215
   },
   {
     "key": "4301-40",
     "name": "소고기 양지",
     "unit": "100g",
-    "price": 7701
+    "price": 7711
   },
   {
     "key": "4301-50",
@@ -432,25 +432,25 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-25",
     "name": "돼지고기 앞다리",
     "unit": "100g",
-    "price": 1518
+    "price": 1517
   },
   {
     "key": "4304-27",
     "name": "돼지고기 삼겹살",
     "unit": "100g",
-    "price": 2882
+    "price": 2872
   },
   {
     "key": "4304-28",
     "name": "돼지고기 갈비",
     "unit": "100g",
-    "price": 1565
+    "price": 1569
   },
   {
     "key": "4304-68",
     "name": "돼지고기 목심",
     "unit": "100g",
-    "price": 2652
+    "price": 2647
   },
   {
     "key": "4401-31",
@@ -468,7 +468,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4402-27",
     "name": "수입 돼지고기 삼겹살",
     "unit": "100g",
-    "price": 1510
+    "price": 1515
   },
   {
     "key": "9901-24",
@@ -492,7 +492,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9903-23",
     "name": "계란 30구",
     "unit": "30구",
-    "price": 7218
+    "price": 7220
   },
   {
     "key": "9908-01",
@@ -503,5 +503,5 @@ export const SEO_ITEMS: SeoItem[] = [
 ];
 /** 이 파일을 만든 날(YYYYMMDD). 공유 카드 이미지 URL의 캐시 무효화에 쓴다 —
  *  카톡은 OG 이미지를 오래 캐싱해서 주소가 같으면 어제 가격이 계속 보인다. */
-export const SEO_BUILD_DAY = '20260823';
+export const SEO_BUILD_DAY = '20260824';
 export const SEO_BY_KEY: Record<string, SeoItem> = Object.fromEntries(SEO_ITEMS.map((i) => [i.key, i]));
