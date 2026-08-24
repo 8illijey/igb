@@ -62,10 +62,18 @@ html, body { overflow-x: hidden; }
    RN Web이 word-break를 따로 지정하지 않아 여기서 한 번에 건다. 끊을 데가 없는 긴 문자열은
    RN Web이 이미 넣어둔 overflow-wrap: break-word가 처리한다. */
 #root, #root * { word-break: keep-all; }
-/* 높이는 Expo가 깔아둔 100%를 그대로 둔다 — iOS에서 이 값은 사파리 툴바 뒤까지
-   포함한 높이라, 그랬야 썸네일이 주소창 뒤로 이어져 보인다(의도된 모양).
-   한때 100dvh로 줄였다가 콘텐츠가 주소창 앞에서 끊기며 흰 여백이 생겼다(2026-08-24).
-   툴바에 가리면 안 되는 건 탭바뿐이라, 그건 GlassTabBar에서 position: fixed로 푸다. */
+/* iOS 사파리 하단 주소창 뒤까지 화면을 채우기 위해 높이를 100vh로 덮는다.
+
+   아이폰 실측값(2026-08-24, /vp.html):
+     documentElement.clientHeight 714 — Expo가 깔아둔 height:100%가 이 값을 따른다
+     100dvh 714 / 100vh 754      — 차이 40px가 주소창 영역
+   즉 100%는 주소창을 '미포함'한 높이다. 그래서 썸네일이 주소창 앞에서 끊기고
+   마지막에 흰 여백이 생겼다. 100vh가 주소창까지 포함한 큰 쪽이라 이걸 쓴다.
+   (한때 100dvh로 덮어봤는데 같은 714라 증상이 그대로였다.)
+
+   데스크톱은 100vh == 100%라 변화가 없다.
+   가려지면 안 되는 건 탭바뿐이고, 그건 GlassTabBar의 position: fixed가 맡는다. */
+html, body, #root { height: 100vh; }
 `;
 
 const GUARD_JS = `
