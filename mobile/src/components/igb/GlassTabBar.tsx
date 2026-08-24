@@ -128,11 +128,14 @@ const styles = StyleSheet.create({
     }),
     alignItems: 'center',
   },
-  /** 웹에서 탭바를 앱 폭(_layout.appFrame maxWidth 480)에 맞춘다. 좌우 여백은 s6로 동일. */
+  /**
+   * 웹에서 탭바를 앱 폭(_layout.appFrame maxWidth 480)에 맞춘다. 좌우 여백은 s6로 동일.
+   * 폭만 제한하고 padding은 건드리지 않는다 — pill의 padding: s1을 덮어버리면
+   * 탭이 알약 가장자에 붙고 선택 배경도 끝까지 늘어난다(2026-08-25 실수).
+   */
   webFrame: {
     width: '100%',
     maxWidth: 480 - spacing.s6 * 2,
-    paddingHorizontal: 0,
   },
   pill: {
     flexDirection: 'row',
