@@ -14,6 +14,7 @@ import { itemKey, usePrices } from '../store/prices';
 import { useRecentSearches } from '../store/recentSearches';
 import { colors, palette, radius, spacing, type } from '../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../og';
+import { scrollBottomInset } from '../theme/bottomInset';
 
 // 클릭 데이터가 적을 때 채울 큐레이션 인기 품목 (이름 부분일치)
 const POPULAR_NAMES = ['삼겹살', '계란', '사과', '바나나', '양파', '대파', '배추', '상추', '우유', '감자', '딸기', '오이'];
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
     gap: spacing.s1,
   },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: spacing.s4, paddingBottom: 140 },
+  content: { padding: spacing.s4, paddingBottom: scrollBottomInset },
   count: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, marginBottom: spacing.s2 } as const,
   divider: { height: 1, backgroundColor: colors.borderDefault },
 
