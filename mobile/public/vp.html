@@ -68,7 +68,7 @@
           ['100dvh 실측', Math.round(dvh)],
           ['#root 최종 높이', px(root, 'height')],
           ['dvh 지원', CSS.supports('height', '100dvh') ? '예' : '아니오'],
-          ['문서 스크롤량(0이어야 정상)', Math.round(document.documentElement.scrollHeight - document.documentElement.clientHeight)],
+          ['실제 밀림(0이어야 정상)', (() => { const b = window.scrollY; window.scrollTo(0, 999); const m = window.scrollY; window.scrollTo(0, b); return Math.round(m); })()],
           ['safe-area-inset-bottom', getComputedStyle(document.documentElement).getPropertyValue('--sab') || '(아래 참고)'],
         ];
         document.getElementById('t').innerHTML = rows
@@ -80,7 +80,13 @@
         const visible = vv ? vv.height : window.innerHeight;
         // 문서 스크롤이 0이어야 한다 — 루트가 보이는 영역보다 크면 페이지가 밀려
         // 헤더가 상태바 밑으로 들어가고, 정작 넘친 부분은 주소창이 덮어 볼 수도 없다.
-        const docScroll = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        // 높이 차이만 보면 안 된다 — overflow:hidden이면 차이가 있어도 실제로는 안 밀린다.
+        // 진짜로 밀어보고 얼마나 움직이는지 잰다.
+        const before = window.scrollY;
+        window.scrollTo(0, 999);
+        const moved = window.scrollY;
+        window.scrollTo(0, before);
+        const docScroll = moved;
         const over = Math.round(rootH - visible);
         if (over > 2 && docScroll <= 1) {
           v.className = 'verdict ok';
