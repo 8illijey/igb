@@ -1,21 +1,20 @@
-import { Platform } from 'react-native';
+import { spacing } from './tokens';
 
 /**
- * 스크롤 목록 하단 여백 — 끝까지 내렸을 때 마지막 줄이 탭바·브라우저 UI에 안 걸리게.
+ * 스크롤 목록 하단 여백 — 끝까지 내렸을 때 마지막 줄이 탭바에 가리지 않게.
  *
- * 웹에서 루트 높이를 100vh로 두는데(주소창 뒤까지 콘텐츠가 이어지도록),
- * iOS 사파리에선 100vh가 '보이는 높이'보다 크다. 그 차이만큼 여백을 더 줘야
- * 마지막 줄이 주소창 뒤로 숨지 않는다.
+ * 탭바는 화면 위에 떠 있어(position: fixed/absolute) 스크롤 영역을 밀어내지 않는다.
+ * 그래서 목록 스스로 탭바가 먹는 만큼 아래를 비워둬야 마지막 줄까지 보인다.
  *
- * `100vh - 100dvh`가 곧 브라우저 UI가 먹은 높이다.
- *   · 데스크톱·안드로이드 크롬(툴바 숨김 상태)  → 0
- *   · 아이폰 사파리(주소창 표시)                → 40 안팎 (2026-08-24 실측)
- * 고정값으로 넉넉히 주면 데스크톱에 빈 공간이 남으므로 계산식으로 둔다.
+ * 매직넘버(140)를 쓰지 않고 탭바 실측 구성에서 계산한다 — 탭바 높이가 바뀌면
+ * 여기도 같이 따라온다.
+ *   아이콘+라벨 62 + 바닥 띄움 12 = 74가 탭바가 차지하는 높이(2026-08-24 실측)
+ *   + s6(24)는 마지막 줄이 탭바에 딱 붙어 보이지 않게 하는 숨 쉴 틈
  *
- * 140 = 탭바(56) + 아래 여백(12) + 여유. 네이티브는 브라우저 UI가 없어 그대로 쓴다.
+ * 브라우저 하단 주소창은 여기서 더할 필요가 없다 — 루트 높이가 100%(=주소창을
+ * 뺀 보이는 높이)라 스크롤 영역 자체가 이미 주소창 위에서 끝난다.
  */
-const BASE = 140;
+const TABBAR_HEIGHT = 62; // GlassTabBar pill: 아이콘 24 + 라벨 + 상하 padding
+const TABBAR_BOTTOM = spacing.s3; // GlassTabBar wrap의 bottom
 
-export const scrollBottomInset = (Platform.OS === 'web'
-  ? `calc(${BASE}px + (100vh - 100dvh))`
-  : BASE) as unknown as number;
+export const scrollBottomInset = TABBAR_HEIGHT + TABBAR_BOTTOM + spacing.s6;

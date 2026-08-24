@@ -62,18 +62,18 @@ html, body { overflow-x: hidden; }
    RN Web이 word-break를 따로 지정하지 않아 여기서 한 번에 건다. 끊을 데가 없는 긴 문자열은
    RN Web이 이미 넣어둔 overflow-wrap: break-word가 처리한다. */
 #root, #root * { word-break: keep-all; }
-/* iOS 사파리 하단 주소창 뒤까지 화면을 채우기 위해 높이를 100vh로 덮는다.
+/* 높이는 Expo가 깔아둔 100%를 그대로 둔다.
 
-   아이폰 실측값(2026-08-24, /vp.html):
-     documentElement.clientHeight 714 — Expo가 깔아둔 height:100%가 이 값을 따른다
-     100dvh 714 / 100vh 754      — 차이 40px가 주소창 영역
-   즉 100%는 주소창을 '미포함'한 높이다. 그래서 썸네일이 주소창 앞에서 끊기고
-   마지막에 흰 여백이 생겼다. 100vh가 주소창까지 포함한 큰 쪽이라 이걸 쓴다.
-   (한때 100dvh로 덮어봤는데 같은 714라 증상이 그대로였다.)
+   아이폰 실측(2026-08-24, /vp.html): clientHeight 714 = 100dvh, 100vh는 754.
+   차이 40px가 주소창 영역이다.
 
-   데스크톱은 100vh == 100%라 변화가 없다.
-   가려지면 안 되는 건 탭바뿐이고, 그건 GlassTabBar의 position: fixed가 맡는다. */
-html, body, #root { height: 100vh; }
+   한때 100vh로 덮어 그 40px까지 채워봤는데 실패했다 — 문서가 뷰포트보다 40px
+   커져 페이지 전체가 스크롤되고(헤더가 상태바 밑으로 들어간다), 정작 그 40px는
+   주소창이 덮고 있어 끝까지 내려도 볼 수 없다. 이득 없이 스크롤만 생긴다.
+
+   100%(=714)가 곰 보이는 영역과 같아서 문서 스크롤이 안 생기고,
+   콘텐츠가 주소창 바로 위까지 차서 빈 여백도 없다.
+   탭바가 주소창에 안 가리는 건 GlassTabBar의 position: fixed가 맡는다. */
 `;
 
 const GUARD_JS = `
