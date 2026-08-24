@@ -73,6 +73,9 @@ const today = new Date().toISOString().slice(0, 10);
 const urls = [
   { loc: `${SITE}/`, pri: '1.0', freq: 'daily' },
   { loc: `${SITE}/recipes`, pri: '0.6', freq: 'weekly' },
+  // 방문 통계를 수집하므로 방침 페이지가 검색으로도 닿아야 한다.
+  // 내용이 거의 안 바뀌니 빈도는 yearly, 우선순위는 낮게.
+  { loc: `${SITE}/privacy`, pri: '0.2', freq: 'yearly' },
   ...rows.map((r) => ({ loc: `${SITE}/item/${r.key}`, pri: '0.8', freq: 'daily' })),
 ];
 writeFileSync(

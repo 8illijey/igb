@@ -25,6 +25,7 @@ import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
 import { colors, font, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../../og';
+import { PrivacyLink } from '../../components/igb/PrivacyLink';
 
 const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
 
@@ -289,6 +290,7 @@ export default function HomeScreen() {
             <Text style={styles.source}>
               자료 출처 · KAMIS (한국농수산식품유통공사){'\n'}매일 오후 4시 갱신
             </Text>
+            <PrivacyLink />
           </>
         )}
         </View>
