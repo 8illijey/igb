@@ -6,11 +6,8 @@
     <meta name="robots" content="noindex" />
     <title>뷰포트 진단</title>
     <style>
-      /* 앱과 같은 조건을 만든다 — Expo가 깔아두는 규칙 + 우리가 덮은 dvh */
+      /* 앱과 같은 조건 — 높이는 100%(툴바 뒤까지 포함), 탭바만 fixed */
       #root, body, html { height: 100%; }
-      @supports (height: 100dvh) {
-        html, body, #root { height: 100dvh; }
-      }
       body { margin: 0; font: 15px/1.5 -apple-system, system-ui, sans-serif; }
       #root { display: flex; flex-direction: column; position: relative; background: #f6f8fa; }
       h1 { font-size: 17px; margin: 12px 16px 4px; }
@@ -21,9 +18,14 @@
       .verdict { margin: 12px 16px; padding: 10px 12px; border-radius: 10px; font-weight: 700; }
       .ok { background: #dff6de; color: #007a17; }
       .bad { background: #ffe7d9; color: #b83d00; }
-      /* 앱 탭바와 같은 방식으로 배치 — 이게 툴바에 가리는지 보는 게 핵심 */
+      /* 페이지가 주소창 뒤까지 차는지 눈으로 보기 위한 줄무늬 */
+      .filler {
+        flex: 1; margin-top: 8px; padding: 8px 16px; color: #4b5765; font-size: 13px;
+        background: repeating-linear-gradient(45deg, #cfe3ff 0 14px, #eaf3ff 14px 28px);
+      }
+      /* 앱 탭바와 같은 방식(fixed) — 이게 툴바 위에 앉는지 보는 게 핵심 */
       .tabbar {
-        position: absolute; left: 24px; right: 24px; bottom: 12px; height: 56px;
+        position: fixed; left: 24px; right: 24px; bottom: 12px; height: 56px;
         background: #141f2c; color: #fff; border-radius: 28px;
         display: flex; align-items: center; justify-content: center; font-weight: 700;
       }
@@ -34,7 +36,8 @@
       <h1>뷰포트 진단</h1>
       <table id="t"></table>
       <div id="v" class="verdict"></div>
-      <div class="tabbar">이 막대가 온전히 보이나요?</div>
+      <div class="filler">아래 색츠이 주소창 뒤로 이어져야 정상 ↓</div>
+      <div class="tabbar">이 막대가 주소창 위에 온전히 보이면 OK</div>
     </div>
     <script>
       function px(el, prop) {

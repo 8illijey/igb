@@ -62,17 +62,10 @@ html, body { overflow-x: hidden; }
    RN Web이 word-break를 따로 지정하지 않아 여기서 한 번에 건다. 끊을 데가 없는 긴 문자열은
    RN Web이 이미 넣어둔 overflow-wrap: break-word가 처리한다. */
 #root, #root * { word-break: keep-all; }
-/* iOS 사파리 하단 툴바 대응.
-   Expo가 깔아둔 '#root, body, html { height: 100% }'는 iOS에서 툴바까지 포함한
-   레이아웃 뷰포트 높이로 잡힌다. 그 바닥에 붙인 탭바가 툴바 뒤로 들어간다.
-   dvh는 브라우저 UI를 제외한 '지금 보이는' 높이라 탭바가 항상 툴바 위에 앉는다.
-   env(safe-area-inset-bottom)으로는 못 고친다 — 툴바가 떠 있어도 0이다.
-   window.innerHeight로 재는 방법도 안 된다 — iOS는 innerHeight가 이미 보이는 높이라
-   visualViewport와의 차가 항상 0이다(2026-08-24 실측해서 확인).
-   지원 안 하는 브라우저는 앞의 100% 규칙을 그대로 쓴다. */
-@supports (height: 100dvh) {
-  html, body, #root { height: 100dvh; }
-}
+/* 높이는 Expo가 깔아둔 100%를 그대로 둔다 — iOS에서 이 값은 사파리 툴바 뒤까지
+   포함한 높이라, 그랬야 썸네일이 주소창 뒤로 이어져 보인다(의도된 모양).
+   한때 100dvh로 줄였다가 콘텐츠가 주소창 앞에서 끊기며 흰 여백이 생겼다(2026-08-24).
+   툴바에 가리면 안 되는 건 탭바뿐이라, 그건 GlassTabBar에서 position: fixed로 푸다. */
 `;
 
 const GUARD_JS = `

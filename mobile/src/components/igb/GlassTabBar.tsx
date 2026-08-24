@@ -111,7 +111,10 @@ function TabButton({
 
 const styles = StyleSheet.create({
   wrap: {
-    position: 'absolute',
+    // 웹은 fixed — iOS 사파리는 fixed 요소를 '보이는 영역' 기준으로 놓아 하단 툴바 위에 앉는다.
+    // absolute면 로오는 높이(=툴바 뒤까지 포함) 바닥에 붙어 툴바에 가렸다.
+    // 페이지 자체는 그대로 전체 높이를 써서 썸네일은 주소창 뒤로 이어져 보인다.
+    position: (Platform.OS === 'web' ? 'fixed' : 'absolute') as 'absolute',
     left: spacing.s6,
     right: spacing.s6,
     alignItems: 'center',
