@@ -113,29 +113,30 @@ function TabButton({
   );
 }
 
+// Figma 'Tab Bar - iPhone'(853-4167): 프레임 375, 알약 302 → 좌우 여백 36.5.
+// s6(24)를 쓰면 375 기준 알약이 327이 돼 시안보다 넣다(2026-08-25 지적).
+const FIGMA_FRAME = 375;
+const FIGMA_PILL = 302;
+const TABBAR_SIDE = (FIGMA_FRAME - FIGMA_PILL) / 2; // 36.5
+const APP_FRAME_MAX = 480; // _layout.appFrame의 web maxWidth
+
 const styles = StyleSheet.create({
   wrap: {
     // 웹은 fixed — iOS 사파리는 fixed 요소를 '보이는 영역' 기준으로 놓아
     // 하단 주소창 위에 앉힌다. absolute로 두면 주소창에 걸려 잘렸다(2026-08-24 제보).
     //
-    // 단, fixed는 기준이 앱 컨테이너가 아니라 브라우저 창이다. left/right를 그대로
-    // 두면 넓은 화면에서 탭바만 창 폭 전체로 늘어난다(2026-08-25 제보).
-    // 좌우를 풀고 가운데 정렬한 뒤 _layout의 appFrame과 같은 폭으로 묶는다.
+    // 단, fixed는 기준이 앱 컨테이너가 아니라 브라우저 창이다. 그래서 좌우를 풀어
+    // 가운데 정렬하고, 여백은 padding으로 준다 — 좋은 화면에서도 여백이 유지된다.
     position: (Platform.OS === 'web' ? 'fixed' : 'absolute') as 'absolute',
-    ...Platform.select({
-      web: { left: 0, right: 0 },
-      default: { left: spacing.s6, right: spacing.s6 },
-    }),
+    left: 0,
+    right: 0,
+    paddingHorizontal: TABBAR_SIDE,
     alignItems: 'center',
   },
-  /**
-   * 웹에서 탭바를 앱 폭(_layout.appFrame maxWidth 480)에 맞춘다. 좌우 여백은 s6로 동일.
-   * 폭만 제한하고 padding은 건드리지 않는다 — pill의 padding: s1을 덮어버리면
-   * 탭이 알약 가장자에 붙고 선택 배경도 끝까지 늘어난다(2026-08-25 실수).
-   */
+  /** 웹에선 앱 폭(_layout.appFrame maxWidth 480)을 넘지 않게 묶는다. */
   webFrame: {
     width: '100%',
-    maxWidth: 480 - spacing.s6 * 2,
+    maxWidth: APP_FRAME_MAX - TABBAR_SIDE * 2,
   },
   pill: {
     flexDirection: 'row',
