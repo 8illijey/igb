@@ -20,7 +20,8 @@ import {
   SeriesPoint,
   won,
 } from '../../api/kamis';
-import { coupangProducts, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
+import { coupangProducts, CoupangProduct, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
+import { track } from '../../analytics';
 import Head from 'expo-router/head';
 import { SEO_BUILD_DAY, SEO_BY_KEY, SEO_ITEMS, type SeoItem } from '../../seo.gen';
 import { usePrecomputedSeries } from '../../api/series';
@@ -648,7 +649,7 @@ export default function ItemDetailScreen() {
               <Sparkline series={eco.series} baseline={ecoBaseline?.avg ?? null} level={ecoLevel} />
             </View>
             <BuySection markets={eco.markets} reference={eco.latest} />
-            <ShopSection itemCode={itemKey(item)} market="eco" />
+            <ShopSection itemCode={itemKey(item)} itemName={item.itemName} market="eco" />
             <Text style={styles.source}>
               자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}
               {'\n'}유기농·무농약은 주 1회 화요일에 업데이트
@@ -693,7 +694,7 @@ export default function ItemDetailScreen() {
             {/* 도매 탭엔 쿠팡 섹션을 붙이지 않는다 — 도매가는 가락시장 경락가(유통 마진 이전)라
                 소매가인 쿠팡 상품과 비교 축이 다르고, 조사 단위(10kg·1상자)도 상품 규격과 대응이 안 된다.
                 "도매가로 살 수 있다"는 오해를 만드느니 안 보여주는 게 정직하다. */}
-            {market !== 'wholesale' && <ShopSection itemCode={itemKey(item)} />}
+            {market !== 'wholesale' && <ShopSection itemCode={itemKey(item)} itemName={item.itemName} />}
 
             <Text style={styles.source}>자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}</Text>
           </View>
@@ -988,13 +989,84 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
  * "지금 온라인에서 사기" — 제휴 아웃링크. 가격 숫자는 표시하지 않는다(실시간 조회 불가 → 오정보 방지).
  * 제휴 설정이 안 된 몰 행은 숨김 — 네이버(무수익 검색 링크)는 항상 있어 섹션이 비지 않는다.
  */
+/** GA4 이커머스 items[] 한 칸. 표시용이 아니라 계측 전용이다. */
+function gaItem(p: CoupangProduct, idx: number, itemCode: string, itemName: string, market: 'retail' | 'eco') {
+  return {
+    // vendorItemId는 상품 단위로 영구적이라(딥링크 재사용 키와 동일) 날마다 값이 안 흔들린다.
+    // 없으면 productId, 그것도 없으면 상품명 — 최소한 집계는 되게.
+    item_id: String(p.vendorItemId ?? p.productId ?? p.name),
+    item_name: p.name,
+    // 품목명을 카테고리로 넣으면 '배추 상품들'처럼 품목 단위로 묶어 볼 수 있다.
+    item_category: itemName,
+    // 품종까지 구분되는 라우트 키('211-02'). 같은 품목의 다른 품종을 갈라 보려고 넣는다.
+    item_category2: itemCode,
+    // 일반/유기농 탭 구분 — 유기농은 단가가 배 이상이라 섞으면 평균이 왜곡된다.
+    item_category3: market,
+    index: idx + 1,
+    price: p.price,
+    quantity: 1,
+  };
+}
+
+const LIST_ID = 'coupang_detail';
+const LIST_NAME = '지금 쿠팡에서 사기';
+
 /** 지금 쿠팡에서 사기 — 상품 카드 리스트(이미지·상품명·로켓 배지·가격). Figma 933:2564 1:1. */
-function ShopSection({ itemCode, market = 'retail' }: { itemCode: string; market?: 'retail' | 'eco' }) {
+function ShopSection({
+  itemCode,
+  itemName,
+  market = 'retail',
+}: {
+  itemCode: string;
+  itemName: string;
+  market?: 'retail' | 'eco';
+}) {
   const products = coupangProducts(itemCode, market);
+
+  // ── 노출 계측 ────────────────────────────────────────────────────────────
+  // 이 섹션은 상세 페이지 맨 아래(뷰포트 900 기준 y≈958)라 첫 화면 밖이다. 그래서
+  // 클릭 수만 보면 "안 보여서 안 눌렀다"와 "보고도 안 눌렀다"가 구분이 안 된다.
+  // 둘은 처방이 정반대다 — 전자는 섹션을 올려야 하고, 후자는 문구·가격 근거를 고쳐야 한다.
+  // 그래서 절반 이상 보인 순간 view_item_list를 한 번만 쏜다. 클릭÷노출이 진짜 CTR.
+  //
+  // 웹 전용: IntersectionObserver는 네이티브에 없다. RN Web은 View의 ref로 실제 DOM
+  // 노드를 넘겨주므로 그대로 observe할 수 있다.
+  const sectionRef = useRef<View | null>(null);
+  const impressionSent = useRef(false);
+
+  // 라우트가 바뀌면(다른 품목으로 이동) 다시 한 번 셀 수 있게 초기화한다.
+  useEffect(() => {
+    impressionSent.current = false;
+  }, [itemCode, market]);
+
+  useEffect(() => {
+    if (products.length === 0) return;
+    const node = sectionRef.current as unknown as Element | null;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting || impressionSent.current) continue;
+          impressionSent.current = true;
+          track('view_item_list', {
+            item_list_id: LIST_ID,
+            item_list_name: LIST_NAME,
+            currency: 'KRW',
+            items: products.map((p, i) => gaItem(p, i, itemCode, itemName, market)),
+          });
+          io.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [itemCode, itemName, market, products]);
+
   if (products.length === 0) return null;
   return (
-    <View style={styles.buySection}>
-      <Text style={styles.sectionTitle}>지금 쿠팡에서 사기</Text>
+    <View style={styles.buySection} ref={sectionRef}>
+      <Text style={styles.sectionTitle}>{LIST_NAME}</Text>
       <View style={styles.coupangCard}>
         {products.map((p, idx) => (
           <View key={idx}>
@@ -1002,7 +1074,17 @@ function ShopSection({ itemCode, market = 'retail' }: { itemCode: string; market
             <Pressable
               style={styles.coupangRow}
               onPress={() => {
+                // 기존 워커 집계는 그대로 둔다 — GA가 광고 차단기에 막혀도 남는 백업이다.
                 trackShoppingClick('coupang', itemCode);
+                // GA4 추천 이벤트. 커스텀 이름을 쓰면 상품명·품목이 '맞춤 측정기준'을
+                // 등록해야만 보고서에 뜨는데, select_item은 items[]가 기본 측정기준이라
+                // GA 관리화면에서 아무것도 안 해도 상품별로 쪼개 볼 수 있다.
+                track('select_item', {
+                  item_list_id: LIST_ID,
+                  item_list_name: LIST_NAME,
+                  currency: 'KRW',
+                  items: [gaItem(p, idx, itemCode, itemName, market)],
+                });
                 Linking.openURL(p.url);
               }}
             >
