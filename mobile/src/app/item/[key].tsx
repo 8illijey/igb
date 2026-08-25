@@ -52,8 +52,20 @@ const SKEL_BAR_H = [20, 28, 36, 24, 18, 40, 30, 44, 38, 26, 22, 16]; // 작년 �
 
 // 영구 캐시 — 같은 날이면 새로고침해도 즉시(메모리 + AsyncStorage). 시계열·판매처 등 일 단위 데이터 공용.
 const dataMem = new Map<string, unknown>();
+/**
+ * 캐시 유효 구간 도장. 달력 날짜가 아니라 'KAMIS 발표 회차'를 기준으로 한다.
+ *
+ * 예전엔 new Date().toISOString()의 날짜를 썬는데 두 가지가 틀렸다(2026-08-25 제보).
+ *  1) UTC 기준이라 한국 시간과 하루가 어긋난다. 오전 9시 이전엔 UTC로는 어제라
+ *     전날 캐시가 그대로 살아있었다.
+ *  2) 더 큰 문제 — KAMIS는 매일 오후 4시에 갱신되는데 캐시는 자정까지 유효했다.
+ *     4시 전에 들어온 사람은 갱신 전 값을 받아 그날 내내 옆날 시세를 보게 된다.
+ * 그래서 한국 시각 기준 날짜 + 16시 전/후를 같이 넣는다.
+ */
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const day = kst.toISOString().slice(0, 10);
+  return `${day}${kst.getUTCHours() >= 16 ? 'b' : 'a'}`;
 }
 // 표시 중인 차트의 실제 최근 조사일(YYYY-MM-DD). 푸터 '기준일'은 오늘이 아니라 이 값이어야 한다
 // — KAMIS는 매일 오후 4시 갱신·주말 미조사·미러 1~2일 지연이라 오늘과 조사일이 다르다(2026-08-13).

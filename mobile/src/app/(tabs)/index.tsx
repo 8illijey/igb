@@ -74,8 +74,15 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
   const c = signal[level];
   const shownPrice = useCountUp(item.today, animatePrice);
   const pct = Math.abs(item.vsNormalPct ?? 0);
+  // 숫자와 판정어 사이는 줄바꿈 안 되는 공백(NBSP).
+  // 일반 공백이면 '40% / 싸요'처럼 떨어진다 — word-break: keep-all은 단어 안만 묶고
+  // 어절 사이는 그대로 끊기 때문이다(2026-08-25 제보).
   const verdictTail =
-    level === 'cheap' ? `${pct}% 싸요` : level === 'expensive' ? `${pct}% 비싸요` : '평소 가격이에요';
+    level === 'cheap'
+      ? `${pct}%\u00A0싸요`
+      : level === 'expensive'
+        ? `${pct}%\u00A0비싸요`
+        : '평소\u00A0가격이에요';
   // 규격 캡션 — kindName에서 품목명 접두어 제거(토마토(1kg)→1kg). 품종명(다다기계통(10개))은 유지.
   let spec = item.kindName.replace(item.itemName, '').trim();
   if (spec.startsWith('(') && spec.endsWith(')')) spec = spec.slice(1, -1);

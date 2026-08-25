@@ -130,7 +130,7 @@ export default function RecipesScreen() {
               <Text style={styles.caption}>
                 {r.matched.length > 0
                   ? r.cheapCount > 0
-                    ? `재료 ${r.matched.length}개 중 ${r.cheapCount}개가 이맘때 평균보다 싸요`
+                    ? `재료 ${r.matched.length}개 중 ${r.cheapCount}개가 이맘때 평균보다\u00A0싸요`
                     : '지금 담으면 무난한 가격이에요'
                   : '재료 시세를 불러오는 중이에요'}
               </Text>
