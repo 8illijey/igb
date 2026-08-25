@@ -153,13 +153,27 @@ async function fetchAll() {
     return res.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
   };
   // ① 대표 선정용 — 오늘(없으면 최근 영업일) 목록 (현재 가격·신호 필요)
+  // 어느 날짜를 실제로 썼는지 priceDate로 들고 나간다. 이걸 그대로 payload.date에
+  // 쓴다 — 예전엔 date에 무조건 new Date()를 박아서, KAMIS 갱신 전에 돌면
+  // "오늘 날짜 + 어제 가격"이 조용히 나가고 잡을 방법이 없었다(2026-08-25 수정).
   const withToday = (arr) => arr.filter((i) => i.today != null).length;
-  let today = await load(fmtDate(new Date()));
+  let priceDate = fmtDate(new Date());
+  let today = await load(priceDate);
   for (let back = 1; back <= 7 && withToday(today) < 30; back++) {
     const d = new Date();
     d.setDate(d.getDate() - back);
-    const next = await load(fmtDate(d));
-    if (withToday(next) > withToday(today)) today = next;
+    const candidate = fmtDate(d);
+    const next = await load(candidate);
+    if (withToday(next) > withToday(today)) {
+      today = next;
+      priceDate = candidate;
+    }
+  }
+  if (priceDate !== fmtDate(new Date())) {
+    console.warn(
+      `오늘(${fmtDate(new Date())}) 시세가 아직 없어 ${priceDate} 기준으로 빌드한다. ` +
+        `verdicts.json의 date도 ${priceDate}로 기록된다.`,
+    );
   }
   // ② 품종 발굴용 — 1년에 걸쳐 4계절 표본 목록을 합쳐, 비철 품종(가을·월동배추 등)까지 포함
   const kindMap = new Map(); // itemCode → Map<kindCode,row>
@@ -190,7 +204,7 @@ async function fetchAll() {
   // 품종을 접지 않고 모두 계산한다. 앱이 품종을 각각 독립 항목으로 보여주게 바뀌었으므로
   // (kamis.ts 참조) 여기서 대표 하나만 만들면 나머지 품종 상세는 사전계산이 없어
   // 365일 라이브 호출(≈27s)로 떨어진다.
-  return { reps: unique, kindsByItem };
+  return { reps: unique, kindsByItem, priceDate };
 }
 
 // ---- 365일 시계열 → 월별 데이터 포인트 (앱 fetchSeries와 동일 rank 후보·파싱) ----
@@ -261,7 +275,7 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
 (async () => {
   // 프록시 모드는 워커가 키를 주입하므로 로컬 키 불필요.
   if (!process.env.KAMIS_PROXY && (!KEY || !ID)) throw new Error('KAMIS 키 없음 (.env EXPO_PUBLIC_KAMIS_KEY / _ID)');
-  const { reps, kindsByItem } = await fetchAll();
+  const { reps, kindsByItem, priceDate } = await fetchAll();
   console.log(`대표 품목 ${reps.length}개 — 연간 흐름·최근 1년 평균 계산 중...`);
 
   // ── 탭 표시 여부 ──
@@ -510,10 +524,21 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
   } catch {
     // 직전 파일 없음(첫 실행) — 보전 생략
   }
-  const payload = { generatedAt: new Date().toISOString(), date: fmtDate(new Date()), items: out };
+  // date는 "빌드한 날"이 아니라 "이 가격이 언제 것인가"다. 소비측(앱·소셜 보고)이
+  // 날짜를 그대로 표기하므로 실제 사용한 regday와 반드시 일치해야 한다.
+  const payload = { generatedAt: new Date().toISOString(), date: priceDate, items: out };
   const dir = new URL('../public/', import.meta.url);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir.pathname, 'verdicts.json'), JSON.stringify(payload));
+  // series.json과 같은 이유로 빈 결과로 덮어쓰지 않는다. KAMIS가 통째로 안 되는 날
+  // 빈 verdicts.json을 커밋하면 사이트 전체가 죽는다(앱이 런타임으로 이 파일을 읽는다).
+  // 직전 파일을 유지하면 하루 묵은 시세를 보여주지만, 그때 date가 어제로 남아
+  // 소비측이 "오늘 갱신 안 됨"을 스스로 판단할 수 있다(2026-08-25 추가).
+  if (Object.keys(out).length) {
+    fs.writeFileSync(path.join(dir.pathname, 'verdicts.json'), JSON.stringify(payload));
+  } else {
+    console.error('판정 0건 — verdicts.json 유지(덮어쓰지 않음). KAMIS 응답을 확인할 것.');
+    process.exitCode = 1;
+  }
   // 시계열은 별도 파일 — verdicts.json은 워커가 매 응답마다 읽으므로 가벼야 한다.
   // 빈 결과로 직전 파일을 덮어쓰지 않는다(KAMIS 장애 때 차트가 통째로 비는 사고 방지).
   const seriesPath = path.join(dir.pathname, 'series.json');
