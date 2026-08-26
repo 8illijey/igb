@@ -2,14 +2,26 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PriceItem, won } from '../../api/kamis';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { FavoriteHeart } from '../../components/igb/FavoriteHeart';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SignalChip } from '../../components/igb/SignalChip';
-import { Ingredient, findItem, findRecipeBySlug, getViewedRecipe, recipeHero, recipeImage, recipeSlug, recipeStep, useRecipes } from '../../recipes';
+import {
+  Ingredient,
+  Recipe,
+  fetchRecipeByTitle,
+  findItem,
+  findRecipeBySlug,
+  getViewedRecipe,
+  recipeHero,
+  recipeImage,
+  recipeSlug,
+  recipeStep,
+  useRecipes,
+} from '../../recipes';
 import { SEO_RECIPES } from '../../seo.gen';
 import { portionPrice } from '../../portion';
 import { useFavorites } from '../../store/favorites';
@@ -38,7 +50,7 @@ export default function RecipeDetailScreen() {
   // 주소는 제목 슬러그가 기본이고, 예전 순번 주소(/recipe/0)도 계속 받는다 —
   // 이미 나간 링크와 앱 내 이동이 깨지지 않게.
   const isIndex = /^\d+$/.test(String(id ?? ''));
-  const recipe = isIndex
+  const listed = isIndex
     ? (getViewedRecipe(Number(id)) ?? fallback[Number(id)])
     : findRecipeBySlug(fallback, String(id ?? ''));
   // 빌드 시점 목록의 제목 — 정적 HTML(SSG)에는 워커 응답이 없어 recipe가 비는데,
@@ -47,6 +59,19 @@ export default function RecipeDetailScreen() {
     const s = decodeURIComponent(String(id ?? ''));
     return SEO_RECIPES.find((r) => r.slug === s)?.title ?? null;
   }, [id]);
+  // 목록에 없으면 제목으로 식약처 DB를 다시 조회한다.
+  // 목록은 매주 월요일 '이번 주 싼 재료' 기준으로 다시 뽑혀서, 재료가 비싸지면
+  // 그 레시피가 빠진다. 검색으로 들어온 사람이 빈 페이지를 보지 않게 한다(2026-08-26).
+  const [remote, setRemote] = useState<Recipe | null>(null);
+  useEffect(() => {
+    if (listed || !seoTitle) return;
+    let alive = true;
+    fetchRecipeByTitle(seoTitle).then((r) => alive && setRemote(r));
+    return () => {
+      alive = false;
+    };
+  }, [listed, seoTitle]);
+  const recipe = listed ?? remote ?? undefined;
   const pageTitle = recipe?.title ?? seoTitle;
   const { isFavorite, toggle } = useFavorites();
   // 제목 키 — 인덱스 키는 목록(주간 로테이션·검색)이 바뀌면 다른 레시피를 가리킨다.
