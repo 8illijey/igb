@@ -54,19 +54,20 @@ const SKEL_BAR_H = [20, 28, 36, 24, 18, 40, 30, 44, 38, 26, 22, 16]; // 작년 �
 // 영구 캐시 — 같은 날이면 새로고침해도 즉시(메모리 + AsyncStorage). 시계열·판매처 등 일 단위 데이터 공용.
 const dataMem = new Map<string, unknown>();
 /**
- * 캐시 유효 구간 도장. 달력 날짜가 아니라 'KAMIS 발표 회차'를 기준으로 한다.
+ * 캐시 유효 구간 도장 — 시계가 아니라 **자료 자체의 조사일**을 쓴다.
  *
- * 예전엔 new Date().toISOString()의 날짜를 썬는데 두 가지가 틀렸다(2026-08-25 제보).
- *  1) UTC 기준이라 한국 시간과 하루가 어긋난다. 오전 9시 이전엔 UTC로는 어제라
- *     전날 캐시가 그대로 살아있었다.
- *  2) 더 큰 문제 — KAMIS는 매일 오후 4시에 갱신되는데 캐시는 자정까지 유효했다.
- *     4시 전에 들어온 사람은 갱신 전 값을 받아 그날 내내 옆날 시세를 보게 된다.
- * 그래서 한국 시각 기준 날짜 + 16시 전/후를 같이 넣는다.
+ * 시각 기준으로 두 번 틀렸다.
+ *  1) new Date().toISOString()의 날짜: UTC라 한국 시간과 하루가 어긋났다.
+ *     오전 9시 이전엔 UTC로 어제라 전날 캐시가 살아남았다(2026-08-25).
+ *  2) 'KST 날짜 + 16시 전/후': KAMIS 갱신 시각(16시)에 맞췄는데, 화면 데이터를 만드는
+ *     CI는 실제로 17:00~17:15에 끝난다. 16:30에 온 사람이 갱신 전 값을 캐시하고
+ *     자정까지 붙들었다 — 같은 버그가 시간대만 옮겨졌다(2026-08-26).
+ *
+ * 조사일을 도장으로 쓰면 CI가 언제 끝나든, KAMIS가 몇 시에 올리든 정확하다.
+ * 새 자료가 오면 도장이 바뀌어 캐시가 자연히 갈린다.
  */
-function todayStr() {
-  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const day = kst.toISOString().slice(0, 10);
-  return `${day}${kst.getUTCHours() >= 16 ? 'b' : 'a'}`;
+function stampOf(surveyDate: string | null | undefined) {
+  return surveyDate || 'unknown';
 }
 // 표시 중인 차트의 실제 최근 조사일(YYYY-MM-DD). 푸터 '기준일'은 오늘이 아니라 이 값이어야 한다
 // — KAMIS는 매일 오후 4시 갱신·주말 미조사·미러 1~2일 지연이라 오늘과 조사일이 다르다(2026-08-13).
@@ -77,13 +78,13 @@ function latestSurveyDate(s: SeriesPoint[] | null | undefined): string | null {
   if (!mm || !dd) return null;
   return `${last.year ?? new Date().getFullYear()}-${mm}-${dd}`;
 }
-async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+async function cached<T>(key: string, stamp: string, fetcher: () => Promise<T>): Promise<T> {
   if (dataMem.has(key)) return dataMem.get(key) as T;
   try {
     const raw = await AsyncStorage.getItem('igb.cache.' + key);
     if (raw) {
       const o = JSON.parse(raw);
-      if (o && o.d === todayStr() && o.s !== undefined) {
+      if (o && o.d === stamp && o.s !== undefined) {
         dataMem.set(key, o.s);
         return o.s as T;
       }
@@ -93,7 +94,7 @@ async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   // 빈 결과는 캐시 안 함 — KAMIS 장애 중의 빈 응답이 하루 종일 굳어 복구 후에도 차트가 비는 사고 방지(2026-07-15).
   if (Array.isArray(s) && s.length === 0) return s;
   dataMem.set(key, s);
-  AsyncStorage.setItem('igb.cache.' + key, JSON.stringify({ d: todayStr(), s })).catch(() => {});
+  AsyncStorage.setItem('igb.cache.' + key, JSON.stringify({ d: stamp, s })).catch(() => {});
   return s;
 }
 
@@ -297,14 +298,14 @@ export default function ItemDetailScreen() {
     setMarkets(null);
     setChart28(null);
     setYearSeries(null);
-    cached(`mk-${ck}`, () => fetchMarketPrices(active, cls))
+    cached(`mk-${ck}`, stampOf(active?.surveyDate), () => fetchMarketPrices(active, cls))
       .then(setMarkets)
       .catch(() => setMarkets([]));
     // 28일은 1년 시계열이 없거나 부족할 때만 쓰는 폴백이다.
     // 사전계산(series.json)이 있으면 차트가 이미 채워지므로 이 호출을 생략한다
     // (2026-08-20 실측 4.4s — 쓰지도 않고 상세 진입마다 KAMIS를 때렸다).
     if (preSeries === undefined || preEnough) return;
-    cached(`c28-${ck}`, () => fetchSeries(active, 28, cls))
+    cached(`c28-${ck}`, stampOf(active?.surveyDate), () => fetchSeries(active, 28, cls))
       .then(setChart28)
       .catch(() => setChart28([]));
   }, [key, market, active?.itemCode, active?.kindCode, preSeries, preEnough]);
@@ -381,7 +382,7 @@ export default function ItemDetailScreen() {
       setYearSeries(preSeries);
       return;
     }
-    cached(`y2-${itemKey(active)}-${cls}`, () => fetchSeries(active, 365, cls))
+    cached(`y2-${itemKey(active)}-${cls}`, stampOf(active?.surveyDate), () => fetchSeries(active, 365, cls))
       .then(setYearSeries)
       .catch(() => setYearSeries([]));
   }, [key, market, active?.itemCode, active?.kindCode, preSeries, preUsable]);
@@ -457,10 +458,15 @@ export default function ItemDetailScreen() {
   const showEcoTab = market === 'eco' || (verdicts[vKey]?.hasEco ?? true);
   /** 일반/유기농 토글을 실제로 그리는지 — hero 상단 패딩도 이 값을 따른다(간격 어긋남 방지). */
   const showEcoToggle = market !== 'wholesale' && showEcoTab;
-  // 푸터 '기준일' = 지금 보는 차트의 실제 최근 조사일 (오늘 날짜 아님).
+  // 푸터 '기준일' = 지금 화면에 뜬 가격이 실제로 조사된 날.
+  //
+  // 예전엔 차트(series.json)의 마지막 점을 썼는데, 그건 CI가 하루 한 번 만드는 값이고
+  // 가격 숫자는 KAMIS 실시간이라 서로 어긋났다. KAMIS가 오늘치를 올린 뒤 CI가 끝나기
+  // 전까지는 '가격은 오늘치인데 날짜는 어제치'로 표시됐다(2026-08-26 제보).
+  // 그래서 표시 중인 항목이 들고 온 surveyDate를 먼저 쓰고, 없을 때만 차트로 물러선다.
   const surveyDate = useMemo(
-    () => latestSurveyDate(market === 'eco' ? eco?.series : chartDisplay),
-    [market, eco, chartDisplay],
+    () => active?.surveyDate ?? latestSurveyDate(market === 'eco' ? eco?.series : chartDisplay),
+    [active, market, eco, chartDisplay],
   );
   // 유기농·무농약 '이맘때 평균'(최근 2년) 대비 신호 — 일반의 평년 대비와 같은 방식(이맘때 평균이 기준).
   const ecoSeasonalPct =

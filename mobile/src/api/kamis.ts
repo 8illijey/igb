@@ -37,6 +37,15 @@ export const CATEGORIES = [
 ] as const;
 
 export interface PriceItem {
+  /**
+   * 이 값이 실제로 조사된 날(YYYY-MM-DD).
+   *
+   * 화면의 '기준일'은 오늘이 아니라 이 값이어야 한다. KAMIS는 매일 오후에 갱신되고
+   * 주말·공휴일엔 조사가 없어, 요청한 날짜와 값이 나온 날짜가 다를 수 있다.
+   * 예전엔 사전계산 차트(series.json)의 마지막 점을 기준일로 썼는데, 가격은 실시간이라
+   * CI가 돌기 전 구간에 '가격은 오늘치, 날짜는 어제치'로 어긋났다(2026-08-26 제보).
+   */
+  surveyDate: string;
   categoryCode: string;
   itemName: string;
   itemCode: string;
@@ -233,7 +242,13 @@ export async function fetchCategory(
       const today = ti === -1 ? null : ladder[ti];
       const yesterday = ti === -1 ? null : (ladder.slice(ti + 1).find((v) => v != null) ?? null);
       const normal = parsePrice(r.dpr7);
+      // 사다리에서 몇 번째 칸을 썼는지가 곧 '며칠 전 자료인지'다(당일·1일전·1주전·2주전).
+      // 화면의 기준일은 오늘이 아니라 이 날짜여야 한다.
+      const backDays = [0, 1, 7, 14][ti === -1 ? 0 : ti];
+      const base = new Date(`${regday ?? fmtDate(new Date())}T00:00:00`);
+      base.setDate(base.getDate() - backDays);
       return {
+        surveyDate: fmtDate(base),
         categoryCode,
         itemName: displayName(String(r.item_name), String(r.item_code), String(r.kind_name ?? '')),
         itemCode: String(r.item_code),

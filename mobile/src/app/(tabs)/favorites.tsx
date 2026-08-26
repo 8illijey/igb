@@ -108,7 +108,7 @@ export default function FavoritesScreen() {
                 ))}
                 {/* 출처는 KAMIS 시세(관심 품목)에만 해당 */}
                 <Text style={styles.source}>
-                  자료 출처 · KAMIS (한국농수산식품유통공사) 매일 오후 4시 갱신
+                  자료 출처 · KAMIS (한국농수산식품유통공사)
                 </Text>
               </View>
             )}

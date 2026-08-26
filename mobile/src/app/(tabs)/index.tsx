@@ -170,6 +170,11 @@ function ThumbnailCard({ item, width }: { item: PriceItem; width?: number }) {
 
 export default function HomeScreen() {
   const { items, loading, error, refresh } = usePrices();
+  // 화면에 뜬 값이 실제로 조사된 날 — 가장 최근 것을 대표로 쓴다.
+  const surveyDate = useMemo(() => {
+    const ds = items.map((i) => i.surveyDate).filter(Boolean).sort();
+    return ds.length ? ds[ds.length - 1] : null;
+  }, [items]);
   const verdicts = useVerdicts(); // 사전계산: 평년+최근1년 두 기준 판정 (있으면 우선)
   // 표시 신호 = 사전계산 level(두 기준) 우선, 없으면 item.level(평년)
   // 주목할 시세 섹션 인라인 펼침 — 별도 화면 없이 섹션이 아래로 쌓이고 홈 스크롤로 본다
@@ -294,8 +299,12 @@ export default function HomeScreen() {
               </View>
             )}
 
+            {/* '오후 4시 갱신'이라고 적어뒀었는데 실제와 달랐다(2026-08-26 확인).
+                KAMIS 발표 시각은 날마다 다르고, 화면 데이터를 만드는 CI는 17시 넘어 끝난다.
+                시각을 단정하는 대신, 지금 보이는 값이 며칠 자인지를 보여준다. */}
             <Text style={styles.source}>
-              자료 출처 · KAMIS (한국농수산식품유통공사){'\n'}매일 오후 4시 갱신
+              자료 출처 · KAMIS (한국농수산식품유통공사)
+              {surveyDate ? `${'\n'}${surveyDate} 기준` : ''}
             </Text>
             <PrivacyLink />
           </>
