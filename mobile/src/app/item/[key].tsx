@@ -1038,30 +1038,25 @@ function ShopSection({
   // 웹 전용: IntersectionObserver는 네이티브에 없다. RN Web은 View의 ref로 실제 DOM
   // 노드를 넘겨주므로 그대로 observe할 수 있다.
   const sectionRef = useRef<View | null>(null);
-  const impressionSent = useRef(false);
 
-  // 라우트가 바뀌면(다른 품목으로 이동) 다시 한 번 셀 수 있게 초기화한다.
-  useEffect(() => {
-    impressionSent.current = false;
-  }, [itemCode, market]);
-
+  // '한 번만' 상태를 ref로 들고 있지 않는다 — disconnect()가 이미 1회를 보장하고,
+  // deps에 itemCode·market이 있어 다른 품목으로 이동하면 effect가 다시 돌면서
+  // 새 observer가 붙는다. 별도 ref를 두면 라우트 이동 시 수동으로 리셋해야 하고,
+  // 그걸 빼먹으면 두 번째 품목부터 노출이 영영 안 잡힌다.
   useEffect(() => {
     if (products.length === 0) return;
     const node = sectionRef.current as unknown as Element | null;
     if (!node || typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting || impressionSent.current) continue;
-          impressionSent.current = true;
-          track('view_item_list', {
-            item_list_id: LIST_ID,
-            item_list_name: LIST_NAME,
-            currency: 'KRW',
-            items: products.map((p, i) => gaItem(p, i, itemCode, itemName, market)),
-          });
-          io.disconnect();
-        }
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        track('view_item_list', {
+          item_list_id: LIST_ID,
+          item_list_name: LIST_NAME,
+          currency: 'KRW',
+          items: products.map((p, i) => gaItem(p, i, itemCode, itemName, market)),
+        });
       },
       { threshold: 0.5 },
     );

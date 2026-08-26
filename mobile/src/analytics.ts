@@ -34,6 +34,10 @@ function gtagOrNull(): GtagFn | null {
  * 시점 이후 데이터만 채워진다.
  */
 export function track(name: string, params: TrackParams = {}): void {
+  // ponytail: gtag가 없으면 그냥 버린다 — 큐잉·재시도 없음.
+  // 천장: 스크립트가 닿기 전에 누른 첫 클릭은 유실된다(async 로드 창, 보통 <1s).
+  // 그게 실제로 문제가 되면 dataLayer.push로 바꿔라 — gtag 스니펙이 배열을 먼저
+  // 선언해두므로 로드 전 push도 나중에 소비된다.
   const gtag = gtagOrNull();
   if (!gtag) return;
   try {
