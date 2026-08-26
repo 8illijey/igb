@@ -36,6 +36,10 @@
       "destination": "/privacy.html"
     },
     {
+      "source": "/recipe/:slug",
+      "destination": "/recipe/:slug.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

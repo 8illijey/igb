@@ -12,277 +12,277 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "111-01",
     "name": "쌀 20kg",
     "unit": "20kg",
-    "price": 60475
+    "price": 61446
   },
   {
     "key": "111-10",
     "name": "쌀 10kg",
     "unit": "10kg",
-    "price": 33756
+    "price": 33039
   },
   {
     "key": "112-01",
     "name": "찹쌀",
     "unit": "1kg",
-    "price": 5247
+    "price": 5275
   },
   {
     "key": "141-01",
     "name": "콩",
     "unit": "500g",
-    "price": 4970
+    "price": 5017
   },
   {
     "key": "142-00",
     "name": "팥",
     "unit": "500g",
-    "price": 13361
+    "price": 13732
   },
   {
     "key": "143-00",
     "name": "녹두",
     "unit": "500g",
-    "price": 12704
+    "price": 12186
   },
   {
     "key": "151-00",
     "name": "고구마",
     "unit": "1kg",
-    "price": 5398
+    "price": 5410
   },
   {
     "key": "152-01",
     "name": "감자",
     "unit": "100g",
-    "price": 299
+    "price": 331
   },
   {
     "key": "211-02",
     "name": "배추",
     "unit": "1포기",
-    "price": 5373
+    "price": 5636
   },
   {
     "key": "212-00",
     "name": "양배추",
     "unit": "1포기",
-    "price": 2913
+    "price": 3035
   },
   {
     "key": "213-00",
     "name": "시금치",
     "unit": "100g",
-    "price": 2349
+    "price": 2135
   },
   {
     "key": "214-01",
     "name": "적상추",
     "unit": "100g",
-    "price": 1528
+    "price": 1485
   },
   {
     "key": "214-02",
     "name": "청상추",
     "unit": "100g",
-    "price": 1615
+    "price": 1606
   },
   {
     "key": "215-00",
     "name": "얼갈이배추",
     "unit": "1kg",
-    "price": 3560
+    "price": 3233
   },
   {
     "key": "221-00",
     "name": "수박",
     "unit": "1개",
-    "price": 27700
+    "price": 26550
   },
   {
     "key": "222-00",
     "name": "참외",
     "unit": "10개",
-    "price": 20460
+    "price": 18677
   },
   {
     "key": "223-01",
     "name": "가시오이",
     "unit": "10개",
-    "price": 16800
+    "price": 11127
   },
   {
     "key": "223-02",
     "name": "다다기오이",
     "unit": "10개",
-    "price": 10500
+    "price": 9564
   },
   {
     "key": "223-03",
     "name": "취청오이",
     "unit": "10개",
-    "price": 14775
+    "price": 14243
   },
   {
     "key": "224-01",
     "name": "애호박",
     "unit": "1개",
-    "price": 1346
+    "price": 1381
   },
   {
     "key": "224-02",
     "name": "쥬키니호박",
     "unit": "1개",
-    "price": 1990
+    "price": 1725
   },
   {
     "key": "225-00",
     "name": "토마토",
     "unit": "1kg",
-    "price": 4582
+    "price": 5126
   },
   {
     "key": "231-02",
     "name": "무",
     "unit": "1개",
-    "price": 2339
+    "price": 2453
   },
   {
     "key": "232-01",
     "name": "당근",
     "unit": "1kg",
-    "price": 3689
+    "price": 3502
   },
   {
     "key": "233-00",
     "name": "열무",
     "unit": "1kg",
-    "price": 3021
+    "price": 3420
   },
   {
     "key": "241-00",
     "name": "건고추 화건",
     "unit": "600g",
-    "price": 20400
+    "price": 18179
   },
   {
     "key": "241-01",
     "name": "건고추 햇산화건",
     "unit": "600g",
-    "price": 17917
+    "price": 17379
   },
   {
     "key": "242-00",
-    "name": "풋고추",
+    "name": "풋고추(녹광 등)",
     "unit": "100g",
-    "price": 1777
+    "price": 1683
   },
   {
     "key": "242-02",
     "name": "꽈리고추",
     "unit": "100g",
-    "price": 1245
+    "price": 1333
   },
   {
     "key": "242-03",
     "name": "청양고추",
     "unit": "100g",
-    "price": 1145
+    "price": 1139
   },
   {
     "key": "242-04",
     "name": "오이맛고추",
     "unit": "100g",
-    "price": 1055
+    "price": 1069
   },
   {
     "key": "243-00",
     "name": "붉은고추",
     "unit": "100g",
-    "price": 2008
+    "price": 1968
   },
   {
     "key": "245-00",
     "name": "양파",
     "unit": "1kg",
-    "price": 1930
+    "price": 1980
   },
   {
     "key": "246-00",
     "name": "대파",
     "unit": "1kg",
-    "price": 3220
+    "price": 3054
   },
   {
     "key": "246-02",
     "name": "쪽파",
     "unit": "1kg",
-    "price": 12025
+    "price": 10663
   },
   {
     "key": "247-00",
     "name": "생강",
     "unit": "1kg",
-    "price": 17325
+    "price": 15019
   },
   {
     "key": "248-00",
     "name": "국산고춧가루",
     "unit": "1kg",
-    "price": 37533
+    "price": 34364
   },
   {
     "key": "248-01",
     "name": "중국고춧가루",
     "unit": "1kg",
-    "price": 14000
+    "price": 13544
   },
   {
     "key": "252-00",
     "name": "미나리",
     "unit": "100g",
-    "price": 1862
+    "price": 1768
   },
   {
     "key": "253-00",
     "name": "깻잎",
     "unit": "50g",
-    "price": 1386
+    "price": 1533
   },
   {
     "key": "255-00",
     "name": "피망",
     "unit": "100g",
-    "price": 1317
+    "price": 1325
   },
   {
     "key": "256-00",
     "name": "파프리카",
     "unit": "1개",
-    "price": 1411
+    "price": 1394
   },
   {
     "key": "257-00",
     "name": "멜론",
     "unit": "1개",
-    "price": 8440
+    "price": 8762
   },
   {
     "key": "258-01",
     "name": "깐마늘(국산)",
     "unit": "1kg",
-    "price": 11262
+    "price": 11882
   },
   {
     "key": "279-00",
     "name": "알배기배추",
     "unit": "1포기",
-    "price": 3909
+    "price": 3612
   },
   {
     "key": "280-00",
     "name": "브로콜리",
     "unit": "1개",
-    "price": 3264
+    "price": 3052
   },
   {
     "key": "411-05",
@@ -366,13 +366,13 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "422-01",
     "name": "방울토마토",
     "unit": "1kg",
-    "price": 7653
+    "price": 7288
   },
   {
     "key": "422-02",
     "name": "대추방울토마토",
     "unit": "1kg",
-    "price": 5357
+    "price": 5582
   },
   {
     "key": "424-00",
@@ -402,25 +402,25 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-21",
     "name": "소고기 안심",
     "unit": "100g",
-    "price": 17924
+    "price": 17911
   },
   {
     "key": "4301-22",
     "name": "소고기 등심",
     "unit": "100g",
-    "price": 15658
+    "price": 15676
   },
   {
     "key": "4301-36",
     "name": "소고기 설도",
     "unit": "100g",
-    "price": 6220
+    "price": 6214
   },
   {
     "key": "4301-40",
     "name": "소고기 양지",
     "unit": "100g",
-    "price": 7704
+    "price": 7694
   },
   {
     "key": "4301-50",
@@ -444,13 +444,13 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-28",
     "name": "돼지고기 갈비",
     "unit": "100g",
-    "price": 1568
+    "price": 1567
   },
   {
     "key": "4304-68",
     "name": "돼지고기 목심",
     "unit": "100g",
-    "price": 2682
+    "price": 2680
   },
   {
     "key": "4401-31",
@@ -468,7 +468,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4402-27",
     "name": "수입 돼지고기 삼겹살",
     "unit": "100g",
-    "price": 1510
+    "price": 1511
   },
   {
     "key": "9901-24",
@@ -492,7 +492,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9903-23",
     "name": "계란 30구",
     "unit": "30구",
-    "price": 7220
+    "price": 7315
   },
   {
     "key": "9908-01",
@@ -505,3 +505,131 @@ export const SEO_ITEMS: SeoItem[] = [
  *  카톡은 OG 이미지를 오래 캐싱해서 주소가 같으면 어제 가격이 계속 보인다. */
 export const SEO_BUILD_DAY = '20260825';
 export const SEO_BY_KEY: Record<string, SeoItem> = Object.fromEntries(SEO_ITEMS.map((i) => [i.key, i]));
+
+/** 레시피 상세를 정적으로 내리기 위한 목록. 주소는 순번이 아니라 제목 슬러그다. */
+export interface SeoRecipe {
+  slug: string;
+  title: string;
+}
+export const SEO_RECIPES: SeoRecipe[] = [
+  {
+    "slug": "함박스테이크",
+    "title": "함박스테이크"
+  },
+  {
+    "slug": "닭가슴살-두부선",
+    "title": "닭가슴살 두부선"
+  },
+  {
+    "slug": "돼지고기-숙주덮밥",
+    "title": "돼지고기 숙주덮밥"
+  },
+  {
+    "slug": "견과류통삼겹살찜",
+    "title": "견과류통삼겹살찜"
+  },
+  {
+    "slug": "파프리카볶음밥",
+    "title": "파프리카볶음밥"
+  },
+  {
+    "slug": "닭고기채소스파게티",
+    "title": "닭고기채소스파게티"
+  },
+  {
+    "slug": "완자된장국",
+    "title": "완자된장국"
+  },
+  {
+    "slug": "굴림만두된장국",
+    "title": "굴림만두된장국"
+  },
+  {
+    "slug": "수삼매운닭찜",
+    "title": "수삼매운닭찜"
+  },
+  {
+    "slug": "카레탄두리치킨과-닭가슴살냉채",
+    "title": "카레탄두리치킨과 닭가슴살냉채"
+  },
+  {
+    "slug": "떡완자조림",
+    "title": "떡완자조림"
+  },
+  {
+    "slug": "삼계치킨롤",
+    "title": "삼계치킨롤"
+  },
+  {
+    "slug": "오색볶음면",
+    "title": "오색볶음면"
+  },
+  {
+    "slug": "닭고기-완자삼계죽",
+    "title": "닭고기 완자삼계죽"
+  },
+  {
+    "slug": "미역볶음밥",
+    "title": "미역볶음밥"
+  },
+  {
+    "slug": "닭고기볶음밥",
+    "title": "닭고기볶음밥"
+  },
+  {
+    "slug": "된장-두부찌개",
+    "title": "된장 두부찌개"
+  },
+  {
+    "slug": "묵은지가지말이",
+    "title": "묵은지가지말이"
+  },
+  {
+    "slug": "수박즙돼지목심구이",
+    "title": "수박즙돼지목심구이"
+  },
+  {
+    "slug": "맑은부대찌개",
+    "title": "맑은부대찌개"
+  },
+  {
+    "slug": "나가사키부대찌개",
+    "title": "나가사키부대찌개"
+  },
+  {
+    "slug": "꽃밥",
+    "title": "꽃밥"
+  },
+  {
+    "slug": "토마토두루치기",
+    "title": "토마토두루치기"
+  },
+  {
+    "slug": "두유-마-떡갈비",
+    "title": "두유 마 떡갈비"
+  },
+  {
+    "slug": "떡갈비와-미니잡곡밥",
+    "title": "떡갈비와 미니잡곡밥"
+  },
+  {
+    "slug": "닭고기라이스롤",
+    "title": "닭고기라이스롤"
+  },
+  {
+    "slug": "떡갈비주먹밥",
+    "title": "떡갈비주먹밥"
+  },
+  {
+    "slug": "미니함박스테이크",
+    "title": "미니함박스테이크"
+  },
+  {
+    "slug": "닭고기또띠아",
+    "title": "닭고기또띠아"
+  },
+  {
+    "slug": "카레닭-룰라이드",
+    "title": "카레닭 룰라이드"
+  }
+];

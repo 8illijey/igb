@@ -20,12 +20,33 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = 'https://igeobissa.com';
 
 const { fetchAllCategories } = await import(path.join(ROOT, 'src/api/kamis.ts'));
+const { recipeSlug } = await import(path.join(ROOT, 'src/recipeSlug.ts'));
 
 const items = await fetchAllCategories();
 if (items.length < 40) {
   // KAMIS 장애 중에 빈 목록으로 파일을 덮으면 사이트맵이 통째로 날아간다 — 기존 파일 유지.
   console.error(`품목이 ${items.length}개뿐 — 생성 중단(기존 파일 유지)`);
   process.exit(1);
+}
+
+// ── 레시피 ──
+// 상세를 정적으로 내려면 빌드 시점에 목록을 알아야 한다. 앛은 워커가 주1회 갱신하므로
+// 매일 CI가 이 스크립트를 돌리면 자연스럽게 따라간다. 실패하면 레시피만 빼고 계속한다
+// — 품목 82개 사이트맵까지 날릴 이유는 없다.
+const RECIPES_URL = 'https://igeobissa-recipes.designerxyzi.workers.dev/recipes';
+let recipes = [];
+try {
+  const res = await fetch(RECIPES_URL);
+  const json = await res.json();
+  recipes = (json?.recipes ?? [])
+    .map((r) => String(r?.title ?? '').trim())
+    .filter(Boolean)
+    .map((title) => ({ slug: recipeSlug(title), title }));
+  // 제목이 같으면 주소가 겹친다 — 먼저 것만 남긴다.
+  const seen = new Set();
+  recipes = recipes.filter((r) => !seen.has(r.slug) && seen.add(r.slug));
+} catch (e) {
+  console.warn(`  레시피 목록을 못 받았다(${e.message}) — 레시피 없이 진행한다.`);
 }
 
 // price를 같이 넣는다 — 상세 제목이 '배추 5,684원 | 이거비싸?' 형태라 정적 HTML에도 값이 있어야 한다.
@@ -53,6 +74,13 @@ export const SEO_ITEMS: SeoItem[] = ${JSON.stringify(rows, null, 2)};
  *  카톡은 OG 이미지를 오래 캐싱해서 주소가 같으면 어제 가격이 계속 보인다. */
 export const SEO_BUILD_DAY = '${new Date().toISOString().slice(0, 10).replace(/-/g, '')}';
 export const SEO_BY_KEY: Record<string, SeoItem> = Object.fromEntries(SEO_ITEMS.map((i) => [i.key, i]));
+
+/** 레시피 상세를 정적으로 내리기 위한 목록. 주소는 순번이 아니라 제목 슬러그다. */
+export interface SeoRecipe {
+  slug: string;
+  title: string;
+}
+export const SEO_RECIPES: SeoRecipe[] = ${JSON.stringify(recipes, null, 2)};
 `,
 );
 
@@ -77,6 +105,8 @@ const urls = [
   // 내용이 거의 안 바뀌니 빈도는 yearly, 우선순위는 낮게.
   { loc: `${SITE}/privacy`, pri: '0.2', freq: 'yearly' },
   ...rows.map((r) => ({ loc: `${SITE}/item/${r.key}`, pri: '0.8', freq: 'daily' })),
+  // 레시피는 재료 시세가 매일 바뀌지만 글 자체는 안 바뀜다 — weekly.
+  ...recipes.map((r) => ({ loc: `${SITE}/recipe/${encodeURIComponent(r.slug)}`, pri: '0.5', freq: 'weekly' })),
 ];
 writeFileSync(
   path.join(ROOT, 'public/sitemap.xml'),
@@ -92,7 +122,7 @@ ${urls
 `,
 );
 
-console.log(`완료 — 품목 ${rows.length}개`);
+console.log(`완료 — 품목 ${rows.length}개 / 레시피 ${recipes.length}개`);
 console.log(`  src/seo.gen.ts`);
 console.log(`  public/robots.txt`);
 console.log(`  public/sitemap.xml (URL ${urls.length}개)`);

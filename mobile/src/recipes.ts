@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { PriceItem } from './api/kamis';
 import recipeData from './recipes.gen.json';
 import { RECIPE_IMAGES } from './recipeImages.gen';
+// 슬러그 규칙은 빌드 스크립트(gen-seo.mjs)와 공유해야 해서 의존성 없는 파일로 분리했다.
+import { recipeSlug } from './recipeSlug';
+
+export { recipeSlug };
 
 export type Ingredient = { name: string; amount: string };
 export type Recipe = {
@@ -25,6 +29,12 @@ const normalize = (r: any): Recipe => ({
   heroImage: r?.heroImage ? String(r.heroImage) : undefined,
   stepImages: Array.isArray(r?.stepImages) ? r.stepImages.map(String) : undefined,
 });
+
+/** 슬러그로 레시피 찾기. 못 찾으면 undefined — 로테이션으로 빠진 레시피일 수 있다. */
+export function findRecipeBySlug(list: Recipe[], slug: string): Recipe | undefined {
+  const s = decodeURIComponent(String(slug));
+  return list.find((r) => recipeSlug(r.title) === s || r.title === s);
+}
 
 /** 번들된(빌드 시점) 레시피 — 오프라인·첫 로드 폴백. 운영판은 Worker에서 fetch. */
 export const RECIPES: Recipe[] = (recipeData.recipes as any[]).map(normalize);

@@ -9,7 +9,8 @@ import { EmptyState } from '../../components/igb/EmptyState';
 import { FavoriteHeart } from '../../components/igb/FavoriteHeart';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SignalChip } from '../../components/igb/SignalChip';
-import { Ingredient, findItem, getViewedRecipe, recipeHero, recipeImage, recipeStep, useRecipes } from '../../recipes';
+import { Ingredient, findItem, findRecipeBySlug, getViewedRecipe, recipeHero, recipeImage, recipeSlug, recipeStep, useRecipes } from '../../recipes';
+import { SEO_RECIPES } from '../../seo.gen';
 import { portionPrice } from '../../portion';
 import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
@@ -18,12 +19,35 @@ import { OG_DEFAULT_IMAGE } from '../../og';
 
 const LEVEL_WORD = { cheap: '싸요', fair: '적당해요', expensive: '비싸요' } as const;
 
+/**
+ * 정적 생성 대상 — 빌드 시점 레시피 목록의 슬러그.
+ *
+ * 없으면 모든 레시피가 catch-all로 홈 HTML을 받아, 검색엔진 눈엔 제목도 내용도
+ * 없는 페이지가 된다(품목 82개에서 겪은 것과 같은 문제, 2026-08-26 GA 태그 적용
+ * 범위 보고서로 발견).
+ */
+export async function generateStaticParams(): Promise<{ id: string }[]> {
+  return SEO_RECIPES.map((r) => ({ id: r.slug }));
+}
+
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { items } = usePrices();
   // 목록/검색 화면이 보여준 '현재 목록'을 인덱스로 참조. 없으면(딥링크 등) 기본 목록 폴백.
   const fallback = useRecipes();
-  const recipe = getViewedRecipe(Number(id)) ?? fallback[Number(id)];
+  // 주소는 제목 슬러그가 기본이고, 예전 순번 주소(/recipe/0)도 계속 받는다 —
+  // 이미 나간 링크와 앱 내 이동이 깨지지 않게.
+  const isIndex = /^\d+$/.test(String(id ?? ''));
+  const recipe = isIndex
+    ? (getViewedRecipe(Number(id)) ?? fallback[Number(id)])
+    : findRecipeBySlug(fallback, String(id ?? ''));
+  // 빌드 시점 목록의 제목 — 정적 HTML(SSG)에는 워커 응답이 없어 recipe가 비는데,
+  // 그때도 <title>과 본문에 제목이 박혀야 검색엔진이 읽는다(2026-08-26).
+  const seoTitle = useMemo(() => {
+    const s = decodeURIComponent(String(id ?? ''));
+    return SEO_RECIPES.find((r) => r.slug === s)?.title ?? null;
+  }, [id]);
+  const pageTitle = recipe?.title ?? seoTitle;
   const { isFavorite, toggle } = useFavorites();
   // 제목 키 — 인덱스 키는 목록(주간 로테이션·검색)이 바뀌면 다른 레시피를 가리킨다.
   // 복원은 관심목록이 식약처 DB 라이브 재조회(fetchRecipeByTitle)로 한다.
@@ -38,37 +62,32 @@ export default function RecipeDetailScreen() {
   const cheapCount = matched.filter((m) => m.item?.level === 'cheap').length;
 
   if (!recipe) {
+    // 목록을 아직 못 받았거나(SSG·첫 로드) 로테이션에서 빠진 레시피.
+    // 제목을 아는 경우엔 빈 화면 대신 제목과 안내를 내려 검색엔진·사용자 모두에게 의미가 있게 한다.
     return (
       <View style={styles.screen}>
+        {pageTitle && <RecipeHead title={pageTitle} slug={String(id ?? '')} />}
         <GlassHeader>
           <Header />
         </GlassHeader>
-        <EmptyState title="레시피를 찾을 수 없어요" description="목록에서 다시 선택해 주세요" />
+        {pageTitle ? (
+          <View style={styles.seoFallback}>
+            <Text style={styles.seoHeading}>{pageTitle}</Text>
+            <Text style={styles.seoBody}>
+              {pageTitle} 만드는 법과 재료별 오늘 시세를 보여드려요. 재료가 이맘때 평균보다 싼지
+              비싼지 확인하고 장을 볼 수 있어요.
+            </Text>
+          </View>
+        ) : (
+          <EmptyState title="레시피를 찾을 수 없어요" description="목록에서 다시 선택해 주세요" />
+        )}
       </View>
     );
   }
 
   return (
     <View style={styles.screen}>
-      <Head>
-        <title>{recipe ? `${recipe.title} — 오늘 재료 시세로 보는 레시피 | 이거비싸?` : '레시피 | 이거비싸?'}</title>
-        <meta
-          name="description"
-          content={recipe ? `${recipe.title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.` : '오늘 시세가 싼 재료로 만드는 레시피.'}
-        />
-              <meta
-          property="og:title"
-          content={recipe ? `${recipe.title} — 오늘 재료 시세로 보는 레시피 | 이거비싸?` : '레시피 | 이거비싸?'}
-        />
-        <meta
-          property="og:description"
-          content={recipe ? `${recipe.title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.` : '오늘 시세가 싼 재료로 만드는 레시피.'}
-        />
-      <meta property="og:image" content={OG_DEFAULT_IMAGE} />
-      <meta property="og:image:width" content="1200" />
-      <meta property="og:image:height" content="630" />
-      <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
-      </Head>
+      {pageTitle && <RecipeHead title={pageTitle} slug={String(id ?? '')} />}
       <GlassHeader onHeight={setTopH}>
         <Header />
       </GlassHeader>
@@ -190,7 +209,38 @@ function Header() {
   );
 }
 
+
+/**
+ * 레시피 상세의 검색엔진 메타. 정상 렌더와 '목록 미도착' 분기가 같은 태그를 쓰도록 묶었다.
+ * 예전엔 미도착 분기에 Head가 아예 없어 정적 HTML의 제목이 비어 있었다(2026-08-26).
+ */
+function RecipeHead({ title, slug }: { title: string; slug: string }) {
+  const full = `${title} — 오늘 재료 시세로 보는 레시피 | 이거비싸?`;
+  const desc = `${title} 만드는 법과 재료별 오늘 시세. 지금 싼 재료인지 확인하고 장 보세요.`;
+  // 순번 주소(/recipe/0)로 들어와도 정본은 슬러그 주소 하나로 모은다.
+  const canonical = `https://igeobissa.com/recipe/${encodeURIComponent(recipeSlug(title))}`;
+  return (
+    <Head>
+      <title>{full}</title>
+      <meta name="description" content={desc} />
+      <link rel="canonical" href={canonical} />
+      <meta property="og:title" content={full} />
+      <meta property="og:description" content={desc} />
+      <meta property="og:url" content={canonical} />
+      <meta property="og:image" content={OG_DEFAULT_IMAGE} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta name="twitter:title" content={full} />
+      <meta name="twitter:description" content={desc} />
+      <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
+    </Head>
+  );
+}
+
 const styles = StyleSheet.create({
+  seoFallback: { paddingHorizontal: spacing.s4, paddingTop: spacing.s16, gap: spacing.s3 },
+  seoHeading: { ...type.size[22], ...type.w.bold, color: colors.textPrimary },
+  seoBody: { ...type.size[15], ...type.w.regular, color: colors.textSecondary, lineHeight: 24 },
   screen: { flex: 1, backgroundColor: colors.bgCanvas },
   header: {
     height: 44,

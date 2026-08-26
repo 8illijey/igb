@@ -8,7 +8,7 @@ import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { PriceListRow } from '../../components/igb/PriceListRow';
 import { Wordmark } from '../../components/igb/Wordmark';
-import { fetchRecipeByTitle, recipeHero, setViewedRecipes, useRecipes, type Recipe } from '../../recipes';
+import { fetchRecipeByTitle, recipeHero, setViewedRecipes, useRecipes, type Recipe, recipeSlug } from '../../recipes';
 import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
@@ -127,7 +127,7 @@ export default function FavoritesScreen() {
                       onPress={() => {
                         // 상세는 '현재 목록'을 인덱스로 읽는다 — 관심 레시피 배열을 그 목록으로 세팅하고 이동.
                         setViewedRecipes(favRecipes.map((f) => f.recipe!));
-                        router.push(`/recipe/${idx}` as Href);
+                        router.push(`/recipe/${encodeURIComponent(recipeSlug(recipe.title))}` as Href);
                       }}
                     >
                       <View style={styles.recipeThumb}>

@@ -9,7 +9,7 @@ import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
 import { usePrices } from '../../store/prices';
 import { Image } from 'expo-image';
-import { findItem, recipeHero, searchRecipes, setViewedRecipes, useRecipes, type Recipe } from '../../recipes';
+import { findItem, recipeHero, searchRecipes, setViewedRecipes, useRecipes, type Recipe, recipeSlug } from '../../recipes';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../../og';
 
@@ -109,7 +109,7 @@ export default function RecipesScreen() {
           <Pressable
             key={`${r.title}-${idx}`}
             style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-            onPress={() => router.push(`/recipe/${idx}` as Href)}
+            onPress={() => router.push(`/recipe/${encodeURIComponent(recipeSlug(r.title))}` as Href)}
           >
             <View style={styles.media}>
               {recipeHero(r) != null && (
