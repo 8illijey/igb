@@ -2887,11 +2887,40 @@
       "productId": 8259218902
     }
   ],
+  "9901-24": [
+    {
+      "name": "하림 토종닭 닭볶음탕용, 1000g, 1개",
+      "price": 10810,
+      "imageUrl": "https://thumbnail11.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2106012354254038-9b196feb-fc01-416c-994a-7f6bb1cb7b7d.jpg",
+      "url": "https://link.coupang.com/a/gyMp6n79Bk",
+      "status": "rocket_fresh",
+      "vendorItemId": 73194164949,
+      "productId": 4690722803
+    },
+    {
+      "name": "올품 닭볶음탕용 닭고기 (냉장), 1kg, 1개",
+      "price": 8990,
+      "imageUrl": "https://t3a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/363412377265421-63432af4-6fa3-4dae-8958-6109e5bcc74d.jpg",
+      "url": "https://link.coupang.com/a/gyMqeilvC8",
+      "status": "rocket_fresh",
+      "vendorItemId": 72944769731,
+      "productId": 4591098403
+    },
+    {
+      "name": "하림 닭볶음탕용 (냉장), 1000g, 1개",
+      "price": 8480,
+      "imageUrl": "https://thumbnail1.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1833198403156195-870a7688-ae4d-42ad-b32f-f331b254bd9f.jpg",
+      "url": "https://link.coupang.com/a/ghHOA3yYvY",
+      "status": "rocket_fresh",
+      "vendorItemId": 70768128146,
+      "productId": 1628662667
+    }
+  ],
   "9901-99": [
     {
       "name": "하림 참 토종닭 백숙용 (냉장), 1100g, 1개",
       "price": 14400,
-      "imageUrl": "https://t3a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/241333452498752-dbf05177-7730-4773-9e5e-93144cc2df0b.jpg",
+      "imageUrl": "https://thumbnail4.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/241333452498752-dbf05177-7730-4773-9e5e-93144cc2df0b.jpg",
       "url": "https://link.coupang.com/a/ghHOyZ8NFs",
       "status": "rocket_fresh",
       "vendorItemId": 4404178139,
@@ -2900,7 +2929,7 @@
     {
       "name": "하림 자연실록 무항생제 인증 볶음탕용 닭고기 (냉장), 1kg, 1개",
       "price": 9320,
-      "imageUrl": "https://t4c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/667131794502332-5ee476c5-430e-46eb-bdee-bda76dd99d8a.jpg",
+      "imageUrl": "https://t3a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/667131794502332-5ee476c5-430e-46eb-bdee-bda76dd99d8a.jpg",
       "url": "https://link.coupang.com/a/gyLgs26o3N",
       "status": "rocket_fresh",
       "vendorItemId": 5079516639,
@@ -2909,7 +2938,7 @@
     {
       "name": "하림 닭볶음탕용 (냉장), 1000g, 1개",
       "price": 8480,
-      "imageUrl": "https://thumbnail9.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1833198403156195-870a7688-ae4d-42ad-b32f-f331b254bd9f.jpg",
+      "imageUrl": "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1833198403156195-870a7688-ae4d-42ad-b32f-f331b254bd9f.jpg",
       "url": "https://link.coupang.com/a/ghHOA3yYvY",
       "status": "rocket_fresh",
       "vendorItemId": 70768128146,
