@@ -11,8 +11,12 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write # 7) 워치독이 verdicts CI를 재발화(workflow_dispatch)하는 데 필요
     steps:
       - name: Check production
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           fail=0
           today=$(date -u -d '+9 hours' +%F)  # KST
@@ -90,6 +94,21 @@ jobs:
             [ "${scount:-0}" -ge 60 ] || { echo "::error::series 품목이 ${scount}개뿐 — 생성 실패 의심"; fail=1; }
           else
             echo "::error::series.json을 읽지 못함"; fail=1
+          fi
+
+          # 7) 예약 실행 워치독 — GitHub cron이 밀리거나 통째로 누락되면(2026-08-28 실사고:
+          #    당일 verdicts 예약이 22시까지 미실행 → 차트가 하루 종일 전날짜) 16시 이후에도
+          #    오늘분 series가 없다. 여기서 verdicts CI를 직접 재발화한다(자가 치유).
+          #    workflow_dispatch는 GITHUB_TOKEN 재귀 차단의 예외라 기본 토큰으로 가능.
+          #    '오늘분'은 날짜만이 아니라 16시(KAMIS 갱신) 이후 생성인지까지 본다 —
+          #    밀린 cron이 새벽에 돌면 날짜는 오늘인데 내용은 전날 데이터다.
+          now_h=$(TZ=Asia/Seoul date +%-H)
+          if [ "$now_h" -ge 16 ] && [ -n "$sgen" ] && [ "$sgen" != "null" ]; then
+            if [ "$(TZ=Asia/Seoul date -d "$sgen" +%F)" != "$(TZ=Asia/Seoul date +%F)" ] \
+              || [ "$(TZ=Asia/Seoul date -d "$sgen" +%-H)" -lt 16 ]; then
+              echo "::warning::오늘분 verdicts 미생성(series generatedAt $sgen) — verdicts CI 재발화"
+              gh workflow run verdicts.yml -R "$GITHUB_REPOSITORY" || echo "::error::verdicts 재발화 실패"
+            fi
           fi
 
           exit $fail
