@@ -6,45 +6,70 @@ on:
   schedule:
     # GitHub cron은 지연·통째 누락이 잦다 — 2026-08-28 실사고: 전날 16:05 예약이 11시간
     # 밀려 새벽 3시에 돌고(=전날 데이터로 빌드), 당일 예약은 22시까지 미실행이라
-    # 차트가 하루 종일 전날짜였다. 시간대를 벌려 3번 걸고, 아래 가드가 이미 성공한
+    # 차트가 하루 종일 전날짜였다. 시간대를 벌려 3번 걸고, guard 잡이 이미 성공한
     # 날은 건너뛴다. health.yml도 매시 신선도를 보고 미생성 시 재발화한다(워치독).
     - cron: '5 7 * * *' # 16:05 KST — KAMIS 오후 4시 갱신 직후
     - cron: '35 8 * * *' # 17:35 KST — 1차 누락 대비
     - cron: '35 10 * * *' # 19:35 KST — 2차 누락 대비
-  workflow_dispatch: {} # 수동 실행 버튼 — 가드 없이 항상 빌드(강제 재생성용)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '가드 무시하고 강제 재빌드'
+        type: boolean
+        default: false
 
-# 같은 워크플로 두 실행이 겹치면 뒤의 push가 거부된다(밀린 cron+워치독 재발화가 동시에 돌 수 있음) — 직렬화.
+# 두 실행이 겹치면 뒤의 push가 거부된다(밀린 cron+워치독 재발화가 동시에 돌 수 있음) — 직렬화.
+# 대기열에 있다 늦게 시작한 실행은 앞 실행이 푸시한 신선본을 guard가 보고 스킵한다.
 concurrency:
   group: verdicts-build
   cancel-in-progress: false
 
 jobs:
-  build:
+  # '오늘 KST 16시 이후 생성분'이 이미 main에 있으면 빌드 전체를 스킵.
+  # 체크아웃 파일이 아니라 contents API로 '지금의 main'을 읽는다 — 대기열에 있다
+  # 시작된 실행은 github.sha가 트리거 시점에 고정돼 방금 푸시된 신선본을 못 보고,
+  # raw CDN은 푸시 후 수 분 캐시가 남는다. API는 둘 다 없다(2026-08-28 리뷰).
+  # 날짜만 보면 안 된다 — 밀린 cron이 새벽에 돌면 generatedAt은 오늘이지만
+  # 내용은 전날 데이터다(16시 KAMIS 갱신 전이므로). 시각까지 본다.
+  # 한계(의도적): generatedAt은 빌드 시각이지 KAMIS 발행 확인이 아니다 — KAMIS가
+  # 16시를 크게 넘겨 발행하는 날은 stale을 fresh로 볼 수 있다. 데이터 날짜 검사로
+  # 바꾸면 주말·공휴일(미조사일)에 헛빌드가 반복돼 채택하지 않았다.
+  guard:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # verdicts.json 커밋용
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Skip if today's build already done
-        if: github.event_name == 'schedule'
-        id: guard
-        # '오늘 KST 16시 이후 생성분'이 이미 커밋돼 있으면 예비 cron은 조용히 빠진다.
-        # 날짜만 보면 안 된다 — 밀린 cron이 새벽에 돌면 generatedAt은 오늘이지만
-        # 내용은 전날 데이터다(16시 KAMIS 갱신 전이므로). 시각까지 본다.
+      - id: check
         run: |
-          gen=$(jq -r '.generatedAt // empty' mobile/public/series.json 2>/dev/null || true)
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "강제 재빌드 — 가드 생략"; exit 0
+          fi
+          gen=$(gh api -H "Accept: application/vnd.github.raw" \
+            "repos/$GITHUB_REPOSITORY/contents/mobile/public/series.json?ref=main" \
+            | jq -r '.generatedAt // empty' 2>/dev/null || true)
           if [ -n "$gen" ] \
             && [ "$(TZ=Asia/Seoul date -d "$gen" +%F)" = "$(TZ=Asia/Seoul date +%F)" ] \
             && [ "$(TZ=Asia/Seoul date -d "$gen" +%-H)" -ge 16 ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "오늘 16시 이후 빌드($gen)가 이미 있음 — 스킵"
           fi
+
+  build:
+    needs: guard
+    if: needs.guard.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # verdicts.json 커밋용
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # 고정 SHA가 아니라 시작 시점의 main에서 빌드 — 대기열에서 늦게 시작해도 최신 스크립트로 돈다
       - uses: actions/setup-node@v4
-        if: steps.guard.outputs.skip != 'true'
         with:
           node-version: 24 # gen-seo.mjs가 src/api/kamis.ts를 그대로 import한다 — TS 타입 스트리핑은 22+ 필요
       - name: Build verdicts.json
-        if: steps.guard.outputs.skip != 'true'
         working-directory: mobile
         env:
           # KAMIS 직접 호출은 해외 러너 IP에서 막힐 수 있어 워커 프록시 경유 — 키는 워커에 있어 시크릿 불필요.
@@ -53,17 +78,17 @@ jobs:
       # 검색엔진용 품목 목록·사이트맵 — KAMIS 품목이 늘거나 품종이 바뀌면 상세 정적 페이지와
       # sitemap이 같이 따라가야 한다. verdicts와 같은 회차에 돌려 한 번에 커밋한다.
       - name: Build SEO data
-        if: steps.guard.outputs.skip != 'true'
         working-directory: mobile
         # kamis.ts는 워커 URL이 하드코딩돼 있어 KAMIS_PROXY가 필요 없다.
         run: node scripts/gen-seo.mjs
       - name: Commit
-        if: steps.guard.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add mobile/public/verdicts.json mobile/public/series.json mobile/src/seo.gen.ts mobile/public/robots.txt mobile/public/sitemap.xml
           git commit -m "chore: update verdicts $(date -u +%F)" || { echo "변동 없음"; exit 0; }
-          # 빌드 도는 15분 사이 main에 다른 커밋(사람 작업 등)이 오면 push가 거부된다 — 2026-08-28 실사고. 리베이스 후 push.
-          git pull --rebase origin main
+          # 빌드 도는 15분 사이 main에 다른 커밋이 오면 push가 거부된다(2026-08-28 실사고) — 리베이스로 흡수.
+          # 생성 파일이 충돌하면 새 빌드가 이긴다(-X theirs: rebase에선 재적용되는 우리 커밋이 theirs).
+          # 사람이 생성 파일을 손으로 고친 커밋은 덮일 수 있다 — 생성 파일은 봇 소유가 원칙.
+          git pull --rebase -X theirs origin main
           git push
