@@ -13,6 +13,11 @@ on:
     - cron: '35 10 * * *' # 19:35 KST — 2차 누락 대비
   workflow_dispatch: {} # 수동 실행 버튼 — 가드 없이 항상 빌드(강제 재생성용)
 
+# 같은 워크플로 두 실행이 겹치면 뒤의 push가 거부된다(밀린 cron+워치독 재발화가 동시에 돌 수 있음) — 직렬화.
+concurrency:
+  group: verdicts-build
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -59,4 +64,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add mobile/public/verdicts.json mobile/public/series.json mobile/src/seo.gen.ts mobile/public/robots.txt mobile/public/sitemap.xml
           git commit -m "chore: update verdicts $(date -u +%F)" || { echo "변동 없음"; exit 0; }
+          # 빌드 도는 15분 사이 main에 다른 커밋(사람 작업 등)이 오면 push가 거부된다 — 2026-08-28 실사고. 리베이스 후 push.
+          git pull --rebase origin main
           git push
