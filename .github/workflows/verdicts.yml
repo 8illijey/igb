@@ -4,8 +4,14 @@ name: Build verdicts
 # (GitHub 러너는 KAMIS 접속 가능 — 로컬/CI 외 환경은 차단됨)
 on:
   schedule:
-    - cron: '5 7 * * *' # 매일 16:05 KST (07:05 UTC) — KAMIS 오후 4시 갱신 직후
-  workflow_dispatch: {} # 수동 실행 버튼
+    # GitHub cron은 지연·통째 누락이 잦다 — 2026-08-28 실사고: 전날 16:05 예약이 11시간
+    # 밀려 새벽 3시에 돌고(=전날 데이터로 빌드), 당일 예약은 22시까지 미실행이라
+    # 차트가 하루 종일 전날짜였다. 시간대를 벌려 3번 걸고, 아래 가드가 이미 성공한
+    # 날은 건너뛴다. health.yml도 매시 신선도를 보고 미생성 시 재발화한다(워치독).
+    - cron: '5 7 * * *' # 16:05 KST — KAMIS 오후 4시 갱신 직후
+    - cron: '35 8 * * *' # 17:35 KST — 1차 누락 대비
+    - cron: '35 10 * * *' # 19:35 KST — 2차 누락 대비
+  workflow_dispatch: {} # 수동 실행 버튼 — 가드 없이 항상 빌드(강제 재생성용)
 
 jobs:
   build:
@@ -14,10 +20,26 @@ jobs:
       contents: write # verdicts.json 커밋용
     steps:
       - uses: actions/checkout@v4
+      - name: Skip if today's build already done
+        if: github.event_name == 'schedule'
+        id: guard
+        # '오늘 KST 16시 이후 생성분'이 이미 커밋돼 있으면 예비 cron은 조용히 빠진다.
+        # 날짜만 보면 안 된다 — 밀린 cron이 새벽에 돌면 generatedAt은 오늘이지만
+        # 내용은 전날 데이터다(16시 KAMIS 갱신 전이므로). 시각까지 본다.
+        run: |
+          gen=$(jq -r '.generatedAt // empty' mobile/public/series.json 2>/dev/null || true)
+          if [ -n "$gen" ] \
+            && [ "$(TZ=Asia/Seoul date -d "$gen" +%F)" = "$(TZ=Asia/Seoul date +%F)" ] \
+            && [ "$(TZ=Asia/Seoul date -d "$gen" +%-H)" -ge 16 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "오늘 16시 이후 빌드($gen)가 이미 있음 — 스킵"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.guard.outputs.skip != 'true'
         with:
           node-version: 24 # gen-seo.mjs가 src/api/kamis.ts를 그대로 import한다 — TS 타입 스트리핑은 22+ 필요
       - name: Build verdicts.json
+        if: steps.guard.outputs.skip != 'true'
         working-directory: mobile
         env:
           # KAMIS 직접 호출은 해외 러너 IP에서 막힐 수 있어 워커 프록시 경유 — 키는 워커에 있어 시크릿 불필요.
@@ -26,10 +48,12 @@ jobs:
       # 검색엔진용 품목 목록·사이트맵 — KAMIS 품목이 늘거나 품종이 바뀌면 상세 정적 페이지와
       # sitemap이 같이 따라가야 한다. verdicts와 같은 회차에 돌려 한 번에 커밋한다.
       - name: Build SEO data
+        if: steps.guard.outputs.skip != 'true'
         working-directory: mobile
         # kamis.ts는 워커 URL이 하드코딩돼 있어 KAMIS_PROXY가 필요 없다.
         run: node scripts/gen-seo.mjs
       - name: Commit
+        if: steps.guard.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
