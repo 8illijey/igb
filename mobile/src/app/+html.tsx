@@ -41,6 +41,12 @@ export default function Root({ children }: PropsWithChildren) {
             gtag의 기본 SPA 감지(History API)가 잡는다. */}
         <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
         <script dangerouslySetInnerHTML={{ __html: GA_INIT }} />
+        {/* Microsoft Clarity — 스크롤 히트맵·세션 리플레이(2026-08-28).
+            GA4로는 페이지 '안에서' 어디까지 보다 나갔는지를 모른다 — scroll(90%) 눈금 하나뿐이라
+            분포가 안 나온다. 쿠팡 섹션이 첫 화면 밖(전체 높이의 70% 지점)이라 그 분포가 필요하다.
+            단, 이 앱은 document가 아니라 내부 div가 스크롤한다(RN Web ScrollView).
+            스크롤 히트맵이 그 구조에서 잡힐지는 붙여봐야 안다 — 안 잡히면 빼자. */}
+        <script dangerouslySetInnerHTML={{ __html: CLARITY_INIT }} />
         <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: GUARD_JS }} />
       </head>
@@ -57,6 +63,17 @@ window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', '${GA_ID}');
+`;
+
+/** Clarity 프로젝트 ID — 프로젝트 '이거비싸?'(designerxyzi@gmail.com). */
+const CLARITY_ID = 'y9vcmep20b';
+
+const CLARITY_INIT = `
+(function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+})(window, document, "clarity", "script", "${CLARITY_ID}");
 `;
 
 const GLOBAL_CSS = `

@@ -10,10 +10,11 @@ import { colors, radius, spacing, type } from '../theme/tokens';
  * 개인정보 처리방침.
  *
  * 실제로 하는 것만 적는다 — 회원가입도, 서버에 남기는 개인정보도 없다.
- * 수집은 방문 통계(GA4) 하나뿐이고, 관심목록은 기기 안에만 있다.
+ * 수집은 방문 통계(GA4)와 화면 조작 기록(Microsoft Clarity) 둘이고,
+ * 관심목록은 기기 안에만 있다.
  * 없는 절차를 형식적으로 써넣으면 그게 곧 거짓 고지가 된다.
  */
-const UPDATED = '2026년 8월 25일';
+const UPDATED = '2026년 8월 29일';
 const CONTACT = 'designerxyzi@gmail.com';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -84,6 +85,16 @@ export default function Privacy() {
             이 정보만으로는 개인을 알아볼 수 없습니다. IP 주소는 Google Analytics 4에서 저장 전에
             익명 처리됩니다.
           </P>
+          <P>
+            함께, 화면을 어느 지점까지 보는지 파악하기 위해 Microsoft Clarity를 사용합니다. 아래가
+            추가로 수집됩니다.
+          </P>
+          <Li>스크롤 위치·마우스 움직임·탭·클릭 등 화면 조작 기록</Li>
+          <Li>페이지 화면 구성(화면 녹화가 아니라, 본 페이지를 다시 그려보는 방식입니다)</Li>
+          <P>
+            Clarity는 입력란의 글자와 숫자를 기본값으로 가립니다. 이거비싸?는 애초에 이름·연락처를
+            받는 입력란이 없고, 검색창에 입력한 품목명 외엔 키보드로 입력하는 정보가 없습니다.
+          </P>
         </Section>
 
         <Section title="2. 수집하는 이유">
@@ -103,14 +114,16 @@ export default function Privacy() {
         <Section title="4. 보관 기간">
           <P>
             Google Analytics 데이터는 Google 정책에 따라 보관되며, 기본 보관 기간이 지나면 자동으로
-            삭제됩니다.
+            삭제됩니다. Microsoft Clarity의 화면 조작 기록은 Microsoft 정책에 따라 30일간
+            보관된 뒤 삭제됩니다.
           </P>
         </Section>
 
         <Section title="5. 수집 거부 방법">
           <P>
             브라우저의 쿠키 차단 설정을 사용하거나, Google이 제공하는 애널리틱스 차단 부가기능을
-            설치하면 수집을 막을 수 있습니다. 차단해도 서비스 이용에는 지장이 없습니다.
+            설치하면 수집을 막을 수 있습니다. Microsoft Clarity는 브라우저의 추적 방지(Do Not
+            Track) 설정을 따릅니다. 차단해도 서비스 이용에는 지장이 없습니다.
           </P>
         </Section>
 
