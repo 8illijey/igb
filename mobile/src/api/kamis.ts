@@ -365,8 +365,18 @@ async function fetchPeriodRows(
     e.setDate(end.getDate() - per * i);
     return [s, e] as const;
   });
-  const parts = await Promise.all(ranges.map(([s, e]) => fetchPeriodRowsRange(item, s, e, cls).catch(() => [])));
-  return parts.flat();
+  // 실패(throw)는 빈 결과와 구분해 실패 조각만 1회 재시도 — 조각 하나가 조용히 비면
+  // 차트가 그 분기에서 끊긴 채 일 단위 캐시에 굳는다(빌드 쪽 무음 절단의 앱 버전, 2026-08-28).
+  const fetchChunk = ([s, e]: readonly [Date, Date]) =>
+    fetchPeriodRowsRange(item, s, e, cls).then(
+      (rows) => rows,
+      () => null,
+    );
+  const parts = await Promise.all(ranges.map(fetchChunk));
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === null) parts[i] = await fetchChunk(ranges[i]);
+  }
+  return parts.filter((p): p is any[] => p !== null).flat();
 }
 
 function rowsToSeries(rows: any[]): SeriesPoint[] {

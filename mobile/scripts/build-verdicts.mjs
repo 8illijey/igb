@@ -221,32 +221,41 @@ async function fetchYearPoints(item, cls = '01') {
     e.setDate(end.getDate() - per * i);
     return [s, e];
   });
+  const fetchChunk = async ([s, e], rank) => {
+    const url = `${BASE}?${qs({
+      action: 'periodProductList',
+      p_productclscode: cls,
+      p_startday: fmtDate(s),
+      p_endday: fmtDate(e),
+      p_itemcategorycode: item.categoryCode,
+      p_itemcode: item.itemCode,
+      p_kindcode: item.kindCode,
+      p_productrankcode: rank,
+      p_countycode: '1101',
+      p_convert_kg_yn: 'N',
+    })}`;
+    try {
+      const res = await fetchT(url);
+      if (!res.ok) return null; // 실패 — '그 기간 조사 없음'([])과 구분해야 재시도·불완전 표시가 된다
+      const rows = (await res.json())?.data?.item ?? [];
+      return Array.isArray(rows) ? rows : [];
+    } catch {
+      return null;
+    }
+  };
   for (const rank of [...new Set(ranks)]) {
-    const parts = await Promise.all(
-      ranges.map(async ([s, e]) => {
-        const url = `${BASE}?${qs({
-          action: 'periodProductList',
-          p_productclscode: cls,
-          p_startday: fmtDate(s),
-          p_endday: fmtDate(e),
-          p_itemcategorycode: item.categoryCode,
-          p_itemcode: item.itemCode,
-          p_kindcode: item.kindCode,
-          p_productrankcode: rank,
-          p_countycode: '1101',
-          p_convert_kg_yn: 'N',
-        })}`;
-        try {
-          const res = await fetchT(url);
-          if (!res.ok) return [];
-          const rows = (await res.json())?.data?.item ?? [];
-          return Array.isArray(rows) ? rows : [];
-        } catch {
-          return [];
-        }
-      }),
-    );
+    const parts = await Promise.all(ranges.map((r) => fetchChunk(r, rank)));
+    // 실패 조각만 재시도(최대 2회) — 조각 하나가 조용히 죽으면 그 92일이 통째로 사라져
+    // 차트가 몇 달 전에서 끊긴다(2026-08-28 실사고: 대추방울토마토 소매 차트가 5/28에서 끊김
+    // — 최신 조각 타임아웃이 빈 데이터로 처리돼 '성공'으로 저장됨).
+    for (let attempt = 0; attempt < 2 && parts.includes(null); attempt++) {
+      for (let i = 0; i < parts.length; i++) {
+        if (parts[i] === null) parts[i] = await fetchChunk(ranges[i], rank);
+      }
+    }
+    const incomplete = parts.includes(null);
     const pts = parts
+      .filter(Boolean)
       .flat()
       .filter((r) => r.countyname === '평균')
       .map((r) => ({
@@ -259,7 +268,12 @@ async function fetchYearPoints(item, cls = '01') {
         d: String(r.regday),
       }))
       .filter((p) => p.price != null && p.m >= 0 && p.m < 12);
-    if (pts.length) return pts;
+    if (pts.length) {
+      // 재시도로도 못 채운 조각이 있으면 표식 — 아래에서 series.json 수록을 건너뛴다
+      // (몇 달 잘린 차트를 신선한 것처럼 싣지 않기. 앱은 라이브 조회로 폴백).
+      if (incomplete) pts.incomplete = true;
+      return pts;
+    }
   }
   return [];
 }
@@ -470,8 +484,13 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
       }
     }
 
-    const sr = toSeries(repPts);
-    const sw = toSeries(wsPts);
+    if (repPts.incomplete || wsPts.incomplete)
+      console.warn(
+        `시계열 불완전(재시도 후에도 실패 조각): ${it.itemCode}-${it.kindCode}` +
+          `${repPts.incomplete ? ' 소매' : ''}${wsPts.incomplete ? ' 도매' : ''} — series 수록 제외`,
+      );
+    const sr = repPts.incomplete ? [] : toSeries(repPts);
+    const sw = wsPts.incomplete ? [] : toSeries(wsPts);
     if (sr.length || sw.length) {
       series[`${it.itemCode}-${it.kindCode}`] = { ...(sr.length ? { r: sr } : {}), ...(sw.length ? { w: sw } : {}) };
     }
