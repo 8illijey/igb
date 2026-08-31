@@ -13,6 +13,8 @@ export interface Env {
   ADMIN_TOKEN?: string;
   /** 공공데이터포털 KAMIS 미러(apis.data.go.kr) 인증키 — 원본 방화벽 차단 시 폴백 소스(2026-08-08) */
   DATAGO_KEY?: string;
+  /** verdicts CI 재발화용(actions:write). 없으면 워치독 cron은 아무것도 안 한다 */
+  GITHUB_TOKEN?: string;
 }
 
 const KV_KEY = 'recipes:latest';
@@ -480,9 +482,47 @@ function storeRecipes(env: Env, data: { recipes: unknown[] }): Promise<void> {
   return env.RECIPES_KV.put(KV_KEY, JSON.stringify(data), data.recipes.length ? undefined : { expirationTtl: 600 });
 }
 
+// verdicts CI 워치독 — GitHub cron이 통째로 누락되는 날이 잦다(2026-08-31: 예약 3회 전부
+// 미실행, health.yml 워치독도 같은 cron이라 같이 침묵). 발화만 Cloudflare cron으로 옮긴다.
+// 판정은 health.yml #7과 동일: '오늘 KST 16시(KAMIS 갱신) 이후 생성분'이 main에 있는가.
+// generatedAt 대신 series.json의 최근 커밋 시각을 본다 — 같은 의미(빌드 직후 커밋)인데
+// 파일 700KB를 매시 받지 않아도 된다. 신선하면 아무것도 안 하고, 아니면 dispatch만 쏜다.
+// 중복 발화는 verdicts.yml의 concurrency+guard가 흡수하므로 여기선 억제 로직이 필요 없다.
+const GH_REPO = '8illijey/igb';
+
+async function fireVerdictsIfStale(env: Env): Promise<void> {
+  if (!env.GITHUB_TOKEN) return;
+  const gh = (path: string, init?: RequestInit) =>
+    fetch(`https://api.github.com/repos/${GH_REPO}${path}`, {
+      ...init,
+      headers: {
+        authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        'user-agent': 'igeobissa-watchdog',
+        accept: 'application/vnd.github+json',
+        ...(init?.headers ?? {}),
+      },
+    });
+
+  const commits = await gh('/commits?path=mobile/public/series.json&per_page=1&sha=main');
+  const committedAt = (await commits.json<any>())?.[0]?.commit?.committer?.date;
+  if (committedAt) {
+    const kst = (iso: string | number) => new Date(new Date(iso).getTime() + 9 * 3600e3);
+    const gen = kst(committedAt);
+    const now = kst(Date.now());
+    const fresh = gen.toISOString().slice(0, 10) === now.toISOString().slice(0, 10) && gen.getUTCHours() >= 16;
+    if (fresh) return;
+  }
+  // 커밋 조회 실패 시에도 발화한다 — 헛발화는 guard가 스킵하지만 침묵은 하루치 데이터를 잃는다.
+  await gh('/actions/workflows/verdicts.yml/dispatches', {
+    method: 'POST',
+    body: JSON.stringify({ ref: 'main' }),
+  });
+}
+
 export default {
-  // 매주 cron — 생성해서 KV에 저장
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    // 매시 워치독 cron과 주 1회 레시피 cron을 트리거 문자열로 구분
+    if (event.cron === '10 7-13 * * *') return ctx.waitUntil(fireVerdictsIfStale(env));
     ctx.waitUntil(generate(env).then((data) => storeRecipes(env, data)));
   },
 

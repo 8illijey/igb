@@ -3,8 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 
 # 매주 화요일 04:00 KST (= 월요일 19:00 UTC) 에 레시피 재생성
+# + 매일 16:10~22:10 KST 매시 — verdicts CI 워치독(GitHub cron 누락 대비, index.ts 참조)
 [triggers]
-crons = ["0 19 * * 1"]
+crons = ["0 19 * * 1", "10 7-13 * * *"]
 
 # 생성 결과 캐시. `wrangler kv namespace create RECIPES_KV` 로 만들고 id를 채운다.
 [[kv_namespaces]]
