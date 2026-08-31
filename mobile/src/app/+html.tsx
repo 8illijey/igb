@@ -39,6 +39,8 @@ export default function Root({ children }: PropsWithChildren) {
         {/* GA4 — 유입 경로와 재방문을 보려고 깔았다(2026-08-25).
             async라 렌더를 막지 않는다. 사이트가 SPA라 페이지 이동은
             gtag의 기본 SPA 감지(History API)가 잡는다. */}
+        {/* 내부 트래픽 스위치 — 반드시 GA·Clarity보다 먼저 돌아야 한다. */}
+        <script dangerouslySetInnerHTML={{ __html: INTERNAL_FLAG_JS }} />
         <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
         <script dangerouslySetInnerHTML={{ __html: GA_INIT }} />
         {/* Microsoft Clarity — 스크롤 히트맵·세션 리플레이(2026-08-28).
@@ -58,22 +60,54 @@ export default function Root({ children }: PropsWithChildren) {
 /** GA4 측정 ID — 속성 'igeobissa.com', 계정 '이거비싸'(designerxyzi@gmail.com). */
 const GA_ID = 'G-TV6GZBZXQ4';
 
+/**
+ * 내부 트래픽(개발자 본인) 표시를 **기기 기준**으로 잡는다.
+ *
+ * 원래는 GA 관리화면의 IP 규칙만 썼는데, 집 회선이 유동 IP라 계속 새다.
+ * 실측으로 8/26 `14.39.182.90` → 8/29 `1.235.5.3`로 **대역까지** 바뀜다.
+ * 앞자리로 뭉뚝그리면(1.235.0.0/16) 진짜 한국 방문자까지 날아간다.
+ *
+ * 켜기: /?igb_internal=1  → localStorage에 박힌다(IP가 바뀌어도 안 풀린다).
+ * 끄기: /?igb_internal=0
+ *
+ * GA4는 traffic_type 매개변수만 보면 되므로 config에 실어 보낸다
+ * (이미 활성인 'Internal Traffic' 데이터 필터가 걸러낸다).
+ * Clarity는 아예 로드를 건너뛰다 — 생렸다 멈추는 것보다 짧고 확실하다.
+ *
+ * localStorage는 사생모드·쿠키차단에서 throw할 수 있어 전부 try로 감싼다.
+ * 실패하면 '내부 아님'으로 보는 게 안전하다(수집되는 쪽이 기본값).
+ */
+const INTERNAL_FLAG_JS = `
+(function(){
+  var KEY = 'igb_internal';
+  try {
+    var q = new URLSearchParams(location.search).get(KEY);
+    if (q === '1') localStorage.setItem(KEY, '1');
+    else if (q === '0') localStorage.removeItem(KEY);
+  } catch (e) {}
+  try { window.__igbInternal = localStorage.getItem(KEY) === '1'; }
+  catch (e) { window.__igbInternal = false; }
+})();
+`;
+
 const GA_INIT = `
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${GA_ID}');
+gtag('config', '${GA_ID}', window.__igbInternal ? { traffic_type: 'internal' } : {});
 `;
 
 /** Clarity 프로젝트 ID — 프로젝트 '이거비싸?'(designerxyzi@gmail.com). */
 const CLARITY_ID = 'y9vcmep20b';
 
 const CLARITY_INIT = `
+if (!window.__igbInternal) {
 (function(c,l,a,r,i,t,y){
     c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
     t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
     y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
 })(window, document, "clarity", "script", "${CLARITY_ID}");
+}
 `;
 
 const GLOBAL_CSS = `
