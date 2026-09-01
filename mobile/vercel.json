@@ -5,12 +5,12 @@
   "redirects": [
     {
       "source": "/t",
-      "destination": "/?utm_source=threads&utm_medium=post&utm_campaign=daily",
+      "destination": "/?utm_source=threads&utm_medium=social&utm_campaign=daily",
       "permanent": false
     },
     {
       "source": "/ig",
-      "destination": "/?utm_source=instagram&utm_medium=profile&utm_campaign=bio",
+      "destination": "/?utm_source=instagram&utm_medium=social&utm_campaign=bio",
       "permanent": false
     }
   ],
