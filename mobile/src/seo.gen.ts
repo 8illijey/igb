@@ -12,67 +12,49 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "111-01",
     "name": "쌀 20kg",
     "unit": "20kg",
-    "price": 61238
+    "price": 60475
   },
   {
     "key": "111-10",
     "name": "쌀 10kg",
     "unit": "10kg",
-    "price": 34202
+    "price": 34978
   },
   {
     "key": "112-01",
     "name": "찹쌀",
     "unit": "1kg",
-    "price": 5276
-  },
-  {
-    "key": "113-01",
-    "name": "혼식곡",
-    "unit": "1kg",
-    "price": 7803
-  },
-  {
-    "key": "115-01",
-    "name": "현미",
-    "unit": "1kg",
-    "price": 5666
-  },
-  {
-    "key": "121-04",
-    "name": "보리쌀",
-    "unit": "1kg",
-    "price": 5138
+    "price": 5282
   },
   {
     "key": "141-01",
     "name": "콩",
     "unit": "500g",
-    "price": 5043
+    "price": 5085
   },
   {
     "key": "142-00",
     "name": "팥",
     "unit": "500g",
-    "price": 13710
+    "price": 13361
   },
   {
     "key": "143-00",
     "name": "녹두",
     "unit": "500g",
-    "price": 12187
+    "price": 12704
   },
   {
     "key": "151-00",
     "name": "고구마",
     "unit": "1kg",
-    "price": 5483
+    "price": 5616
   },
   {
     "key": "152-01",
     "name": "감자",
     "unit": "100g",
-    "price": 340
+    "price": 309
   },
   {
     "key": "211-02",
