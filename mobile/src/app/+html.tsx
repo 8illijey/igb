@@ -30,6 +30,17 @@ export default function Root({ children }: PropsWithChildren) {
         {/* 시세 fetch가 가는 워커 도메인에 TLS 핸드셰이크를 미리 — LCP 소폭 단축.
             fetch는 CORS 모드라 crossOrigin 없는 preconnect는 재사용이 안 된다. */}
         <link rel="preconnect" href="https://igeobissa-recipes.designerxyzi.workers.dev" crossOrigin="anonymous" />
+        {/* 폰트 서브셋 woff2가 오는 CDN — 폰트는 CORS 로드라 crossOrigin 필요 */}
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+        {/* 동적 서브셋 폰트 CSS(2026-09-03) — 한글 전체 글리프 2.2MB 대신 화면에 쓰인
+            유니코드 구간의 조각만 받는다(~100-300KB). <link rel=stylesheet>로 넣으면 렌더를
+            막으므로 스크립트로 주입(동적 삽입 스타일시트는 렌더 비차단). 로드 전엔
+            font-display:swap 폴백(시스템 폰트)으로 그려진다. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='/fonts/pretendard-subset.css';document.head.appendChild(l);})();`,
+          }}
+        />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* 공유 프리뷰 공통값 — 개별 제목·설명·URL은 라우트에서. */}
         <meta property="og:type" content="website" />

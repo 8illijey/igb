@@ -16,12 +16,18 @@ export default function RootLayout() {
   // ExtraBold는 워드마크가 SVG로 바뀐 뒤 참조가 없어 제거(~750KB).
   // display: SWAP — 기본 auto는 폰트 로드까지 텍스트를 숨겨, SSG로 미리 그린 화면이
   // 슬로우 4G에서 6초간 백지였다(2026-09-03 PSI FCP 5.9s). 시스템 폰트로 먼저 그린다.
+  // 웹은 여기서 로드하지 않는다 — 전체 글리프 2.2MB 대신 동적 서브셋 CSS가
+  // 같은 가족명으로 필요한 조각만 내려준다(+html.tsx, public/fonts/pretendard-subset.css).
   const swap = (uri: number) => ({ uri, display: FontDisplay.SWAP });
-  const [loaded] = useFonts({
-    'Pretendard-Regular': swap(require('../../assets/fonts/Pretendard-Regular.woff2')),
-    'Pretendard-SemiBold': swap(require('../../assets/fonts/Pretendard-SemiBold.woff2')),
-    'Pretendard-Bold': swap(require('../../assets/fonts/Pretendard-Bold.woff2')),
-  });
+  const [loaded] = useFonts(
+    Platform.OS === 'web'
+      ? {}
+      : {
+          'Pretendard-Regular': swap(require('../../assets/fonts/Pretendard-Regular.woff2')),
+          'Pretendard-SemiBold': swap(require('../../assets/fonts/Pretendard-SemiBold.woff2')),
+          'Pretendard-Bold': swap(require('../../assets/fonts/Pretendard-Bold.woff2')),
+        },
+  );
 
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
