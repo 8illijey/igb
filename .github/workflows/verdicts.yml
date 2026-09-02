@@ -85,7 +85,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add mobile/public/verdicts.json mobile/public/series.json mobile/src/seo.gen.ts mobile/src/snapshot.gen.ts mobile/public/robots.txt mobile/public/sitemap.xml
+          git add mobile/public/verdicts.json mobile/public/series.json mobile/src/seo.gen.ts mobile/src/snapshot.gen.ts mobile/public/robots.txt mobile/public/sitemap.xml mobile/public/llms.txt
           git commit -m "chore: update verdicts $(date -u +%F)" || { echo "변동 없음"; exit 0; }
           # 빌드 도는 15분 사이 main에 다른 커밋이 오면 push가 거부된다(2026-08-28 실사고) — 리베이스로 흡수.
           # 생성 파일이 충돌하면 새 빌드가 이긴다(-X theirs: rebase에선 재적용되는 우리 커밋이 theirs).

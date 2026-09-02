@@ -96,12 +96,19 @@ const rows = items
 // 빌드 시점 시세 전체를 번들에 싣는다 — prices 스토어의 초기값(SSG 사전 렌더 + 첫 방문 즉시 표시).
 // 앱이 런타임에 부르는 fetchAllCategories()의 출력 그대로라 형태가 어긋날 수 없다.
 // LCP 대책(2026-09-03): 정적 HTML이 스피너 대신 실제 카드를 담아야 7초대 LCP가 1초대로 내려간다.
+// 홈 정렬(lvlOf)은 verdicts.level이 있으면 그걸로 판정을 덮는다 — 스냅샷이 KAMIS 계산
+// level을 들고 있으면 hydration 후 verdicts 도착 시 히어로·그리드가 재배열돼 LCP가
+// 그 시점으로 재측정된다(2026-09-03 PSI 17s, CLS 0.129). 같은 level을 미리 굽는다.
+const snapItems = items.map((i) => {
+  const v = verdicts[`${i.itemCode}-${i.kindCode}`];
+  return v?.level ? { ...i, level: v.level } : i;
+});
 writeFileSync(
   path.join(ROOT, 'src/snapshot.gen.ts'),
   `// 자동 생성 — scripts/gen-seo.mjs. 직접 수정 금지.
 import type { PriceItem } from './api/kamis';
 /** 빌드 시점 시세 스냅샷 — prices 스토어 초기값. 라이브 응답이 오면 교체된다. */
-export const PRICE_SNAPSHOT: PriceItem[] = ${JSON.stringify(items)};
+export const PRICE_SNAPSHOT: PriceItem[] = ${JSON.stringify(snapItems)};
 `,
 );
 
@@ -150,6 +157,22 @@ writeFileSync(
 Allow: /
 
 Sitemap: ${SITE}/sitemap.xml
+`,
+);
+
+// ── public/llms.txt ─────────────────────────────────────────────────────────
+// AI 크롤러용 사이트 안내(H1 + 링크 목록이 형식 요건). 가격은 안 넣는다 — 매일 diff 소음.
+writeFileSync(
+  path.join(ROOT, 'public/llms.txt'),
+  `# 이거비싸? — 오늘 장보기 시세
+
+> 배추·삼겹살·계란 등 ${rows.length}개 농축수산물의 오늘 소매·도매 가격과 이맘때 평년 대비 판정을 매일 갱신하는 서비스입니다. 자료 출처는 KAMIS(한국농수산식품유통공사)입니다.
+
+## 품목 시세
+${rows.map((r) => `- [${r.name} 가격](${SITE}/item/${r.key})`).join('\n')}
+
+## 기타
+- [오늘 싼 재료 레시피](${SITE}/recipes)
 `,
 );
 
