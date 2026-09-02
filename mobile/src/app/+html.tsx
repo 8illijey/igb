@@ -44,7 +44,8 @@ export default function Root({ children }: PropsWithChildren) {
             gtag의 기본 SPA 감지(History API)가 잡는다. */}
         {/* 내부 트래픽 스위치 — 반드시 GA·Clarity보다 먼저 돌아야 한다. */}
         <script dangerouslySetInnerHTML={{ __html: INTERNAL_FLAG_JS }} />
-        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+        {/* gtag.js 로드는 GA_INIT 안에서 load+idle 이후로 지연 — 첫 페인트 경쟁 제거(2026-09-03).
+            gtag 호출은 dataLayer 큐라 스크립트가 늦게 와도 유실되지 않는다. */}
         <script dangerouslySetInnerHTML={{ __html: GA_INIT }} />
         {/* Microsoft Clarity — 스크롤 히트맵·세션 리플레이(2026-08-28).
             GA4로는 페이지 '안에서' 어디까지 보다 나갔는지를 모른다 — scroll(90%) 눈금 하나뿐이라
@@ -98,6 +99,16 @@ window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', '${GA_ID}', window.__igbInternal ? { traffic_type: 'internal' } : {});
+// 분석 스크립트는 load+idle 이후에 로드 — gtag의 강제 리플로우 57ms·CPU 380ms가
+// 첫 페인트·TBT와 경쟁하던 것 제거(2026-09-03 PSI). 이벤트는 dataLayer 큐에 쌓여 유실 없음.
+window.addEventListener('load', function () {
+  (window.requestIdleCallback || function (f) { setTimeout(f, 1); })(function () {
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=${GA_ID}';
+    document.head.appendChild(s);
+  });
+});
 `;
 
 /** Clarity 프로젝트 ID — 프로젝트 '이거비싸?'(designerxyzi@gmail.com). */
@@ -105,11 +116,16 @@ const CLARITY_ID = 'y9vcmep20b';
 
 const CLARITY_INIT = `
 if (!window.__igbInternal) {
-(function(c,l,a,r,i,t,y){
-    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-})(window, document, "clarity", "script", "${CLARITY_ID}");
+// gtag와 같은 이유로 load+idle 이후 로드(2026-09-03).
+window.addEventListener('load', function () {
+  (window.requestIdleCallback || function (f) { setTimeout(f, 1); })(function () {
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "${CLARITY_ID}");
+  });
+});
 }
 `;
 
