@@ -836,9 +836,10 @@ function AnnualFlow({
     ? months.map((m, i) => ({ m, i })).filter((x): x is { m: number; i: number } => x.m != null)
     : [];
   const loading = months == null;
-  // 1년치 중 절반 미만만 조사된 품목(배추·무·감자 등 — 계절별 품종으로 쪼개 조사)은
-  // 한 품종의 일부 철만 잡혀, '연간 흐름'으로 보여주면 오해됨 → 차트 생략하고 안내.
-  const ready = !loading && valid.length >= 6;
+  // 계절 품종 분할 품목(배추·무·감자 등)은 한 품종의 일부 철만 잡혀 '연간 흐름'으로
+  // 보여주면 오해됨 → 6개월 미만이면 차트 생략하고 안내. 단일 품종 제철 품목(복숭아 등)은
+  // 그 오해가 없고 철 안의 추이가 정보라 3개월부터 그린다(빈 달은 막대 생략 + 캡션).
+  const ready = !loading && valid.length >= (spanVarieties ? 6 : 3);
   const insufficient = !loading && !ready;
 
   // 준비됐을 때만 막대·캡션 계산. 아니면 타이틀 + '흐름 파악 중' (섹션 자체는 항상 보인다)
