@@ -220,7 +220,7 @@ export default function HomeScreen() {
     <View style={styles.screen}>
       {/* 홈 제목·설명 — 라우트가 <Head>를 안 주면 helmet이 빈 <title>을 심어 전 페이지 제목이 빈다. */}
       <Head>
-        <title>오늘 장보기 시세를 한눈에 | 이거비싸?</title>
+        <title>오늘 장보기 시세를 한눈에 — 배추·삼겹살·계란 지금 사도 될까 | 이거비싸?</title>
         <meta
           name="description"
           content="배추·양파·삼겹살·계란 등 82개 품목의 오늘 가격. 이맘때 평년과 비교해 지금 사도 되는 값인지 알려드려요. 소매·도매·유기농 시세 제공."
@@ -246,7 +246,10 @@ export default function HomeScreen() {
       </Head>      {/* 상단 고정 글래스 — 워드마크 + 검색 입구. 콘텐츠가 아래로 스크롤되며 블러됨 */}
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>
-          <Wordmark />
+          {/* 워드마크는 SVG라 텍스트가 없다 — h1 태그 + aria-label로 시맨틱 제목을 준다(시각 변화 없음) */}
+          <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
+            <Wordmark />
+          </View>
         </View>
         <View style={styles.searchWrap}>
           <SearchField editable={false} onPress={() => router.push('/search')} />

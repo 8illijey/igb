@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchAllCategories, PriceItem } from '../api/kamis';
+import { PRICE_SNAPSHOT } from '../snapshot.gen';
 
 // 가격 목록 캐시 — 첫 로드는 KAMIS를 최대 4~28콜(주말 백필) 치므로 10초+. 이전 결과를 즉시 그려
 // (stale-while-revalidate) 체감 로딩을 없앤다. 새로고침은 항상 백그라운드로 돌아 최신으로 교체.
@@ -27,7 +28,9 @@ export const itemKey = (i: Pick<PriceItem, 'itemCode' | 'kindCode'>) =>
   `${i.itemCode}-${i.kindCode}`;
 
 export function PricesProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<PriceItem[]>([]);
+  // 초기값 = 빌드 시점 스냅샷(매일 CI가 갱신) — SSG 정적 HTML에 실제 카드가 담기고(LCP 대책),
+  // 첫 방문도 스피너 없이 즉시 그려진다. 캐시·라이브 응답이 오는 순서대로 교체된다.
+  const [items, setItems] = useState<PriceItem[]>(PRICE_SNAPSHOT);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +58,9 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
         if (!alive || !raw) return;
         const cached = JSON.parse(raw) as PriceItem[];
         if (Array.isArray(cached) && cached.length) {
-          setItems((cur) => (cur.length ? cur : cached)); // 이미 fresh가 왔으면 덮지 않음
+          // 번들 스냅샷 위에만 덮는다 — 이미 fresh(라이브)가 왔으면 유지. 캐시는 스냅샷보다
+          // 최신일 수 있다(사용자가 오후 갱신 후 방문했던 경우).
+          setItems((cur) => (cur === PRICE_SNAPSHOT ? cached : cur));
           setLoading(false);
         }
       })

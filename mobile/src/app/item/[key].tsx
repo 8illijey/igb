@@ -702,6 +702,9 @@ export default function ItemDetailScreen() {
                 "도매가로 살 수 있다"는 오해를 만드느니 안 보여주는 게 정직하다. */}
             {market !== 'wholesale' && <ShopSection itemCode={itemKey(item)} itemName={item.itemName} />}
 
+            {/* 검색엔진용 요약 문단 — 스토어 시드 후 SSG가 이 본 렌더를 타므로(!item 분기 사장)
+                여기 있어야 정적 HTML에 실린다. 사용자에겐 페이지 요약으로도 읽힌다. */}
+            {seo && <Text style={styles.seoFoot}>{seoBodyText(seo)}</Text>}
             <Text style={styles.source}>자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}</Text>
           </View>
         ) : null}
@@ -1155,7 +1158,8 @@ function Header({ title, fav, onFav }: { title: string; fav: boolean; onFav: () 
       <Pressable style={styles.iconBtn} onPress={() => router.back()} hitSlop={4}>
         <ChevronLeft size={24} color={colors.textPrimary} strokeWidth={2} />
       </Pressable>
-      <Text style={styles.headerTitle} numberOfLines={1}>
+      {/* role=heading → 웹에서 실제 <h1> — 상세 정적 HTML의 제목 태그(시각 변화 없음) */}
+      <Text role="heading" aria-level={1} style={styles.headerTitle} numberOfLines={1}>
         {title}
       </Text>
       <FavoriteHeart fav={fav} onToggle={onFav} hitSlop={4} style={styles.iconBtn} />
@@ -1283,6 +1287,7 @@ const styles = StyleSheet.create({
   flowCaptions: { gap: 2 }, // 시즌 캡션 + '자료 없는 달' 줄을 붙여서(Figma anual-contents)
   flowCaption: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
 
+  seoFoot: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center' } as const,
   buySection: { gap: spacing.s2 },
   buyCard: { borderRadius: radius.l, backgroundColor: colors.bgElevated, overflow: 'hidden' },

@@ -92,6 +92,19 @@ const rows = items
   })
   .sort((a, b) => a.key.localeCompare(b.key));
 
+// ── src/snapshot.gen.ts ─────────────────────────────────────────────────────
+// 빌드 시점 시세 전체를 번들에 싣는다 — prices 스토어의 초기값(SSG 사전 렌더 + 첫 방문 즉시 표시).
+// 앱이 런타임에 부르는 fetchAllCategories()의 출력 그대로라 형태가 어긋날 수 없다.
+// LCP 대책(2026-09-03): 정적 HTML이 스피너 대신 실제 카드를 담아야 7초대 LCP가 1초대로 내려간다.
+writeFileSync(
+  path.join(ROOT, 'src/snapshot.gen.ts'),
+  `// 자동 생성 — scripts/gen-seo.mjs. 직접 수정 금지.
+import type { PriceItem } from './api/kamis';
+/** 빌드 시점 시세 스냅샷 — prices 스토어 초기값. 라이브 응답이 오면 교체된다. */
+export const PRICE_SNAPSHOT: PriceItem[] = ${JSON.stringify(items)};
+`,
+);
+
 // ── src/seo.gen.ts ──────────────────────────────────────────────────────────
 // 앱이 build 시점에 import한다. 정적 렌더링(SSG) 때 품목명을 알아야
 // <title>과 본문에 이름이 박힌다. 런타임에도 첫 화면 이름을 즉시 띄우는 데 쓴다.

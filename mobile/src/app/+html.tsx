@@ -27,6 +27,9 @@ export default function Root({ children }: PropsWithChildren) {
         {/* 네이버 서치어드바이저 소유확인. 구글과 같은 메타태그 방식으로 통일했다(2026-08-22). */}
         <meta name="naver-site-verification" content="1aeb61369aa03f299df9bce52b610814e03871ae" />
         <meta name="theme-color" content="#f6f8fa" />
+        {/* 시세 fetch가 가는 워커 도메인에 TLS 핸드셰이크를 미리 — LCP 소폭 단축.
+            fetch는 CORS 모드라 crossOrigin 없는 preconnect는 재사용이 안 된다. */}
+        <link rel="preconnect" href="https://igeobissa-recipes.designerxyzi.workers.dev" crossOrigin="anonymous" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* 공유 프리뷰 공통값 — 개별 제목·설명·URL은 라우트에서. */}
         <meta property="og:type" content="website" />
