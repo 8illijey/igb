@@ -513,10 +513,13 @@ async function fireVerdictsIfStale(env: Env): Promise<void> {
     if (fresh) return;
   }
   // 커밋 조회 실패 시에도 발화한다 — 헛발화는 guard가 스킵하지만 침묵은 하루치 데이터를 잃는다.
-  await gh('/actions/workflows/verdicts.yml/dispatches', {
+  const res = await gh('/actions/workflows/verdicts.yml/dispatches', {
     method: 'POST',
     body: JSON.stringify({ ref: 'main' }),
   });
+  // PAT 만료·권한 오류가 무음이면 워치독이 통째로 무력화된다(2026-09-02 실사고 의심) —
+  // throw로 cron 실행을 실패 처리해 CF 대시보드 오류 카운트·tail에 노출시킨다.
+  if (res.status !== 204) throw new Error(`verdicts dispatch ${res.status}: ${await res.text()}`);
 }
 
 export default {
