@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import Head from 'expo-router/head';
 import Svg, { Path } from 'react-native-svg';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
+import { SEO_ITEMS } from '../../seo.gen';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
@@ -309,6 +310,21 @@ export default function HomeScreen() {
             <PrivacyLink />
           </>
         )}
+
+        {/* 전체 품목 색인 — 홈 정적 HTML에 상세로 가는 <a>가 0개라 네이버가 상세 82개를
+            하나도 수집하지 못했다(2026-09-03 진단). 카드 목록은 라이브 데이터 이후 JS가
+            그려서 크롤러에겐 없다. 로딩 분기 밖에 둬야 SSG에도 찍힌다. 사용자에게도
+            전 품목 바로가기로 쓸모가 있어 숨기지 않는다(숨긴 링크는 스팸 판정 위험). */}
+        <View style={styles.allItems}>
+          <Text style={styles.sectionTitle}>전체 품목</Text>
+          <View style={styles.allItemsWrap}>
+            {SEO_ITEMS.map((i) => (
+              <Link key={i.key} href={`/item/${i.key}`} style={styles.allItemsLink}>
+                {i.name}
+              </Link>
+            ))}
+          </View>
+        </View>
         </View>
       </ScrollView>
     </View>
@@ -361,6 +377,10 @@ const styles = StyleSheet.create({
     gap: spacing.s3,
   },
   sectionTitle: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary } as const,
+  // 전체 품목 색인 — outerCard와 같은 카드 문법, 링크는 3차 텍스트 톤으로 낮게
+  allItems: { backgroundColor: colors.bgElevated, borderRadius: radius.l, padding: spacing.s4, gap: spacing.s3 },
+  allItemsWrap: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.s3, rowGap: spacing.s2 },
+  allItemsLink: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.s3 },
   // flexGrow 금지 — 마지막 줄 1~2개일 때 칸이 늘어나지 않고 3칸 너비 유지
   thumbCard: { width: '30.5%', gap: spacing.s2 },

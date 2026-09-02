@@ -12,7 +12,7 @@
  *
  * 사용법: node scripts/gen-seo.mjs
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -49,10 +49,47 @@ try {
   console.warn(`  레시피 목록을 못 받았다(${e.message}) — 레시피 없이 진행한다.`);
 }
 
+// ── 시세 맥락(verdicts) ──
+// 상세 정적 본문이 전 품목 공용 템플릿 문장뿐이라 얇은 중복 문서로 취급됐다(2026-09-03 진단:
+// 네이버가 상세 82개 중 0개 수집). 품목마다 다른 실데이터 문장을 만들려고 평년·월별 흐름을 싣는다.
+// verdicts.json은 같은 CI 회차에서 build-verdicts.mjs가 직전에 만든 파일이다.
+let verdicts = {};
+try {
+  verdicts = JSON.parse(readFileSync(path.join(ROOT, 'public/verdicts.json'), 'utf8')).items ?? {};
+} catch (e) {
+  console.warn(`  verdicts.json을 못 읽었다(${e.message}) — 시세 맥락 없이 진행한다.`);
+}
+
+// 겨울 품목 조사월 [1,2,11,12]를 '11·12·1·2월'로 읽히게 — 가장 긴 공백 다음 달부터 시작.
+function seasonOrder(ms) {
+  let cut = 0, best = -1;
+  for (let i = 0; i < ms.length; i++) {
+    const gap = (ms[(i + 1) % ms.length] - ms[i] + 12) % 12 || 12;
+    if (gap > best) { best = gap; cut = (i + 1) % ms.length; }
+  }
+  return [...ms.slice(cut), ...ms.slice(0, cut)];
+}
+
 // price를 같이 넣는다 — 상세 제목이 '배추 5,684원 | 이거비싸?' 형태라 정적 HTML에도 값이 있어야 한다.
 // 매일 verdicts CI가 이 스크립트를 돌리고 커밋 → Vercel 재배포라 제목의 가격도 매일 갱신된다.
 const rows = items
-  .map((i) => ({ key: `${i.itemCode}-${i.kindCode}`, name: i.itemName, unit: i.unit, price: i.today ?? null }))
+  .map((i) => {
+    const key = `${i.itemCode}-${i.kindCode}`;
+    const v = verdicts[key] ?? {};
+    const valid = (Array.isArray(v.months) ? v.months : [])
+      .map((m, idx) => ({ m, idx }))
+      .filter((x) => x.m != null);
+    // 상세 화면 AnnualFlow와 같은 기준: 조사월 6개 이상이어야 '가장 싼/비싼 달'을 말한다.
+    // 그 미만이면 제철 품목 — 조사월 목록만 말한다(일부 철로 연간 흐름을 주장하면 오해).
+    let minMonth = null, maxMonth = null, seasonMonths = null;
+    if (valid.length >= 6) {
+      minMonth = valid.reduce((a, b) => (b.m < a.m ? b : a)).idx + 1;
+      maxMonth = valid.reduce((a, b) => (b.m > a.m ? b : a)).idx + 1;
+    } else if (valid.length >= 1) {
+      seasonMonths = seasonOrder(valid.map((x) => x.idx + 1));
+    }
+    return { key, name: i.itemName, unit: i.unit, price: i.today ?? null, normal: v.normal ?? null, minMonth, maxMonth, seasonMonths };
+  })
   .sort((a, b) => a.key.localeCompare(b.key));
 
 // ── src/seo.gen.ts ──────────────────────────────────────────────────────────
@@ -68,6 +105,13 @@ export interface SeoItem {
   unit: string;
   /** 빌드 시점 가격 — 정적 HTML의 제목에 쓴다. 라이브 값이 오면 그걸로 덮는다. */
   price: number | null;
+  /** 이맘때 평년 평균(verdicts) — 정적 본문의 비교 문장에 쓴다. */
+  normal: number | null;
+  /** 연중 가장 싼/비싼 달(1~12). 조사월 6개 이상일 때만 값이 있다. */
+  minMonth: number | null;
+  maxMonth: number | null;
+  /** 제철 품목(조사월 6개 미만)의 조사월 목록 — 철 시작 달부터 정렬. */
+  seasonMonths: number[] | null;
 }
 export const SEO_ITEMS: SeoItem[] = ${JSON.stringify(rows, null, 2)};
 /** 이 파일을 만든 날(YYYYMMDD). 공유 카드 이미지 URL의 캐시 무효화에 쓴다 —

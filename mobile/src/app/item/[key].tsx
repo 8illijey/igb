@@ -487,11 +487,11 @@ export default function ItemDetailScreen() {
         </GlassHeader>
         {seo ? (
           <View style={styles.content01}>
-            <Text style={styles.seoHeading}>{seo.name} 가격</Text>
-            <Text style={styles.seoBody}>
-              {seo.name} 오늘 시세를 확인하세요. 단위는 {seo.unit} 기준이며, 이맘때 평년 가격과 비교해
-              지금 사도 되는 값인지 알려드려요. 최근 1년 추이와 연간 가격 흐름, 소매·도매 가격도 함께 볼 수 있어요.
+            {/* role=heading → RN Web이 실제 <h1>으로 렌더 — 정적 HTML의 제목 태그 */}
+            <Text role="heading" aria-level={1} style={styles.seoHeading}>
+              {seo.name} 가격
             </Text>
+            <Text style={styles.seoBody}>{seoBodyText(seo)}</Text>
             <ActivityIndicator style={{ marginVertical: spacing.s10 }} color={colors.textTertiary} />
           </View>
         ) : (
@@ -719,6 +719,32 @@ function evalBuy(today: number, normal: number | null) {
   const pctN = normal != null && normal > 0 ? Math.round(((today - normal) / normal) * 100) : null;
   const level: SignalLevel = pctN == null ? 'fair' : pctN <= -1 ? 'cheap' : pctN >= 1 ? 'expensive' : 'fair';
   return { level };
+}
+
+/**
+ * SSG 본문 — 검색엔진이 읽는 유일한 문장이라 품목마다 다른 실데이터로 만든다.
+ * (전엔 전 품목 공용 템플릿 147자 → 얇은 중복 문서로 취급, 네이버 상세 수집 0건. 2026-09-03 진단)
+ * 판정 어법은 앱과 동일: 반올림 % ±1 임계(evalBuy), '가장 싼/비싼 달'은 AnnualFlow 문장.
+ */
+function seoBodyText(seo: SeoItem): string {
+  const parts: string[] = [];
+  if (seo.price != null) parts.push(`오늘 ${seo.name} 가격은 ${seo.unit} 기준 ${won(seo.price)}원이에요.`);
+  if (seo.price != null && seo.normal != null && seo.normal > 0) {
+    const pct = Math.round(((seo.price - seo.normal) / seo.normal) * 100);
+    parts.push(
+      pct <= -1
+        ? `이맘때 평년 평균 ${won(seo.normal)}원보다 ${-pct}% 싼 편이에요.`
+        : pct >= 1
+          ? `이맘때 평년 평균 ${won(seo.normal)}원보다 ${pct}% 비싼 편이에요.`
+          : `이맘때 평년 평균(${won(seo.normal)}원)과 비슷한 수준이에요.`,
+    );
+  }
+  if (seo.minMonth != null && seo.maxMonth != null && seo.minMonth !== seo.maxMonth)
+    parts.push(`최근 1년 기준 ${seo.minMonth}월 무렵 가장 싸고 ${seo.maxMonth}월 무렵 가장 비쌌어요.`);
+  else if (seo.seasonMonths?.length)
+    parts.push(`${seo.seasonMonths.join('·')}월에 주로 조사되는 제철 품목이에요.`);
+  parts.push('최근 1년 추이와 연간 가격 흐름, 소매·도매 가격도 함께 볼 수 있어요.');
+  return parts.join(' ');
 }
 
 /** 스켈레톤 — 펄스(opacity) 애니메이션. children을 주면 그 묶음 전체가 한 단위로 펄스(차트 실루엣 등). */
