@@ -190,7 +190,8 @@ export default function ItemDetailScreen() {
   const { find, items, resolve } = usePrices();
   const { keys, isFavorite, toggle } = useFavorites();
   const item = find(key) ?? resolve(key);
-  const [topH, setTopH] = useState(0);
+  // 초기값 44 = 헤더 행 높이. 0이면 SSG 사전 렌더 콘텐츠가 하이드레이션 때 밀린다(CLS) — onLayout이 보정.
+  const [topH, setTopH] = useState(44);
   const insets = useSafeAreaInsets(); // content-02(회색)가 하단 safe-area까지 덮도록
 
   // 인기 품목 신호 — 이 상세를 열 때마다 itemCode 조회수 +1 (검색 화면 '인기 품목 TOP')

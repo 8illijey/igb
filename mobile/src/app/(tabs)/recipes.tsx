@@ -155,7 +155,6 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.s4,
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  wordmark: { fontSize: 20, fontFamily: font.extrabold, color: colors.textPrimary },
   content: { padding: spacing.s4, gap: spacing.s3, paddingBottom: 140 },
   source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center', marginTop: spacing.s2 } as const,
   title: { ...type.size[20], ...type.w.bold, color: colors.textPrimary } as const,

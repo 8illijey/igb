@@ -165,7 +165,6 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.s4,
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  wordmark: { fontSize: 20, fontFamily: font.extrabold, color: colors.textPrimary },
   content: { padding: spacing.s4, paddingBottom: 140 },
   sections: { gap: spacing.s6 },
   // 관심 품목 / 관심 레시피 — 동일 위계 섹션 헤더

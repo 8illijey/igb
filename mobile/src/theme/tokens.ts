@@ -96,7 +96,6 @@ export const font = {
   regular: 'Pretendard-Regular',
   semibold: 'Pretendard-SemiBold',
   bold: 'Pretendard-Bold',
-  extrabold: 'Pretendard-ExtraBold',
 } as const;
 
 /** % letterSpacing → px (RN은 px 단위) */
@@ -128,7 +127,6 @@ export const type = {
     regular:   { fontFamily: font.regular },
     semibold:  { fontFamily: font.semibold },
     bold:      { fontFamily: font.bold },
-    extrabold: { fontFamily: font.extrabold },
   },
 } as const;
 

@@ -3,8 +3,10 @@ import { Link, router } from 'expo-router';
 import Head from 'expo-router/head';
 import Svg, { Path } from 'react-native-svg';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Asset } from 'expo-asset';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -29,6 +31,28 @@ import { OG_DEFAULT_IMAGE } from '../../og';
 import { PrivacyLink } from '../../components/igb/PrivacyLink';
 
 const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
+
+/**
+ * 품목 썸네일 — 웹은 순수 <img>. expo-image는 JS 실행 후에만 DOM에 이미지를 만들어
+ * SSG 정적 HTML에서 사진이 빠졌고, LCP(히어로 사진)가 번들 4MB 뒤로 밀렸다(2026-09-03 PSI 23.7s).
+ * alt는 a11y·SEO 감사('이미지 alt 없음')도 같이 해소. 네이티브는 기존 expo-image 유지.
+ */
+function Thumb({ item, eager }: { item: PriceItem; eager?: boolean }) {
+  const src = thumbFor(item);
+  if (src == null) return null;
+  if (Platform.OS === 'web') {
+    return (
+      <img
+        src={Asset.fromModule(src).uri}
+        alt={item.itemName}
+        loading={eager ? 'eager' : 'lazy'}
+        fetchPriority={eager ? 'high' : 'auto'}
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    );
+  }
+  return <Image source={src} style={StyleSheet.absoluteFill} contentFit="cover" />;
+}
 
 /** 히어로 가격 카운트업 — 첫 도착 1회만 85%→100%를 500ms cubic ease-out으로. reduced motion·비활성 시 즉시 최종값. */
 function useCountUp(target: number | null, enabled: boolean): number | null {
@@ -113,9 +137,7 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
       <View style={styles.heroMediaRow}>
         {/* Figma hero-verdict-card: 좌측 1:1 썸네일 (없으면 bgTertiary placeholder) */}
         <View style={styles.heroThumb}>
-          {thumbFor(item) != null && (
-            <Image source={thumbFor(item)} style={StyleSheet.absoluteFill} contentFit="cover" />
-          )}
+          <Thumb item={item} eager />
         </View>
         {/* 우측 칼럼: 가격+chevron 위, 캡션 아래 (space-between) — Figma title-price */}
         <View style={styles.heroPriceCol}>
@@ -144,9 +166,7 @@ function ThumbnailCard({ item, width }: { item: PriceItem; width?: number }) {
       onPress={() => router.push(`/item/${itemKey(item)}`)}
     >
       <View style={styles.thumbMedia}>
-        {thumbFor(item) != null && (
-          <Image source={thumbFor(item)} style={StyleSheet.absoluteFill} contentFit="cover" />
-        )}
+        <Thumb item={item} />
         <View style={styles.thumbChip}>
           {/* Figma: 화살표 + 무부호 %(fair는 '변동없음'). 방향은 화살표가 표기. */}
           <SignalChip
@@ -183,8 +203,10 @@ export default function HomeScreen() {
   // 3열 그리드는 컨테이너 폭을 측정해 열 너비를 채운다(고정 %는 480 등에서 우측 여백이 남음).
   const [gridW, setGridW] = useState(0);
   const colW = gridW > 0 ? Math.floor((gridW - spacing.s3 * 2) / 3) : undefined;
-  // 상단 고정 글래스 영역 높이 — ScrollView 콘텐츠를 그만큼 내려 가려지지 않게
-  const [topH, setTopH] = useState(0);
+  // 상단 고정 글래스 영역 높이 — ScrollView 콘텐츠를 그만큼 내려 가려지지 않게.
+  // 초기값 100 = 웹 실측(헤더 44 + 검색 56). 0으로 시작하면 SSG로 미리 그린 콘텐츠가
+  // 하이드레이션 때 100px 통째로 밀려 CLS 0.288이 나왔다(2026-09-03 PSI). onLayout이 보정.
+  const [topH, setTopH] = useState(100);
 
   const lvlOf = (i: PriceItem) => verdicts[itemKey(i)]?.level ?? i.level;
 
@@ -344,7 +366,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingLeft: spacing.s4,
   },
-  wordmark: { fontSize: 20, fontFamily: font.extrabold, color: colors.textPrimary },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingBottom: 140 },
   content01: { padding: spacing.s4, backgroundColor: colors.bgCanvas },

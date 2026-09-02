@@ -1,4 +1,4 @@
-import { useFonts } from 'expo-font';
+import { FontDisplay, useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -13,11 +13,14 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   // woff2 — OTF 4종 6.01MB가 전부 받혀야 했던 걸 2.99MB로 줄였다(metro.config.js에 assetExts 추가).
+  // ExtraBold는 워드마크가 SVG로 바뀐 뒤 참조가 없어 제거(~750KB).
+  // display: SWAP — 기본 auto는 폰트 로드까지 텍스트를 숨겨, SSG로 미리 그린 화면이
+  // 슬로우 4G에서 6초간 백지였다(2026-09-03 PSI FCP 5.9s). 시스템 폰트로 먼저 그린다.
+  const swap = (uri: number) => ({ uri, display: FontDisplay.SWAP });
   const [loaded] = useFonts({
-    'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.woff2'),
-    'Pretendard-SemiBold': require('../../assets/fonts/Pretendard-SemiBold.woff2'),
-    'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.woff2'),
-    'Pretendard-ExtraBold': require('../../assets/fonts/Pretendard-ExtraBold.woff2'),
+    'Pretendard-Regular': swap(require('../../assets/fonts/Pretendard-Regular.woff2')),
+    'Pretendard-SemiBold': swap(require('../../assets/fonts/Pretendard-SemiBold.woff2')),
+    'Pretendard-Bold': swap(require('../../assets/fonts/Pretendard-Bold.woff2')),
   });
 
   useEffect(() => {
