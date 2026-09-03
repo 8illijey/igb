@@ -703,9 +703,9 @@ export default function ItemDetailScreen() {
                 "도매가로 살 수 있다"는 오해를 만드느니 안 보여주는 게 정직하다. */}
             {market !== 'wholesale' && <ShopSection itemCode={itemKey(item)} itemName={item.itemName} />}
 
-            {/* 검색엔진용 요약 문단 — 스토어 시드 후 SSG가 이 본 렌더를 타므로(!item 분기 사장)
-                여기 있어야 정적 HTML에 실린다. 사용자에겐 페이지 요약으로도 읽힌다. */}
-            {seo && <Text style={styles.seoFoot}>{seoBodyText(seo)}</Text>}
+            {/* 검색엔진용 요약 문단은 제거(2026-09-03) — 사전 렌더로 본문이 이미 품목별
+                실데이터로 풍부해져 중복 재서술이 됐다. 고유 정보였던 '가장 싼/비싼 달'은
+                AnnualFlow 캡션으로 병합. */}
             <Text style={styles.source}>자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}</Text>
           </View>
         ) : null}
@@ -883,18 +883,11 @@ function AnnualFlow({
     const maxIdx = valid.reduce((a, b) => (b.m > a.m ? b : a)).i; // 가장 비싼 달
     const p = topicParticle(name);
     const variation = (max - min) / min;
-    const cur = months![thisMonth]; // 이번 달 평균 (null이면 위치 판정 불가 → 일반 안내)
     // 우리가 가진 건 '가격'뿐 — 출하량(공급) 데이터는 없다. 그래서 인과(출하↑↓)는 말하지 않고
-    // 관측된 가격 패턴만 사실로 전한다 (이번 달의 실제 가격 위치로 판정).
-    const generic = `${name}${p} 보통 ${MONTHS[minIdx]}월 무렵 가장 싸고, ${MONTHS[maxIdx]}월 무렵 가장 비싸요`;
+    // 관측된 가격 패턴만 사실로 전한다. '이맘때 낮은/높은 편' 위치 판정 문구는 하단 SEO 문단
+    // 삭제(2026-09-03)와 함께 '가장 싼/비싼 달' 문장으로 통일 — 검색 고유 정보가 이 캡션뿐이다.
     if (variation < 0.08) seasonText = `${name}${p} 연중 가격이 비교적 안정적이에요`;
-    else if (cur == null) seasonText = generic;
-    else {
-      const pos = (cur - min) / span;
-      if (pos <= 0.33) seasonText = `${name}${p} 보통 이맘때 가격이 낮은 편이에요`;
-      else if (pos >= 0.67) seasonText = `${name}${p} 보통 이맘때 가격이 높은 편이에요`;
-      else seasonText = generic;
-    }
+    else seasonText = `${name}${p} 최근 1년 기준 ${MONTHS[minIdx]}월 무렵 가장 싸고, ${MONTHS[maxIdx]}월 무렵 가장 비쌌어요`;
     bars = (
       <View style={styles.flowBars}>
         {months!.map((m, i) => {
@@ -1288,7 +1281,6 @@ const styles = StyleSheet.create({
   flowCaptions: { gap: 2 }, // 시즌 캡션 + '자료 없는 달' 줄을 붙여서(Figma anual-contents)
   flowCaption: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
 
-  seoFoot: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center' } as const,
   buySection: { gap: spacing.s2 },
   buyCard: { borderRadius: radius.l, backgroundColor: colors.bgElevated, overflow: 'hidden' },
