@@ -128,3 +128,14 @@ jobs:
           fi
 
           exit $fail
+      # 실패 시 디스코드 즉시 알림 — GitHub 메일보다 빠른 채널.
+      # 웹훅 미설정이면 조용히 생략(알림이 체크 자체를 실패시키면 안 됨).
+      - name: Discord 알림 (실패)
+        if: failure()
+        env:
+          HOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          [ -n "$HOOK" ] || exit 0
+          curl -sf -m 10 -H 'Content-Type: application/json' \
+            -d "{\"content\":\"🚨 **이거비싸 헬스체크 실패** — 앱 다운/시세 없음/CI 침묵 중 하나. 로그: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" \
+            "$HOOK" || true

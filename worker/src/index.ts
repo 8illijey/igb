@@ -15,6 +15,8 @@ export interface Env {
   DATAGO_KEY?: string;
   /** verdicts CI 재발화용(actions:write). 없으면 워치독 cron은 아무것도 안 한다 */
   GITHUB_TOKEN?: string;
+  /** 디스코드 웹훅 URL — 워치독 실패 알림용(2026-09-04). 미설정이면 알림 생략. */
+  DISCORD_WEBHOOK?: string;
 }
 
 const KV_KEY = 'recipes:latest';
@@ -518,8 +520,23 @@ async function fireVerdictsIfStale(env: Env): Promise<void> {
     body: JSON.stringify({ ref: 'main' }),
   });
   // PAT 만료·권한 오류가 무음이면 워치독이 통째로 무력화된다(2026-09-02 실사고 의심) —
-  // throw로 cron 실행을 실패 처리해 CF 대시보드 오류 카운트·tail에 노출시킨다.
-  if (res.status !== 204) throw new Error(`verdicts dispatch ${res.status}: ${await res.text()}`);
+  // throw로 cron 실행을 실패 처리해 CF 대시보드 오류 카운트·tail에 노출시키고, 디스코드로도 쏜다.
+  if (res.status !== 204) {
+    await notifyDiscord(env, `🚨 **워커 워치독 dispatch 실패** (HTTP ${res.status}) — PAT 만료 가능성. GitHub cron까지 죽은 날이면 오늘 갱신이 없습니다.`);
+    throw new Error(`verdicts dispatch ${res.status}: ${await res.text()}`);
+  }
+}
+
+/** 디스코드 웹훅 알림 — 미설정이면 무시. 알림 실패가 본 작업을 실패시키지 않게 삼킨다. */
+async function notifyDiscord(env: Env, content: string): Promise<void> {
+  if (!env.DISCORD_WEBHOOK) return;
+  try {
+    await fetch(env.DISCORD_WEBHOOK, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+  } catch {}
 }
 
 export default {
