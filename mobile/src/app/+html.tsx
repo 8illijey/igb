@@ -65,6 +65,7 @@ export default function Root({ children }: PropsWithChildren) {
             스크롤 히트맵이 그 구조에서 잡힐지는 붙여봐야 안다 — 안 잡히면 빼자. */}
         <script dangerouslySetInnerHTML={{ __html: CLARITY_INIT }} />
         <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
+        <script dangerouslySetInnerHTML={{ __html: STALE_RELOAD_JS }} />
         <script dangerouslySetInnerHTML={{ __html: GUARD_JS }} />
       </head>
       <body>{children}</body>
@@ -158,6 +159,33 @@ html, body { overflow-x: hidden; }
    RN Web이 word-break를 따로 지정하지 않아 여기서 한 번에 건다. 끊을 데가 없는 긴 문자열은
    RN Web이 이미 넣어둔 overflow-wrap: break-word가 처리한다. */
 #root, #root * { word-break: keep-all; }
+`;
+
+/**
+ * 장수 탭 자동 새로고침(2026-09-04) — 시세·판정·차트·번들 캐시가 전부 세션 고정이라
+ * 열어둔 탭엔 어제 데이터가 계속 보였다("자동 업데이트 안 됐잖아" 실제 제보 2회).
+ * 탭이 다시 보일 때 ①숨김이 6시간 이상이었거나 ②숨김 구간이 16:30 KST(KAMIS 갱신
+ * 반영 시각)를 걸쳤으면 통째로 새로고침한다. 조회형 앱이라 잃을 입력 상태가 없다.
+ */
+const STALE_RELOAD_JS = `
+(function () {
+  var hiddenAt = 0;
+  function lastRefreshBoundary(now) {
+    // 가장 최근의 16:30 KST 시각(ms). KST = UTC+9 고정(서머타임 없음).
+    var kst = new Date(now + 9 * 3600e3);
+    var b = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate(), 7, 30); // 16:30 KST = 07:30 UTC
+    if (b > now) b -= 86400e3;
+    return b;
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+    if (!hiddenAt) return;
+    var now = Date.now();
+    var crossedBoundary = hiddenAt < lastRefreshBoundary(now);
+    if (now - hiddenAt > 6 * 3600e3 || crossedBoundary) location.reload();
+    hiddenAt = 0;
+  });
+})();
 `;
 
 const GUARD_JS = `
