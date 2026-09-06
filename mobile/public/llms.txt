@@ -1,6 +1,6 @@
 # 이거비싸? — 오늘 장보기 시세
 
-> 배추·삼겹살·계란 등 86개 농축수산물의 오늘 소매·도매 가격과 이맘때 평년 대비 판정을 매일 갱신하는 서비스입니다. 자료 출처는 KAMIS(한국농수산식품유통공사)입니다.
+> 배추·삼겹살·계란 등 90개 농축수산물의 오늘 소매·도매 가격과 이맘때 평년 대비 판정을 매일 갱신하는 서비스입니다. 자료 출처는 KAMIS(한국농수산식품유통공사)입니다.
 
 ## 품목 시세
 - [쌀 20kg 가격](https://igeobissa.com/item/111-01)
@@ -31,8 +31,9 @@
 - [무 가격](https://igeobissa.com/item/231-02)
 - [당근 가격](https://igeobissa.com/item/232-01)
 - [열무 가격](https://igeobissa.com/item/233-00)
-- [건고추 가격](https://igeobissa.com/item/241-00)
-- [풋고추(녹광 등) 가격](https://igeobissa.com/item/242-00)
+- [건고추 화건 가격](https://igeobissa.com/item/241-00)
+- [건고추 햇산화건 가격](https://igeobissa.com/item/241-01)
+- [풋고추 가격](https://igeobissa.com/item/242-00)
 - [꽈리고추 가격](https://igeobissa.com/item/242-02)
 - [청양고추 가격](https://igeobissa.com/item/242-03)
 - [오이맛고추 가격](https://igeobissa.com/item/242-04)
@@ -53,15 +54,18 @@
 - [깐마늘(국산) 가격](https://igeobissa.com/item/258-01)
 - [알배기배추 가격](https://igeobissa.com/item/279-00)
 - [브로콜리 가격](https://igeobissa.com/item/280-00)
+- [후지사과 가격](https://igeobissa.com/item/411-05)
 - [아오리사과 가격](https://igeobissa.com/item/411-06)
 - [홍로사과 가격](https://igeobissa.com/item/411-07)
-- [배 가격](https://igeobissa.com/item/412-04)
+- [신고배 가격](https://igeobissa.com/item/412-01)
+- [원황배 가격](https://igeobissa.com/item/412-04)
 - [복숭아 가격](https://igeobissa.com/item/413-01)
 - [캠벨얼리포도 가격](https://igeobissa.com/item/414-01)
 - [거봉포도 가격](https://igeobissa.com/item/414-02)
 - [샤인머스켓포도 가격](https://igeobissa.com/item/414-12)
 - [감귤 가격](https://igeobissa.com/item/415-02)
 - [바나나 가격](https://igeobissa.com/item/418-02)
+- [참다래(키위) 가격](https://igeobissa.com/item/419-02)
 - [파인애플 가격](https://igeobissa.com/item/420-02)
 - [오렌지 가격](https://igeobissa.com/item/421-06)
 - [방울토마토 가격](https://igeobissa.com/item/422-01)
