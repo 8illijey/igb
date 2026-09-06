@@ -99,9 +99,16 @@ jobs:
           HOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           [ -n "$HOOK" ] || exit 0
+          # 주말·공휴일은 KAMIS 미조사라 '오늘자'가 아니다 — 조사일을 있는 그대로 말한다(2026-09-06 제보).
+          SURVEY=$(jq -r '.date // empty' mobile/public/verdicts.json)
+          TODAY=$(TZ=Asia/Seoul date +%F)
+          if [ "$SURVEY" = "$TODAY" ]; then
+            MSG="✅ 오늘자 시세 반영 완료 ($(TZ=Asia/Seoul date '+%m/%d %H:%M'))"
+          else
+            MSG="✅ 시세 반영 완료 — 조사일 ${SURVEY:-확인불가} 기준 (주말·공휴일엔 새 조사가 없어요)"
+          fi
           curl -sf -m 10 -H 'Content-Type: application/json' \
-            -d "{\"content\":\"✅ 오늘자 시세 반영 완료 ($(TZ=Asia/Seoul date '+%m/%d %H:%M')) — 곧 사이트에 배포됩니다\"}" \
-            "$HOOK" || true
+            -d "{\"content\":\"$MSG\"}" "$HOOK" || true
       - name: Discord 알림 (빌드 실패)
         if: failure()
         env:
