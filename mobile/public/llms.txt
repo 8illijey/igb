@@ -33,7 +33,7 @@
 - [열무 가격](https://igeobissa.com/item/233-00)
 - [건고추 화건 가격](https://igeobissa.com/item/241-00)
 - [건고추 햇산화건 가격](https://igeobissa.com/item/241-01)
-- [풋고추 가격](https://igeobissa.com/item/242-00)
+- [풋고추(녹광 등) 가격](https://igeobissa.com/item/242-00)
 - [꽈리고추 가격](https://igeobissa.com/item/242-02)
 - [청양고추 가격](https://igeobissa.com/item/242-03)
 - [오이맛고추 가격](https://igeobissa.com/item/242-04)
