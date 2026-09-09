@@ -35,8 +35,13 @@
   const SEARCH_SIZE = 60;
   const PICK_N = 3;
 
-  /** 파트너스 웹 API 분당 한도는 50. 여유를 크게 두고 35로 돈다(초과 1회의 대가가 너무 크다). */
-  const DEFAULT_RPM = 35;
+  /**
+   * 파트너스 웹 API 분당 한도는 50(검색·링크생성 각각), 전체 100. 2026-09-09 경고 3회 누적으로
+   * 실제 이용제한을 맞았다 — 유력 원인은 CLI+REPL 중복 동시 실행(35×2=70/분).
+   * 상한을 20으로 내리고(둘이 겹쳐도 40<50), MAX_SAFE_RPM 초과는 어떤 경로로도 못 넘게 클램프.
+   */
+  const DEFAULT_RPM = 20;
+  const MAX_SAFE_RPM = 20;
 
   /** KAMIS 품목명 → 쿠팡 검색어 */
   const KEYWORDS = {
@@ -412,6 +417,11 @@
    * @param {string[]|null} only 특정 itemCode만 (테스트용)
    */
   async function build({ partnersPost, prev = {}, log = console.log, rpm = DEFAULT_RPM, only = null } = {}) {
+    // --rpm이든 REPL 호출이든 상한을 못 넘긴다 — 한도 초과 1회의 대가(경고 누적→계정 제한)가 너무 크다.
+    if (rpm > MAX_SAFE_RPM) {
+      log(`rpm ${rpm} → ${MAX_SAFE_RPM}로 강제 하향(MAX_SAFE_RPM)`);
+      rpm = MAX_SAFE_RPM;
+    }
     const throttle = createLimiter(rpm);
     const call = async (path, body) => {
       await throttle();
@@ -593,6 +603,38 @@
       const rpm = Number(arg('rpm')) || DEFAULT_RPM;
       const only = arg('only') ? arg('only').split(',').map((s) => s.trim()) : null;
 
+      // ── 과호출 하네스(2026-09-09 이용제한 사고 후) ─────────────────────
+      // ① 동시 실행 잠금: 두 프로세스가 겹치면 분당 합산이 한도를 넘는다(유력 사고 원인).
+      // ② 429 쿨다운: 파트너스는 '경고 후 24h 재사용'인데 그 안에 또 돌리면 경고가 누적된다.
+      const os = await import('node:os');
+      const LOCK = pathMod.join(os.homedir(), '.igb-coupang.lock');
+      const COOLDOWN = pathMod.join(os.homedir(), '.igb-coupang-cooldown');
+      try {
+        const cd = Number(await fs.readFile(COOLDOWN, 'utf8'));
+        const left = cd + 24 * 3600e3 - Date.now();
+        if (left > 0) {
+          console.error(
+            `쿨다운 중 — 직전 실행이 파트너스 한도(429)에 걸렸습니다. ${Math.ceil(left / 3600e3)}시간 뒤 재시도하세요.\n` +
+              `(경고 후 24시간 내 재호출은 경고를 누적시켜 계정 제한으로 이어집니다. 해제: rm ${COOLDOWN})`,
+          );
+          process.exit(3);
+        }
+      } catch {}
+      try {
+        const lock = JSON.parse(await fs.readFile(LOCK, 'utf8'));
+        const alive = (() => { try { process.kill(lock.pid, 0); return true; } catch { return false; } })();
+        if (alive && Date.now() - lock.at < 2 * 3600e3) {
+          console.error(`이미 실행 중(pid ${lock.pid}) — 동시 실행은 분당 합산 한도를 넘깁니다. 종료.`);
+          process.exit(3);
+        }
+      } catch {}
+      await fs.writeFile(LOCK, JSON.stringify({ pid: process.pid, at: Date.now() }), 'utf8');
+      const fsSync = await import('node:fs');
+      const cleanup = () => { try { fsSync.unlinkSync(LOCK); } catch {} };
+      process.on('exit', cleanup);
+      process.on('SIGINT', () => process.exit(130));
+      process.on('SIGTERM', () => process.exit(143));
+
       const cookie = process.env.COUPANG_PARTNERS_COOKIE;
       if (!cookie) {
         console.error(
@@ -633,8 +675,13 @@
         await fs.writeFile(outPath, serialize(data), 'utf8');
         console.log(`기록 완료 → ${outPath}`);
       }
-      // 한도 초과로 중단된 회차는 실패로 알린다(스케줄러가 조용히 넘어가지 않도록).
-      if (stats.aborted) process.exit(2);
+      // 한도 초과로 중단된 회차는 실패로 알리고, 24h 쿨다운을 새긴다(경고 후 재사용 24h —
+      // 그 안의 재실행이 경고를 누적시켜 계정 제한으로 이어진 게 2026-09-09 사고).
+      if (stats.aborted) {
+        await fs.writeFile(COOLDOWN, String(Date.now()), 'utf8');
+        console.error(`429 감지 — 24시간 쿨다운 기록(${COOLDOWN}). 내일 이 시간 이후 재실행하세요.`);
+        process.exit(2);
+      }
     })().catch((e) => {
       console.error(e);
       process.exit(1);
