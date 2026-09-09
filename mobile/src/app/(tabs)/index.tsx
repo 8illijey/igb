@@ -23,7 +23,8 @@ import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
 import { SEO_ITEMS } from '../../seo.gen';
-import { REGIONS, regionLabel, regionOf, type RegionKey } from '../../api/regions';
+import { regionLabel } from '../../api/regions';
+import { RegionChips, RegionDropdown, RegionNote } from '../../components/igb/RegionPicker';
 import { useRegion } from '../../store/region';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
@@ -198,6 +199,12 @@ function ThumbnailCard({ item, width }: { item: PriceItem; width?: number }) {
   );
 }
 
+// [임시] 지역 선택 UI 시안 비교용 — ?ui=chips 로 시안 B. 시안 확정되면 이 스위치와 진 쪽 컴포넌트를 지운다.
+const REGION_UI: 'dropdown' | 'chips' =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('ui') === 'chips'
+    ? 'chips'
+    : 'dropdown';
+
 export default function HomeScreen() {
   const { items, loading, error, refresh } = usePrices();
   // 화면에 뜬 값이 실제로 조사된 날 — 가장 최근 것을 대표로 쓴다.
@@ -281,11 +288,13 @@ export default function HomeScreen() {
           <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
             <Wordmark />
           </View>
+          {REGION_UI === 'dropdown' && <RegionDropdown />}
         </View>
+        {REGION_UI === 'chips' && <RegionChips />}
+        <RegionNote />
         <View style={styles.searchWrap}>
           <SearchField editable={false} onPress={() => router.push('/search')} />
         </View>
-        <RegionBar />
       </GlassHeader>
 
       <ScrollView
@@ -366,67 +375,16 @@ export default function HomeScreen() {
   );
 }
 
-/**
- * 지역 선택 — 목록 전체가 이 값에 딸려 있다(오늘가·순위·판정 문구).
- * 지역을 바꾸면 그 지역 오늘가로 다시 받는다. 추가 호출은 없다 — 같은 요청에 파라미터만 붙는다.
- */
-function RegionBar() {
-  const { region, setRegion } = useRegion();
-  const opts: { key: RegionKey; label: string; thin?: true }[] = [
-    { key: 'all', label: '전국' },
-    ...REGIONS.map((r) => ({ key: r.name as RegionKey, label: r.name, thin: r.thin })),
-  ];
-  const thin = regionOf(region)?.thin;
-  return (
-    <>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.regionRow}>
-      {opts.map((o) => {
-        const on = o.key === region;
-        return (
-          <Pressable
-            key={o.key}
-            onPress={() => setRegion(o.key)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={`${o.label} 시세로 보기`}
-            style={[styles.regionPill, on && styles.regionPillOn]}
-          >
-            <Text style={[styles.regionPillText, on && styles.regionPillTextOn]}>{o.label}</Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-    {/* 표본이 1~2곳인 지역은 '동네 시세'가 아니라 사실상 한 매장 값이다 — 숨기지 말고 말한다. */}
-    {thin && (
-      <Text style={styles.regionNote}>
-        {regionLabel(region)}은 조사 판매처가 1~2곳뿐이라 한 매장 가격에 가까워요.
-      </Text>
-    )}
-    </>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgSecondary },
   searchWrap: { paddingHorizontal: spacing.s4, paddingBottom: spacing.s2 },
-  // 지역 13칸 — 고정폭 행에 안 들어가 가로 스크롤.
-  regionRow: { flexDirection: 'row', gap: spacing.s2, paddingHorizontal: spacing.s4, paddingBottom: spacing.s2 },
-  regionPill: {
-    paddingHorizontal: spacing.s3,
-    paddingVertical: spacing.s1,
-    borderRadius: radius.full,
-    backgroundColor: colors.bgSecondary,
-  },
-  regionPillOn: { backgroundColor: colors.textPrimary },
-  regionPillText: { ...type.size[13], ...type.w.semibold, color: colors.textTertiary } as const,
-  regionPillTextOn: { color: colors.bgElevated },
-  regionNote: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, paddingHorizontal: spacing.s4, paddingBottom: spacing.s2 } as const,
   header: {
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingLeft: spacing.s4,
+    paddingRight: spacing.s4,
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingBottom: 140 },
