@@ -283,12 +283,17 @@ export default function HomeScreen() {
       <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>      {/* 상단 고정 글래스 — 워드마크 + 검색 입구. 콘텐츠가 아래로 스크롤되며 블러됨 */}
       <GlassHeader onHeight={setTopH}>
+        {/* 좌측 = 브랜드 + 현재 지역(보고 있는 맥락), 우측 = 액션 자리.
+            지역을 우측에 두지 않는다 — 거기는 알림 벨의 관례적 위치다(당근·배달의민족 모두 지역 좌·알림 우). */}
         <View style={styles.header}>
-          {/* 워드마크는 SVG라 텍스트가 없다 — h1 태그 + aria-label로 시맨틱 제목을 준다(시각 변화 없음) */}
-          <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
-            <Wordmark />
+          <View style={styles.headerLeft}>
+            {/* 워드마크는 SVG라 텍스트가 없다 — h1 태그 + aria-label로 시맨틱 제목을 준다(시각 변화 없음) */}
+            <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
+              <Wordmark />
+            </View>
+            {REGION_UI === 'dropdown' && <RegionDropdown />}
           </View>
-          {REGION_UI === 'dropdown' && <RegionDropdown />}
+          {/* 우측은 비워둔다 — 가격 알림 벨이 들어올 자리 */}
         </View>
         {REGION_UI === 'chips' && <RegionChips />}
         <RegionNote />
@@ -386,6 +391,7 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.s4,
     paddingRight: spacing.s4,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingBottom: 140 },
   content01: { padding: spacing.s4, backgroundColor: colors.bgCanvas },
