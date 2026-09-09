@@ -23,6 +23,8 @@ import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
 import { SEO_ITEMS } from '../../seo.gen';
+import { REGIONS, regionLabel, regionOf, type RegionKey } from '../../api/regions';
+import { useRegion } from '../../store/region';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
@@ -96,6 +98,9 @@ function PriceChevron() {
 
 /** Figma hero-verdict-card 1:1 — level은 사전계산(평년+최근1년) 우선, 없으면 item.level(평년) */
 function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceItem; level: SignalLevel; animatePrice?: boolean }) {
+  // 지역을 고르면 오늘가는 그 지역 값이지만 평년은 전국 단일값이다(KAMIS가 지역별 평년을 안 준다).
+  // 기준이 섞였으니 화면이 그걸 밝힌다 — 2026-08-20 사고는 안 밝힌 채 섞어서 났다.
+  const { region } = useRegion();
   const c = signal[level];
   const shownPrice = useCountUp(item.today, animatePrice);
   const pct = Math.abs(item.vsNormalPct ?? 0);
@@ -121,7 +126,9 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
     >
       <View style={styles.heroTopRow}>
         <SignalChip level={level} label={CHIP_LABEL[level]} showArrow />
-        <Text style={styles.captionGrey}>오늘 · KAMIS 소매</Text>
+        <Text style={styles.captionGrey}>
+          {region === 'all' ? '오늘' : `${regionLabel(region)} 오늘`} · KAMIS 소매
+        </Text>
       </View>
 
       {/* Figma: 평가문구는 카드 상단 풀폭.
@@ -147,7 +154,9 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
           </View>
           <View>
             <Text style={styles.captionSecondary}>{spec}</Text>
-            <Text style={styles.captionSecondary}>이맘때 평균 {won(item.normal)}원</Text>
+            <Text style={styles.captionSecondary}>
+              이맘때 {region === 'all' ? '' : '전국 '}평균 {won(item.normal)}원
+            </Text>
           </View>
         </View>
       </View>
@@ -276,6 +285,7 @@ export default function HomeScreen() {
         <View style={styles.searchWrap}>
           <SearchField editable={false} onPress={() => router.push('/search')} />
         </View>
+        <RegionBar />
       </GlassHeader>
 
       <ScrollView
@@ -356,9 +366,61 @@ export default function HomeScreen() {
   );
 }
 
+/**
+ * 지역 선택 — 목록 전체가 이 값에 딸려 있다(오늘가·순위·판정 문구).
+ * 지역을 바꾸면 그 지역 오늘가로 다시 받는다. 추가 호출은 없다 — 같은 요청에 파라미터만 붙는다.
+ */
+function RegionBar() {
+  const { region, setRegion } = useRegion();
+  const opts: { key: RegionKey; label: string; thin?: true }[] = [
+    { key: 'all', label: '전국' },
+    ...REGIONS.map((r) => ({ key: r.name as RegionKey, label: r.name, thin: r.thin })),
+  ];
+  const thin = regionOf(region)?.thin;
+  return (
+    <>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.regionRow}>
+      {opts.map((o) => {
+        const on = o.key === region;
+        return (
+          <Pressable
+            key={o.key}
+            onPress={() => setRegion(o.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={`${o.label} 시세로 보기`}
+            style={[styles.regionPill, on && styles.regionPillOn]}
+          >
+            <Text style={[styles.regionPillText, on && styles.regionPillTextOn]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+    {/* 표본이 1~2곳인 지역은 '동네 시세'가 아니라 사실상 한 매장 값이다 — 숨기지 말고 말한다. */}
+    {thin && (
+      <Text style={styles.regionNote}>
+        {regionLabel(region)}은 조사 판매처가 1~2곳뿐이라 한 매장 가격에 가까워요.
+      </Text>
+    )}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgSecondary },
   searchWrap: { paddingHorizontal: spacing.s4, paddingBottom: spacing.s2 },
+  // 지역 13칸 — 고정폭 행에 안 들어가 가로 스크롤.
+  regionRow: { flexDirection: 'row', gap: spacing.s2, paddingHorizontal: spacing.s4, paddingBottom: spacing.s2 },
+  regionPill: {
+    paddingHorizontal: spacing.s3,
+    paddingVertical: spacing.s1,
+    borderRadius: radius.full,
+    backgroundColor: colors.bgSecondary,
+  },
+  regionPillOn: { backgroundColor: colors.textPrimary },
+  regionPillText: { ...type.size[13], ...type.w.semibold, color: colors.textTertiary } as const,
+  regionPillTextOn: { color: colors.bgElevated },
+  regionNote: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, paddingHorizontal: spacing.s4, paddingBottom: spacing.s2 } as const,
   header: {
     height: 44,
     flexDirection: 'row',

@@ -16,6 +16,7 @@ import {
   labelOf,
   stripUnitParen,
   MarketPrice,
+  MarketsByRegion,
   PriceItem,
   SeriesPoint,
   won,
@@ -32,6 +33,8 @@ import { Tabs } from '../../components/igb/Tabs';
 import { Tooltip } from '../../components/igb/Tooltip';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Sparkline } from '../../components/igb/Sparkline';
+import { regionLabel, type RegionKey } from '../../api/regions';
+import { useRegion } from '../../store/region';
 import { useFavorites } from '../../store/favorites';
 import { bumpPopularity } from '../../store/popularity';
 import { itemKey, usePrices } from '../../store/prices';
@@ -221,7 +224,8 @@ export default function ItemDetailScreen() {
   const [market, setMarket] = useState<Market>('retail');
   const [chart28, setChart28] = useState<SeriesPoint[] | null>(null); // 28일 — 차트 표시용. 가벼워 빠름(~3s)
   const [yearSeries, setYearSeries] = useState<SeriesPoint[] | null>(null); // 365일 — 최근1년 평균·연간 흐름 폴백. verdicts 없을 때만(무거움 ≈27s).
-  const [markets, setMarkets] = useState<MarketPrice[] | null>(null);
+  const [markets, setMarkets] = useState<MarketsByRegion | null>(null);
+  const { region } = useRegion();
   const [wsItem, setWsItem] = useState<PriceItem | null | undefined>(undefined);
   const [eco, setEco] = useState<EcoData | null | undefined>(undefined);
   const [ecoBaseline, setEcoBaseline] = useState<{ avg: number; count: number } | null | undefined>(undefined); // 친환경 '이맘때 평균'(최근 2년). undefined=로딩, null=데이터없음
@@ -299,9 +303,10 @@ export default function ItemDetailScreen() {
     setMarkets(null);
     setChart28(null);
     setYearSeries(null);
+    // 지역별 요약까지 한 응답에서 만들어 캐시한다 — 지역을 바꿔도 네트워크를 다시 타지 않는다.
     cached(`mk-${ck}`, stampOf(active?.surveyDate), () => fetchMarketPrices(active, cls))
       .then(setMarkets)
-      .catch(() => setMarkets([]));
+      .catch(() => setMarkets({ all: { markets: [], avg: null, count: 0 }, byRegion: {} }));
     // 28일은 1년 시계열이 없거나 부족할 때만 쓰는 폴백이다.
     // 사전계산(series.json)이 있으면 차트가 이미 채워지므로 이 호출을 생략한다
     // (2026-08-20 실측 4.4s — 쓰지도 않고 상세 진입마다 KAMIS를 때렸다).
@@ -655,7 +660,11 @@ export default function ItemDetailScreen() {
               </View>
               <Sparkline series={eco.series} baseline={ecoBaseline?.avg ?? null} level={ecoLevel} />
             </View>
-            <BuySection markets={eco.markets} reference={eco.latest} />
+            {/* 친환경은 지역을 안 나눈다 — 주간 발행에 표본이 적어 지역별로 쪼개면 대부분 1곳 이하가 된다. */}
+            <BuySection
+              data={{ all: { markets: eco.markets, avg: eco.latest, count: eco.markets.length }, byRegion: {} }}
+              reference={eco.latest}
+            />
             <ShopSection itemCode={itemKey(item)} itemName={item.itemName} market="eco" />
             <Text style={styles.source}>
               자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}
@@ -696,7 +705,9 @@ export default function ItemDetailScreen() {
               />
             </View>
 
-            <BuySection markets={markets} reference={active.today} />
+            {/* 지역은 홈에서 고르는 전역 설정이고 여기선 따르기만 한다.
+                도매엔 적용하지 않는다 — 12곳 중 5곳에만 지역 행이 있다(2026-09-09 실측). */}
+            <BuySection data={markets} reference={active.today} region={market === 'retail' ? region : 'all'} />
 
             {/* 도매 탭엔 쿠팡 섹션을 붙이지 않는다 — 도매가는 가락시장 경락가(유통 마진 이전)라
                 소매가인 쿠팡 상품과 비교 축이 다르고, 조사 단위(10kg·1상자)도 상품 규격과 대응이 안 된다.
@@ -985,15 +996,35 @@ function AnnualFlow({
 /**
  * "이렇게 사면 좋아요" — 판매처별 실가격. 점 색은 상대 신호(최저=cheap, 최고=expensive).
  */
-function BuySection({ markets, reference }: { markets: MarketPrice[] | null; reference: number | null }) {
-  if (markets == null) {
+function BuySection({
+  data,
+  reference,
+  region = 'all',
+}: {
+  data: MarketsByRegion | null;
+  reference: number | null;
+  region?: RegionKey;
+}) {
+  if (data == null) {
     return <ActivityIndicator style={{ marginVertical: spacing.s4 }} color={colors.textTertiary} />;
   }
-  if (markets.length === 0) return null;
-  const shown = markets.slice(0, 6);
+  // 고른 지역에 이 품목 조사 판매처가 없으면 전국으로 보여주고 아래에서 그 사실을 밝힌다.
+  const picked = region === 'all' ? null : (data.byRegion[region] ?? null);
+  const missing = region !== 'all' && picked == null;
+  const view = picked ?? data.all;
+  if (view.markets.length === 0) return null;
+
+  const shown = view.markets.slice(0, 6);
+  const national = data.all.avg;
+  // 지역 평균을 전국과 견준다. 둘 다 '최근 조사가'라 같은 축이다 — 평년(전국 단일값)과는 섞지 않는다.
+  const diffPct = picked?.avg != null && national ? ((picked.avg - national) / national) * 100 : null;
+
   return (
     <View style={styles.buySection}>
-      <Text style={styles.sectionTitle}>이렇게 사면 좋아요</Text>
+      <Text style={styles.sectionTitle}>
+        이렇게 사면 좋아요{picked ? ` · ${regionLabel(region)}` : ''}
+      </Text>
+
       <View style={styles.buyCard}>
         {shown.map((m, idx) => {
           // 점 색 = 현재 가격(오늘가) 대비. 싸면 cheap(초록)·비싸면 expensive(빨강)·±1% 안은 fair.
@@ -1010,6 +1041,17 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
           );
         })}
       </View>
+
+      {missing ? (
+        <Text style={styles.buyCaption}>{region}은 이 품목 조사 판매처가 없어 전국 기준으로 보여드려요.</Text>
+      ) : picked && diffPct != null ? (
+        <Text style={styles.buyCaption}>
+          {region} {picked.count}곳 평균 {won(picked.avg!)}원 — 전국보다{' '}
+          {Math.abs(diffPct) < 1 ? '비슷해요' : `${Math.abs(diffPct).toFixed(0)}% ${diffPct < 0 ? '싸요' : '비싸요'}`}.
+          {picked.count === 1 && ' 조사 판매처가 한 곳뿐이라 참고용이에요.'}
+        </Text>
+      ) : null}
+
       <Text style={styles.buyCaption}>
         현재 가격보다 싼 곳은 초록, 비싼 곳은 빨강이에요. 최근 조사가라 매장마다 다를 수 있어요.
       </Text>
