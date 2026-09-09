@@ -48,37 +48,21 @@ jobs:
           if [ "${{ inputs.force }}" = "true" ]; then
             echo "강제 재빌드 — 가드 생략"; exit 0
           fi
-          gh api -H "Accept: application/vnd.github.raw" \
+          gen=$(gh api -H "Accept: application/vnd.github.raw" \
             "repos/$GITHUB_REPOSITORY/contents/mobile/public/series.json?ref=main" \
-            > /tmp/series-main.json 2>/dev/null || true
-          gen=$(jq -r '.generatedAt // empty' /tmp/series-main.json 2>/dev/null || true)
-          [ -n "$gen" ] \
+            | jq -r '.generatedAt // empty' 2>/dev/null || true)
+          if [ -n "$gen" ] \
             && [ "$(TZ=Asia/Seoul date -d "$gen" +%F)" = "$(TZ=Asia/Seoul date +%F)" ] \
-            && [ "$(TZ=Asia/Seoul date -d "$gen" +%-H)" -ge 16 ] \
-            && today_build=1 || today_build=0
-
-          # 시각만 보면 안 된다 — KAMIS 기간별 API(periodProductList)는 품목마다 오늘치가 올라오는
-          # 시각이 다르다. 16:05 회차는 갱신 직후라 절반만 오늘치를 받고, 그런데도 시각 조건만으로
-          # 17:35·19:35 회차가 전부 스킵돼 나머지 품목은 차트·기준일이 하루 종일 어제로 남았다
-          # (2026-09-09 제보: 참외·고구마·팚 등 90개 중 44개가 09-08에 멈춤). 그래서 신선도도 본다 —
-          # 품목들의 마지막 점 중 가장 최신 날짜를 조사일로 보고, 그날까지 채워진 품목 비율을 재다.
-          # 조사일을 데이터에서 도출하므로 주말·공휴일(미조사)에도 비율이 낮아지지 않는다.
-          # 80% 기준: KAMIS가 조사를 멈춘 품목(사과 일부·닭고기 절단육 등 ~8개)은 영원히 안 차서
-          # 최대치가 ~91%다. 절반(51%)과 정상(91%)을 가른다.
-          fresh_pct=0
-          if [ -s /tmp/series-main.json ]; then
-            read -r f t <<<"$(jq -r '[.items[] | (.r // []) | select(length > 0) | .[-1][0]] as $d
-              | ($d | max) as $m
-              | [($d | map(select(. == $m)) | length), ($d | length)] | @tsv' /tmp/series-main.json 2>/dev/null || echo "0 0")"
-            if [ "${t:-0}" -gt 0 ]; then fresh_pct=$(( f * 100 / t )); fi
-          fi
-
-          if [ "$today_build" = 1 ] && [ "$fresh_pct" -ge 80 ]; then
+            && [ "$(TZ=Asia/Seoul date -d "$gen" +%-H)" -ge 16 ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "오늘 16시 이후 빌드($gen) + 시계열 신선도 ${fresh_pct}% — 스킵"
-          elif [ "$today_build" = 1 ]; then
-            echo "오늘 빌드는 있지만 시계열 신선도가 ${fresh_pct}%라 늦게 올라온 품목을 채우러 재빌드한다"
+            echo "오늘 16시 이후 빌드($gen)가 이미 있음 — 스킵"
           fi
+          # 시계열 신선도가 낮다고 재빌드하지는 않는다(2026-09-09 철회).
+          # 낮은 이유의 대부분이 우리 실패가 아니라 KAMIS 게시 지연이라 재빌드로 못 채운다:
+          #   16:26 빌드 52% → 22:21 57% → 23:11 69%로 '시간이 지나야' 오를 뿐이고,
+          #   축산·계란·우유(16개)는 당일치를 아예 안 낸다 → 도달 상한이 74%다.
+          # 그리고 이 빌드는 회당 ~20분이라 매 회차 재빌드하면 월 1800분으로 무료 한도(2000)에 닿는다.
+          # 사용자에게 보이던 증상(오늘 가격에 어제 날짜)은 앱에서 라벨을 조사일에 맞춰 해결했다.
 
   build:
     needs: guard
@@ -142,10 +126,11 @@ jobs:
             | [($d | map(select(. == $m)) | length), ($d | length)] | @tsv' mobile/public/series.json 2>/dev/null || echo "0 0")"
           if [ "${T:-0}" -gt 0 ]; then
             PCT=$(( F * 100 / T ))
-            if [ "$PCT" -ge 80 ]; then
-              FILL_TXT=" · 품목 ${F}/${T}(${PCT}%) 반영"
-            else
-              FILL_TXT=" · 품목 ${F}/${T}(${PCT}%)만 반영 — 나머지는 다음 회차에 보충해요"
+            FILL_TXT=" · 차트 당일치 ${F}/${T}(${PCT}%)"
+            # 축산·계란·우유는 KAMIS가 당일치를 안 내고, 일부 채소도 저녁 늦게 올라온다.
+            # 100%가 정상이 아니므로(상한 ~74%) 낮은 숫자를 고장으로 읽지 않게 한 줄 덧붙인다.
+            if [ "$PCT" -lt 75 ]; then
+              FILL_TXT="${FILL_TXT} — 축산 등은 KAMIS가 하루 늦게 올려 원래 빠져요"
             fi
           fi
 

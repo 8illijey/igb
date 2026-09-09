@@ -318,37 +318,50 @@ export default function ItemDetailScreen() {
     return { level };
   }, [active]);
 
-  // 마지막 점을 헤드라인 오늘가로 앵커(출처 차이 보정)
-  const anchor = (s: SeriesPoint[] | null, today?: number | null) => {
+  // 마지막 점을 헤드라인 오늘가로 앵커(출처 차이 보정) — 날짜도 같이 맞춘다.
+  //
+  // 값만 덮어쓰고 날짜를 시계열(series.json) 것으로 두면 '오늘 가격에 어제 날짜'가 된다.
+  // KAMIS는 일별 API(당일치 바로 나옴)와 기간별 API(품목마다 저녁 늦게까지 순차 게시,
+  // 축산은 하루 늦게 게시)의 발표 시각이 달라서, 사전계산 시계열의 마지막 점이 하루 뒤진
+  // 품목이 매일 생긴다(2026-09-09 실측: 16:26 빌드 52%, 23:11 빌드 69%만 당일치).
+  // 그때 차트 라벨만 '09/08'로 떠서 값이 안 바뀐 것처럼 보였다(참외·고구마·팥 제보).
+  // 표시하는 값이 headline의 조사일 가격이므로, 라벨도 그 조사일을 따라야 맞다.
+  // surveyDate는 dpr 사다리(당일·1일전·1주전·2주전) 위치까지 반영한 '실제 조사일'이라,
+  // 주말·공휴일이나 KAMIS 미갱신일엔 자동으로 그 날짜가 찍힌다.
+  const anchor = (s: SeriesPoint[] | null, today?: number | null, surveyDate?: string | null) => {
     if (!s || s.length === 0) return s;
     if (today == null) return s;
     const out = [...s];
-    out[out.length - 1] = { ...out[out.length - 1], price: today };
+    const last = out[out.length - 1];
+    const m = surveyDate?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    out[out.length - 1] = m
+      ? { ...last, price: today, date: `${m[2]}/${m[3]}`, year: m[1] }
+      : { ...last, price: today };
     return out;
   };
 
   // 28일 — 빠른 초기 차트 (가벼운 28일 호출, 오늘가 앵커).
   const chartSeries = useMemo(() => {
     if (!chart28) return null;
-    return anchor(chart28.slice(-28), active?.today);
-  }, [chart28, active?.today]);
+    return anchor(chart28.slice(-28), active?.today, active?.surveyDate);
+  }, [chart28, active?.today, active?.surveyDate]);
 
   // 최근 시세 차트 = 1년 일별. 로딩 중엔 스켈레톤(28일 중간단계 없이), 1년 실패/부족 시에만 28일 폴백.
   const chartDisplay = useMemo(() => {
-    const ys = anchor(yearSeries, active?.today);
+    const ys = anchor(yearSeries, active?.today, active?.surveyDate);
     if (ys && ys.length >= 30) return ys; // 1년 도착
     if (yearSeries == null) return null; // 아직 로딩 → 스켈레톤
     return chartSeries; // 1년 실패/부족 → 28일 폴백
-  }, [yearSeries, chartSeries, active?.today]);
+  }, [yearSeries, chartSeries, active?.today, active?.surveyDate]);
 
   // 365일 — 최근 1년 평균(추천 기준) + 월별 평균(연간 흐름). verdicts 없을 때만 채워짐.
   const yearDerived = useMemo(() => {
-    const ys = anchor(yearSeries, active?.today);
+    const ys = anchor(yearSeries, active?.today, active?.surveyDate);
     if (!ys || ys.length < 30 || active?.today == null) return null;
     const prices = ys.map((p) => p.price);
     const recentAvg = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : null;
     return { months: monthlyAverages(ys), recentAvg };
-  }, [yearSeries, active?.today]);
+  }, [yearSeries, active?.today, active?.surveyDate]);
 
   // 최근 1년 평균 — 사전계산(서버) 우선, 없으면 365일 기기 계산. 사전계산이 있으면 추천이 즉시 확정.
   const verdicts = useVerdicts();
