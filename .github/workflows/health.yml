@@ -106,8 +106,11 @@ jobs:
           #    지연·고장은 다른 고장이고, 재발화로 고칠 수 있는 건 CI뿐이다(사이트 기준으로
           #    발화하면 배포 지연마다 헛빌드). '오늘분'은 날짜만이 아니라 16시(KAMIS 갱신)
           #    이후 생성인지까지 본다 — 정의는 verdicts.yml guard와 동일, 바꿀 땐 둘 다.
+          # 19시부터 본다 — 예약이 16:30/17:30/18:30이라 그 전에 '오늘분 없음'으로 재발화하면
+          # 예약보다 이른 헛빌드가 된다(KAMIS 기간별이 덜 올라온 시각에 굽는다).
+          # 마지막 예약(18:30)이 끝날 시간을 지나서도 오늘분이 없으면 그때 재발화한다.
           now_h=$(TZ=Asia/Seoul date +%-H)
-          if [ "$now_h" -ge 16 ]; then
+          if [ "$now_h" -ge 19 ]; then
             rgen=$(curl -s -m 20 "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/mobile/public/series.json" | jq -r '.generatedAt // empty' 2>/dev/null || true)
             fresh=0
             if [ -n "$rgen" ] \

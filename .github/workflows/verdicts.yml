@@ -8,9 +8,11 @@ on:
     # 밀려 새벽 3시에 돌고(=전날 데이터로 빌드), 당일 예약은 22시까지 미실행이라
     # 차트가 하루 종일 전날짜였다. 시간대를 벌려 3번 걸고, guard 잡이 이미 성공한
     # 날은 건너뛴다. health.yml도 매시 신선도를 보고 미생성 시 재발화한다(워치독).
-    - cron: '5 7 * * *' # 16:05 KST — KAMIS 오후 4시 갱신 직후
-    - cron: '35 8 * * *' # 17:35 KST — 1차 누락 대비
-    - cron: '35 10 * * *' # 19:35 KST — 2차 누락 대비
+    # 16:30 첫 회차 — KAMIS는 오후 4시에 갱신되지만 기간별 API는 품목마다 게시가 늦다.
+    # 16:05는 너무 일러 절반만 받았다(2026-09-09). 30분 뒤로 미뤄 1차 수확률을 올린다.
+    - cron: '30 7 * * *' # 16:30 KST — 1차
+    - cron: '30 8 * * *' # 17:30 KST — 2차(늦게 올라온 품목 보충)
+    - cron: '30 9 * * *' # 18:30 KST — 3차(보충·누락 대비)
   workflow_dispatch:
     inputs:
       force:
@@ -131,6 +133,22 @@ jobs:
           GEN=$(jq -r '.generatedAt // empty' mobile/public/verdicts.json)
           TODAY=$(TZ=Asia/Seoul date +%F)
 
+          # 채움률 — 이번 회차 series.json에서 '조사일까지 채워진 품목 / 전체'.
+          # guard의 재빌드 판정과 같은 계산식이라, 핑의 숫자를 보면 다음 회차가 또 돌지 알 수 있다
+          # (80% 미만이면 다음 예약 회차가 스킵하지 않고 보충한다).
+          FILL_TXT=""
+          read -r F T <<<"$(jq -r '[.items[] | (.r // []) | select(length > 0) | .[-1][0]] as $d
+            | ($d | max) as $m
+            | [($d | map(select(. == $m)) | length), ($d | length)] | @tsv' mobile/public/series.json 2>/dev/null || echo "0 0")"
+          if [ "${T:-0}" -gt 0 ]; then
+            PCT=$(( F * 100 / T ))
+            if [ "$PCT" -ge 80 ]; then
+              FILL_TXT=" · 품목 ${F}/${T}(${PCT}%) 반영"
+            else
+              FILL_TXT=" · 품목 ${F}/${T}(${PCT}%)만 반영 — 나머지는 다음 회차에 보충해요"
+            fi
+          fi
+
           # 배포 반영 대기 — 20초 간격 30회(최대 10분). 캐시를 피하려 쿼리스트링을 매번 바꾼다.
           DEPLOYED=0
           for _ in $(seq 1 30); do
@@ -142,13 +160,13 @@ jobs:
           NOW=$(TZ=Asia/Seoul date '+%m/%d %H:%M')
           if [ "$DEPLOYED" = 1 ]; then
             if [ "$SURVEY" = "$TODAY" ]; then
-              MSG="✅ 오늘자 시세 반영 완료 — 앱에서 확인 가능 ($NOW)"
+              MSG="✅ 오늘자 시세 반영 완료 — 앱에서 확인 가능 ($NOW)${FILL_TXT}"
             else
-              MSG="✅ 시세 반영 완료 — 조사일 ${SURVEY:-확인불가} 기준, 앱에서 확인 가능 (주말·공휴일엔 새 조사가 없어요)"
+              MSG="✅ 시세 반영 완료 — 조사일 ${SURVEY:-확인불가} 기준, 앱에서 확인 가능 ($NOW)${FILL_TXT}"
             fi
           else
             # 빌드·커밋은 됐는데 10분 안에 사이트가 안 바뀐 경우 — 거짓 '완료'를 보내지 않는다.
-            MSG="⏳ 시세 빌드는 끝났는데 배포가 10분 넘게 안 붙었어요 (조사일 ${SURVEY:-확인불가}) — Vercel 배포 확인 필요"
+            MSG="⏳ 시세 빌드는 끝났는데 배포가 10분 넘게 안 붙었어요 (조사일 ${SURVEY:-확인불가})${FILL_TXT} — Vercel 배포 확인 필요"
           fi
           curl -sf -m 10 -H 'Content-Type: application/json' \
             -d "{\"content\":\"$MSG\"}" "$HOOK" || true
