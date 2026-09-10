@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PriceItem } from './api/kamis';
+import type { PriceItem } from './api/kamis';
 import recipeData from './recipes.gen.json';
 import { RECIPE_IMAGES } from './recipeImages.gen';
 // 슬러그 규칙은 빌드 스크립트(gen-seo.mjs)와 공유해야 해서 의존성 없는 파일로 분리했다.
@@ -103,9 +103,12 @@ export async function searchRecipes(q: string): Promise<Recipe[]> {
 
 // AI가 쓰는 자연스러운 재료명 → KAMIS 실제 품목명 보정 (UI 표기는 자연어 유지, 매칭만 교정).
 // 예: KAMIS는 "애호박"을 "호박", "대파"를 "파"로 집계한다.
+// 레시피 재료명 → KAMIS 품목명. 품목명에 없는 이름만 넣는다.
+// '대파: 파'는 지웠다 — 품목명이 이미 '대파'(246-00)라 별칭이 오히려 정확 일치를 깨고,
+// 폴백 includes('파')가 목록에서 먼저 오는 '양파'(245-00)를 잡았다(2026-09-10 확인: 레시피의 대파가
+// 양파 가격·신호·쿠팡 상품을 달고 있었다).
 const KAMIS_ALIAS: Record<string, string> = {
   애호박: '호박',
-  대파: '파',
   달걀: '계란',
   '다진 마늘': '깐마늘',
   다진마늘: '깐마늘',
@@ -131,9 +134,13 @@ export function recipeStep(r: Recipe, i: number): ImageSourcePropType | undefine
 /** 재료명을 라이브 KAMIS 품목과 매칭 (신호가 있는 품목만). 별칭 보정 + 정확일치 우선 → 부분일치 폴백.
  *  정확일치를 먼저 보는 이유: "파"가 양파·파프리카에 부분포함되는 등의 오매칭 방지. */
 export function findItem(items: PriceItem[], name: string): PriceItem | undefined {
+  const live = (i: PriceItem) => i.level != null;
   const q = KAMIS_ALIAS[name] ?? name;
+  // 정확 일치를 재료명·별칭 순으로 먼저. includes는 마지막 — '파'가 '양파'에, '호박'이 '애호박'에
+  // 걸리는 식이라 정확 일치가 있는데도 먼저 돌면 엉뚱한 품목을 집는다.
   return (
-    items.find((i) => i.itemName === q && i.level != null) ??
-    items.find((i) => i.itemName.includes(q) && i.level != null)
+    items.find((i) => i.itemName === name && live(i)) ??
+    items.find((i) => i.itemName === q && live(i)) ??
+    items.find((i) => i.itemName.includes(q) && live(i))
   );
 }
