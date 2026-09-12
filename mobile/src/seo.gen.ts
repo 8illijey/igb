@@ -108,7 +108,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 11552,
     "normal": 11452,
     "minMonth": 2,
-    "maxMonth": 6,
+    "maxMonth": 8,
     "seasonMonths": null
   },
   {
@@ -117,7 +117,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 4896,
     "normal": 5566,
-    "minMonth": 7,
+    "minMonth": 11,
     "maxMonth": 5,
     "seasonMonths": null
   },
@@ -148,7 +148,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 3200,
     "normal": 4304,
     "minMonth": 5,
-    "maxMonth": 10,
+    "maxMonth": 9,
     "seasonMonths": null
   },
   {
@@ -297,28 +297,18 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 3647,
     "normal": 4065,
-    "minMonth": 6,
+    "minMonth": 5,
     "maxMonth": 2,
     "seasonMonths": null
   },
   {
     "key": "241-00",
-    "name": "건고추 화건",
+    "name": "건고추",
     "unit": "600g",
     "price": 17638,
     "normal": 17741,
-    "minMonth": 11,
-    "maxMonth": 8,
-    "seasonMonths": null
-  },
-  {
-    "key": "241-01",
-    "name": "건고추 햇산화건",
-    "unit": "600g",
-    "price": 17428,
-    "normal": 16241,
-    "minMonth": 11,
-    "maxMonth": 8,
+    "minMonth": 10,
+    "maxMonth": 11,
     "seasonMonths": null
   },
   {
@@ -347,7 +337,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 1218,
     "normal": 1422,
-    "minMonth": 8,
+    "minMonth": 11,
     "maxMonth": 2,
     "seasonMonths": null
   },
@@ -408,7 +398,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 15171,
     "normal": 14221,
     "minMonth": 11,
-    "maxMonth": 6,
+    "maxMonth": 9,
     "seasonMonths": null
   },
   {
@@ -427,8 +417,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 13544,
     "normal": 13085,
-    "minMonth": 10,
-    "maxMonth": 8,
+    "minMonth": 1,
+    "maxMonth": 10,
     "seasonMonths": null
   },
   {
@@ -460,7 +450,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 1809,
     "normal": 1597,
     "minMonth": 7,
-    "maxMonth": 1,
+    "maxMonth": 9,
     "seasonMonths": null
   },
   {
@@ -536,48 +526,18 @@ export const SEO_ITEMS: SeoItem[] = [
     "seasonMonths": null
   },
   {
-    "key": "411-05",
-    "name": "후지사과",
-    "unit": "10개",
-    "price": 30962,
-    "normal": null,
-    "minMonth": 7,
-    "maxMonth": 2,
-    "seasonMonths": null
-  },
-  {
-    "key": "411-06",
-    "name": "아오리사과",
-    "unit": "10개",
-    "price": 20038,
-    "normal": null,
-    "minMonth": 8,
-    "maxMonth": 2,
-    "seasonMonths": null
-  },
-  {
     "key": "411-07",
-    "name": "홍로사과",
+    "name": "사과",
     "unit": "10개",
     "price": 22976,
     "normal": 27413,
-    "minMonth": 9,
-    "maxMonth": 2,
-    "seasonMonths": null
-  },
-  {
-    "key": "412-01",
-    "name": "신고배",
-    "unit": "10개",
-    "price": 45910,
-    "normal": 31609,
     "minMonth": 11,
-    "maxMonth": 7,
+    "maxMonth": 2,
     "seasonMonths": null
   },
   {
     "key": "412-04",
-    "name": "원황배",
+    "name": "배",
     "unit": "10개",
     "price": 25833,
     "normal": 29770,
@@ -642,7 +602,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 7573,
     "normal": 9284,
     "minMonth": 11,
-    "maxMonth": 9,
+    "maxMonth": 3,
     "seasonMonths": null
   },
   {
@@ -653,16 +613,6 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 320,
     "minMonth": 8,
     "maxMonth": 10,
-    "seasonMonths": null
-  },
-  {
-    "key": "419-02",
-    "name": "참다래(키위)",
-    "unit": "10개",
-    "price": 11645,
-    "normal": 9051,
-    "minMonth": 12,
-    "maxMonth": 5,
     "seasonMonths": null
   },
   {
@@ -679,9 +629,9 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "421-06",
     "name": "오렌지",
     "unit": "10개",
-    "price": 17920,
-    "normal": 14463,
-    "minMonth": 5,
+    "price": 11136,
+    "normal": 12079,
+    "minMonth": 9,
     "maxMonth": 2,
     "seasonMonths": null
   },
@@ -761,8 +711,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-21",
     "name": "소고기 안심",
     "unit": "100g",
-    "price": 19274,
-    "normal": 14725,
+    "price": 19240,
+    "normal": 14726,
     "minMonth": 10,
     "maxMonth": 7,
     "seasonMonths": null
@@ -771,8 +721,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-22",
     "name": "소고기 등심",
     "unit": "100g",
-    "price": 16317,
-    "normal": 13346,
+    "price": 16215,
+    "normal": 13387,
     "minMonth": 12,
     "maxMonth": 8,
     "seasonMonths": null
@@ -781,8 +731,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-36",
     "name": "소고기 설도",
     "unit": "100g",
-    "price": 6238,
-    "normal": 4558,
+    "price": 6258,
+    "normal": 4477,
     "minMonth": 11,
     "maxMonth": 8,
     "seasonMonths": null
@@ -791,8 +741,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-40",
     "name": "소고기 양지",
     "unit": "100g",
-    "price": 7888,
-    "normal": 6295,
+    "price": 7886,
+    "normal": 6236,
     "minMonth": 11,
     "maxMonth": 3,
     "seasonMonths": null
@@ -801,8 +751,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-50",
     "name": "소고기 갈비",
     "unit": "100g",
-    "price": 9032,
-    "normal": 8126,
+    "price": 8369,
+    "normal": 8026,
     "minMonth": 10,
     "maxMonth": 8,
     "seasonMonths": null
@@ -811,8 +761,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-25",
     "name": "돼지고기 앞다리",
     "unit": "100g",
-    "price": 1548,
-    "normal": 1475,
+    "price": 1556,
+    "normal": 1466,
     "minMonth": 11,
     "maxMonth": 10,
     "seasonMonths": null
@@ -821,8 +771,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-27",
     "name": "돼지고기 삼겹살",
     "unit": "100g",
-    "price": 2983,
-    "normal": 2644,
+    "price": 3012,
+    "normal": 2657,
     "minMonth": 3,
     "maxMonth": 6,
     "seasonMonths": null
@@ -831,8 +781,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-28",
     "name": "돼지고기 갈비",
     "unit": "100g",
-    "price": 1602,
-    "normal": 1489,
+    "price": 1613,
+    "normal": 1485,
     "minMonth": 4,
     "maxMonth": 10,
     "seasonMonths": null
@@ -841,8 +791,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-68",
     "name": "돼지고기 목심",
     "unit": "100g",
-    "price": 2791,
-    "normal": 2544,
+    "price": 2809,
+    "normal": 2501,
     "minMonth": 3,
     "maxMonth": 6,
     "seasonMonths": null
@@ -863,8 +813,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4401-31",
     "name": "수입 소고기 갈비",
     "unit": "100g",
-    "price": 4260,
-    "normal": 4118,
+    "price": 4278,
+    "normal": 4129,
     "minMonth": 9,
     "maxMonth": 7,
     "seasonMonths": null
@@ -873,8 +823,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4401-37",
     "name": "수입 소고기 갈비살",
     "unit": "100g",
-    "price": 4804,
-    "normal": 4596,
+    "price": 4844,
+    "normal": 4605,
     "minMonth": 5,
     "maxMonth": 7,
     "seasonMonths": null
@@ -883,8 +833,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4402-27",
     "name": "수입 돼지고기 삼겹살",
     "unit": "100g",
-    "price": 1521,
-    "normal": 1483,
+    "price": 1517,
+    "normal": 1485,
     "minMonth": 4,
     "maxMonth": 7,
     "seasonMonths": null
@@ -894,7 +844,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "name": "닭고기 절단육",
     "unit": "1kg",
     "price": null,
-    "normal": 9332,
+    "normal": 9441,
     "minMonth": 12,
     "maxMonth": 10,
     "seasonMonths": null
@@ -903,8 +853,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9901-99",
     "name": "닭고기 육계",
     "unit": "1kg",
-    "price": 5595,
-    "normal": 5850,
+    "price": 5726,
+    "normal": 5851,
     "minMonth": 12,
     "maxMonth": 4,
     "seasonMonths": null
@@ -913,8 +863,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9903-21",
     "name": "계란 10구",
     "unit": "10구",
-    "price": 4200,
-    "normal": 3594,
+    "price": 4221,
+    "normal": 3602,
     "minMonth": 11,
     "maxMonth": 6,
     "seasonMonths": null
@@ -923,8 +873,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9903-23",
     "name": "계란 30구",
     "unit": "30구",
-    "price": 7211,
-    "normal": 6480,
+    "price": 7166,
+    "normal": 6478,
     "minMonth": 11,
     "maxMonth": 6,
     "seasonMonths": null
@@ -933,7 +883,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9908-01",
     "name": "우유",
     "unit": "1L",
-    "price": 2981,
+    "price": 2984,
     "normal": 2901,
     "minMonth": 5,
     "maxMonth": 8,
@@ -942,7 +892,7 @@ export const SEO_ITEMS: SeoItem[] = [
 ];
 /** 이 파일을 만든 날(YYYYMMDD). 공유 카드 이미지 URL의 캐시 무효화에 쓴다 —
  *  카톡은 OG 이미지를 오래 캐싱해서 주소가 같으면 어제 가격이 계속 보인다. */
-export const SEO_BUILD_DAY = '20260911';
+export const SEO_BUILD_DAY = '20260912';
 export const SEO_BY_KEY: Record<string, SeoItem> = Object.fromEntries(SEO_ITEMS.map((i) => [i.key, i]));
 
 /** 레시피 상세를 정적으로 내리기 위한 목록. 주소는 순번이 아니라 제목 슬러그다. */
