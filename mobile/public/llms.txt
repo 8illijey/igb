@@ -87,7 +87,7 @@
 - [수입 소고기 갈비 가격](https://igeobissa.com/item/4401-31)
 - [수입 소고기 갈비살 가격](https://igeobissa.com/item/4401-37)
 - [수입 돼지고기 삼겹살 가격](https://igeobissa.com/item/4402-27)
-- [닭고기 절단육 가격](https://igeobissa.com/item/9901-24)
+- [닭고기 육계10호 가격](https://igeobissa.com/item/9901-03)
 - [닭고기 육계 가격](https://igeobissa.com/item/9901-99)
 - [계란 10구 가격](https://igeobissa.com/item/9903-21)
 - [계란 30구 가격](https://igeobissa.com/item/9903-23)
