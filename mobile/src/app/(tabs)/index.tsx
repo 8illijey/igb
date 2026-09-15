@@ -23,6 +23,9 @@ import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
 import { SEO_ITEMS } from '../../seo.gen';
+import { regionLabel } from '../../api/regions';
+import { RegionChips, RegionDropdown, RegionNote } from '../../components/igb/RegionPicker';
+import { useRegion } from '../../store/region';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
@@ -96,6 +99,9 @@ function PriceChevron() {
 
 /** Figma hero-verdict-card 1:1 — level은 사전계산(평년+최근1년) 우선, 없으면 item.level(평년) */
 function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceItem; level: SignalLevel; animatePrice?: boolean }) {
+  // 지역을 고르면 오늘가는 그 지역 값이지만 평년은 전국 단일값이다(KAMIS가 지역별 평년을 안 준다).
+  // 기준이 섞였으니 화면이 그걸 밝힌다 — 2026-08-20 사고는 안 밝힌 채 섞어서 났다.
+  const { region } = useRegion();
   const c = signal[level];
   const shownPrice = useCountUp(item.today, animatePrice);
   const pct = Math.abs(item.vsNormalPct ?? 0);
@@ -121,7 +127,9 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
     >
       <View style={styles.heroTopRow}>
         <SignalChip level={level} label={CHIP_LABEL[level]} showArrow />
-        <Text style={styles.captionGrey}>오늘 · KAMIS 소매</Text>
+        <Text style={styles.captionGrey}>
+          {region === 'all' ? '오늘' : `${regionLabel(region)} 오늘`} · KAMIS 소매
+        </Text>
       </View>
 
       {/* Figma: 평가문구는 카드 상단 풀폭.
@@ -147,7 +155,9 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
           </View>
           <View>
             <Text style={styles.captionSecondary}>{spec}</Text>
-            <Text style={styles.captionSecondary}>이맘때 평균 {won(item.normal)}원</Text>
+            <Text style={styles.captionSecondary}>
+              이맘때 {region === 'all' ? '' : '전국 '}평균 {won(item.normal)}원
+            </Text>
           </View>
         </View>
       </View>
@@ -188,6 +198,12 @@ function ThumbnailCard({ item, width }: { item: PriceItem; width?: number }) {
     </Pressable>
   );
 }
+
+// [임시] 지역 선택 UI 시안 비교용 — ?ui=chips 로 시안 B. 시안 확정되면 이 스위치와 진 쪽 컴포넌트를 지운다.
+const REGION_UI: 'dropdown' | 'chips' =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('ui') === 'chips'
+    ? 'chips'
+    : 'dropdown';
 
 export default function HomeScreen() {
   const { items, loading, error, refresh } = usePrices();
@@ -267,12 +283,20 @@ export default function HomeScreen() {
       <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>      {/* 상단 고정 글래스 — 워드마크 + 검색 입구. 콘텐츠가 아래로 스크롤되며 블러됨 */}
       <GlassHeader onHeight={setTopH}>
+        {/* 좌측 = 브랜드 + 현재 지역(보고 있는 맥락), 우측 = 액션 자리.
+            지역을 우측에 두지 않는다 — 거기는 알림 벨의 관례적 위치다(당근·배달의민족 모두 지역 좌·알림 우). */}
         <View style={styles.header}>
-          {/* 워드마크는 SVG라 텍스트가 없다 — h1 태그 + aria-label로 시맨틱 제목을 준다(시각 변화 없음) */}
-          <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
-            <Wordmark />
+          <View style={styles.headerLeft}>
+            {/* 워드마크는 SVG라 텍스트가 없다 — h1 태그 + aria-label로 시맨틱 제목을 준다(시각 변화 없음) */}
+            <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
+              <Wordmark />
+            </View>
+            {REGION_UI === 'dropdown' && <RegionDropdown />}
           </View>
+          {/* 우측은 비워둔다 — 가격 알림 벨이 들어올 자리 */}
         </View>
+        {REGION_UI === 'chips' && <RegionChips />}
+        <RegionNote />
         <View style={styles.searchWrap}>
           <SearchField editable={false} onPress={() => router.push('/search')} />
         </View>
@@ -365,7 +389,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingLeft: spacing.s4,
+    paddingRight: spacing.s4,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingBottom: 140 },
   content01: { padding: spacing.s4, backgroundColor: colors.bgCanvas },
