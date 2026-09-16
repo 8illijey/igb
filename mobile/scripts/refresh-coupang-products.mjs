@@ -13,11 +13,13 @@
  *  · 그래서 이 스크립트는 분당 상한(RPM)을 스스로 지키고, 429를 보면 **즉시 중단**한다.
  *    남은 품목을 포기하더라도 3회째 위반은 만들지 않는다.
  *
- * 실행 방법 두 가지 — 파트너스 API는 로그인 세션(쿠키)이 필요하다.
- *  A) Aside 브라우저 세션 (일일 루틴이 쓰는 경로). scripts/README-coupang.md 참고.
- *  B) 수동/CLI:  COUPANG_PARTNERS_COOKIE='...' node scripts/refresh-coupang-products.mjs
+ * 실행 방법 — 호출기 두 가지 중 자동 선택.
+ *  A) 오픈 API (일일 루틴 — GitHub Actions coupang.yml이 매일 16:20 KST 실행):
+ *     COUPANG_ACCESS_KEY=... COUPANG_SECRET_KEY=... node scripts/refresh-coupang-products.mjs
+ *     공식 HMAC 인증이라 세션 만료가 없다. 검색 productUrl이 곧 추적 링크라 링크 생성 호출도 없다.
+ *  B) 웹 API (수동 폴백): COUPANG_PARTNERS_COOKIE='...' node scripts/refresh-coupang-products.mjs
  *     쿠키는 로그인한 크롬의 partners.coupang.com 요청 헤더에서 통째로 복사.
- *     옵션: --dry-run(파일 미기록)  --only=245,211(특정 itemCode만)  --rpm=35
+ *  옵션: --dry-run(파일 미기록)  --only=245,211(특정 itemCode만)  --rpm=20
  *
  * 산출물: mobile/src/coupang-products.json
  *   · 일반 키 = `itemCode-kindCode`
@@ -635,31 +637,88 @@
       process.on('SIGINT', () => process.exit(130));
       process.on('SIGTERM', () => process.exit(143));
 
+      // ── 호출기 선택 — 오픈 API(HMAC 키) 우선, 없으면 웹 API(로그인 쿠키) ──
+      //
+      // 오픈 API는 세션 만료가 없어 CI(GitHub Actions)가 쓰는 경로다.
+      // 응답 모양이 웹 API와 달라 build()가 아는 모양으로 되돌려 준다:
+      //  · 검색 productUrl이 이미 추적 링크 → 링크 생성은 네트워크 없이 그 URL을 돌려준다.
+      //    (기존 vendorItemId 재사용 매칭은 그대로 작동 — URL에서 파싱해 채운다)
+      //  · 리뷰수·직매입·로켓프레시 구분이 응답에 없다 → 그 가점만큼 점수가 무뎌지고,
+      //    status는 'rocket'까지만 구분된다(프레시 로고 대신 로켓 로고가 붙는다).
+      const accessKey = process.env.COUPANG_ACCESS_KEY;
+      const secretKey = process.env.COUPANG_SECRET_KEY;
       const cookie = process.env.COUPANG_PARTNERS_COOKIE;
-      if (!cookie) {
+      if (!accessKey && !cookie) {
         console.error(
-          'COUPANG_PARTNERS_COOKIE 가 없습니다.\n' +
-            '로그인한 크롬에서 partners.coupang.com 요청의 Cookie 헤더를 통째로 복사해 넣으세요.\n' +
-            "예) COUPANG_PARTNERS_COOKIE='PCID=...; sid=...' node scripts/refresh-coupang-products.mjs",
+          'COUPANG_ACCESS_KEY/COUPANG_SECRET_KEY(오픈 API) 또는 COUPANG_PARTNERS_COOKIE(웹 API)가 필요합니다.\n' +
+            "예) COUPANG_ACCESS_KEY=... COUPANG_SECRET_KEY=... node scripts/refresh-coupang-products.mjs",
         );
         process.exit(1);
       }
 
-      const partnersPost = async (path, body) => {
-        const res = await fetch(`https://partners.coupang.com${path}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Cookie: cookie,
-            Origin: 'https://partners.coupang.com',
-            Referer: 'https://partners.coupang.com/',
-            'User-Agent':
-              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-          },
-          body: JSON.stringify(body),
-        });
-        return res.json();
+      const makeOpenApiPost = async () => {
+        const crypto = await import('node:crypto');
+        const urlByProduct = new Map(); // 검색에서 본 productId → 추적 URL. 링크 생성 에뮬레이션용.
+        const auth = (method, apiPath, query) => {
+          // signed-date는 yyMMdd'T'HHmmss'Z' (UTC), 서명 대상은 date+method+path+query.
+          const dt = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z').slice(2);
+          const sig = crypto.createHmac('sha256', secretKey).update(dt + method + apiPath + query).digest('hex');
+          return `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${dt}, signature=${sig}`;
+        };
+        return async (path, body) => {
+          if (path === '/api/v1/search') {
+            const apiPath = '/v2/providers/affiliate_open_api/apis/openapi/products/search';
+            // [2026-09-17 실측] limit=50은 rCode=400 "limit is out of range". 공식 예제가 10을 쓴다.
+            // 웹 API의 60개 대비 후보 풀이 좁다 — 방울토마토처럼 상위가 오염된 품목은 후보 0개가 날 수 있다(직전 값 유지로 방어됨).
+            const query = `keyword=${encodeURIComponent(body.filter)}&limit=10`;
+            const res = await fetch(`https://api-gateway.coupang.com${apiPath}?${query}`, {
+              headers: { Authorization: auth('GET', apiPath, query) },
+            });
+            if (res.status === 429) return { rCode: '429', rMessage: 'HTTP 429' };
+            // 401(서명 오류) 응답엔 rCode가 없어 빈 상품 목록으로 삼켜졌다 — '후보 0개'와 인증 실패가 구분 안 됨
+            if (!res.ok) throw new Error(`오픈 API HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+            const json = await res.json();
+            if (json.rCode != null && String(json.rCode) !== '0') return json;
+            const products = (json.data?.productData || []).map((p) => {
+              const u = String(p.productUrl || '');
+              urlByProduct.set(String(p.productId), p.productUrl);
+              return {
+                type: 'PRODUCT',
+                title: p.productName,
+                salesPrice: p.productPrice,
+                image: p.productImage,
+                productId: p.productId,
+                itemId: (u.match(/itemId=(\d+)/) || [])[1],
+                vendorItemId: (u.match(/vendorItemId=(\d+)/) || [])[1],
+                deliveryChargeType: p.isRocket ? ['ROCKET'] : [],
+              };
+            });
+            return { rCode: '0', data: { products } };
+          }
+          if (path === '/api/v1/banner/iframe/url') {
+            return { rCode: '0', data: { shortUrl: urlByProduct.get(String(body.product.productId)) } };
+          }
+          throw new Error(`오픈 API 어댑터가 모르는 경로: ${path}`);
+        };
       };
+
+      const partnersPost = accessKey
+        ? await makeOpenApiPost()
+        : async (path, body) => {
+            const res = await fetch(`https://partners.coupang.com${path}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Cookie: cookie,
+                Origin: 'https://partners.coupang.com',
+                Referer: 'https://partners.coupang.com/',
+                'User-Agent':
+                  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+              },
+              body: JSON.stringify(body),
+            });
+            return res.json();
+          };
 
       let prev = {};
       try {
