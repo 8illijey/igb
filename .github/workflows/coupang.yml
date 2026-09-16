@@ -1,0 +1,65 @@
+name: Refresh coupang products
+
+# 쿠팡 파트너스 상품·가격 일일 갱신 → coupang-products.json 커밋 → Vercel 자동 배포.
+# 오픈 API(HMAC 키, 시크릿 2개)라 로그인 쿠키가 필요 없다 — Aside 로컬 루틴 대체(2026-09-11).
+# 예전 루틴은 수동 개입에 의존해 9/7·9/8·9/10처럼 구멍이 났다.
+#
+# verdicts처럼 3회차를 걸지 않는다 — 쿠팡 검색은 KAMIS의 '오후 늦게 게시' 문제가 없고,
+# cron이 밀려 하루 건너뛰어도 어제 상품·가격이 그대로 유효하다(스냅샷 성격).
+on:
+  schedule:
+    - cron: '20 7 * * *' # 16:20 KST — 기존 Aside 루틴과 같은 시각, verdicts(16:30) 직전
+  workflow_dispatch:
+
+# 밀린 cron과 수동 실행이 겹치면 뒤의 push가 거부된다 — verdicts와 같은 직렬화.
+concurrency:
+  group: coupang-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # coupang-products.json 커밋용
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # 대기열에서 늦게 시작해도 최신 스크립트·최신 prev(딥링크 재사용 원본)로 돈다
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Refresh coupang-products.json
+        working-directory: mobile
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+        # exit 2 = 파트너스 분당 한도(429)로 중단 — 파일은 '완료분+어제 값'으로 안전하게
+        # 쓰여 있지만, 커밋하지 않고 실패로 알린다. 다음날 회차가 처음부터 다시 뽑는다.
+        run: node scripts/refresh-coupang-products.mjs
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mobile/src/coupang-products.json
+          git commit -m "chore: 쿠팡 상품·가격 갱신 $(TZ=Asia/Seoul date +%F)" || { echo "변동 없음"; exit 0; }
+          # 16:30 verdicts 빌드 등 다른 push와 겹칠 수 있다 — verdicts.yml과 같은 리베이스 흡수.
+          git pull --rebase -X theirs origin main
+          git push
+      # 예전 루틴이 조용히 빠지는 날이 있었다 — 성공도 한 줄로 알려 '무소식=의심'을 유지한다.
+      - name: Discord 알림 (성공)
+        env:
+          HOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          [ -n "$HOOK" ] || exit 0
+          N=$(jq '[.[] | length] | add' mobile/src/coupang-products.json)
+          curl -sf -m 10 -H 'Content-Type: application/json' \
+            -d "{\"content\":\"🛒 쿠팡 상품·가격 갱신 완료 — 상품 ${N}개 ($(TZ=Asia/Seoul date '+%m/%d %H:%M'))\"}" "$HOOK" || true
+      - name: Discord 알림 (실패)
+        if: failure()
+        env:
+          HOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          [ -n "$HOOK" ] || exit 0
+          curl -sf -m 10 -H 'Content-Type: application/json' \
+            -d "{\"content\":\"🚨 **쿠팡 상품 갱신 실패** — 오늘 상품·가격이 안 바뀌었어요(어제 값 유지). 로그: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" \
+            "$HOOK" || true
