@@ -1,5 +1,12 @@
 # 002 — 즐겨찾기 하트 마이크로 인터랙션 (스케일 스프링 + 햅틱)
 
+> **상태: 구현 완료 (2026-08).** 아래는 당시 계획 원문 — 코드 스니펫은 commit bf73639 시점의 "before"다.
+> [2026-09-17 확인] 현재 코드와의 차이: 계획은 `app/item/[key].tsx`의 `Header` 안에 인라인으로 넣는 것이었지만,
+> 실제로는 공용 컴포넌트 `src/components/igb/FavoriteHeart.tsx`로 빠졌다. 그래서 "상세 Header만"이라던
+> 경계가 넓어져 레시피 상세(`app/recipe/[id].tsx`)도 같은 하트를 쓴다.
+> 비대칭 타이밍(켤 때 pop 스프링 + Medium 임팩트 / 끌 때 조용한 복귀 + selection)은 계획대로 살아 있다.
+> `expo-haptics`는 설치 완료(`~56.0.3`).
+
 - **Status**: DONE (2026-08-07)
 - **Commit**: bf73639
 - **Severity**: MEDIUM

@@ -2,7 +2,9 @@
 
 `scripts/refresh-coupang-products.mjs` → `src/coupang-products.json`
 
-상세페이지 "지금 쿠팡에서 사기" 카드 3개의 원본 데이터. 매일 16:20 KST에 Aside 루틴이 돌린다.
+상세페이지 "지금 쿠팡에서 사기" 카드 3개의 원본 데이터.
+매일 16:20 KST에 GitHub Actions(`coupang.yml`)가 오픈 API로 돌리고 커밋한다 — push되면 Vercel이 자동 배포.
+(2026-09-11 이전엔 Aside 로컬 루틴이 웹 API로 돌렸다 — 수동 개입에 의존해 9/7·9/8·9/10처럼 구멍이 났다.)
 
 ---
 
@@ -64,10 +66,25 @@
 
 ## 실행 방법
 
-### A. Aside 루틴 (매일 자동)
+### A. GitHub Actions (매일 자동) — 오픈 API
 
-파트너스 API는 로그인 세션이 필요한데, 크롬 프로필에 세션이 있으므로 Aside REPL의
-`fetch`(사용자 쿠키 동봉)를 그대로 쓴다. 별도 쿠키 추출이 필요 없다.
+`.github/workflows/coupang.yml`이 매일 16:20 KST에 실행한다.
+
+- 인증: 리포 시크릿 `COUPANG_ACCESS_KEY` / `COUPANG_SECRET_KEY` (파트너스 오픈 API HMAC 키).
+  세션 쿠키가 아니라서 만료가 없다.
+- 오픈 API는 검색 응답의 `productUrl`이 이미 추적 링크라 **링크 생성 호출이 없다**.
+  vendorItemId 재사용 매칭은 URL에서 파싱해 그대로 작동한다.
+- 응답에 리뷰수·직매입·로켓프레시 구분이 없다 → 해당 가점만큼 선별이 무뎌지고,
+  로켓프레시 상품도 일반 로켓 로고(`status: 'rocket'`)로 표시된다.
+- 수동 실행: Actions 탭 → Refresh coupang products → Run workflow.
+- 로컬 테스트: `COUPANG_ACCESS_KEY=... COUPANG_SECRET_KEY=... npm run refresh-coupang -- --only=245 --dry-run`
+
+성공·실패 모두 Discord로 한 줄 알림이 온다 — 알림이 안 오면 그날이 의심스러운 날이다.
+
+### A-2. (폐기) Aside 루틴
+
+2026-09-11까지 쓰던 경로. 파트너스 **웹 API**는 로그인 세션이 필요한데, 크롬 프로필에
+세션이 있으므로 Aside REPL의 `fetch`(사용자 쿠키 동봉)를 그대로 썼다. 아래는 기록용.
 
 ```js
 const REPO = '/Users/yeji/Documents/projects/igeobissa/mobile';

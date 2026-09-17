@@ -3,7 +3,8 @@ name: 이거비싸?
 design_system_name: IGB Design System (IGBDS)
 slug: igb
 category: utility / price-signal
-last_updated: "2026-07-05"   # 코드(tokens.ts·components/igb)·Figma ver.0.2(853:4125) 실측 동기화
+last_updated: "2026-07-05"   # 토큰·컴포넌트 스펙 전수 동기화 기준일 (코드 tokens.ts·components/igb ↔ Figma ver.0.2 853:4125 실측)
+last_audited: "2026-09-17"   # 부분 점검 — 데드 컴포넌트 현황 재확인 + 미문서화 컴포넌트 5종 기록. 토큰 전수 재대조는 하지 않음
 sources:
   - product.md (이거비싸? Product Context)
   - toss design.md (절제·신뢰 톤, 무채색 캔버스, OKLCH 토큰 구조 참조)
@@ -575,6 +576,20 @@ dialog의 1차 모바일 대체. `{elevation.shadow-sheet}`, `{colors.overlay-sc
 
 모든 화면의 크롬. 높이 44 헤더 3변형 — logo형(Wordmark), search형(back 44 + search-field s), detail형(중앙 타이틀 17/600 + back·favorite 버튼 44×44, 하트 아이콘 24). 탭바는 Glass pill recipe 소비자: `{colors.surface-glass-light}` + blur + `{elevation.shadow-glass-floating}`, 탭 아이콘 24(`TabIcons.tsx` 커스텀 SVG — 활성 filled/비활성 stroke) + 라벨 10, **비활성 = 전체 opacity 0.4**(`{colors.disabled-opacity}`), 활성 selection pill `{colors.bg-secondary}`. RN에선 Figma의 GLASS/블렌드를 `expo-blur` BlurView + 화이트 오버레이로 근사한다.
 
+### 미문서화 컴포넌트 **[스펙 미작성 — 코드에만 존재, 2026-09-17 확인]**
+
+`last_updated`(2026-07-05) 이후 추가됐거나 당시 감사에서 빠진 것들. 아래는 **코드가 실제로 하는 일의 기록**이지 승인된 스펙이 아니다. 해당 컴포넌트를 건드릴 때 Figma와 대조해 정식 절로 승격시킬 것.
+
+| 컴포넌트 | 하는 일 | 쓰이는 곳 |
+|---|---|---|
+| `ShopSection.tsx` | 쿠팡 파트너스 상품 카드 3개 + 로켓배송 로고 + 수수료 고지 문구 | 품목 상세(소매 탭만) |
+| `FavoriteHeart.tsx` | 관심품목 토글 하트, 누를 때 스케일 애니메이션 | 상세 헤더, 목록 행 |
+| `ChangeIndicator.tsx` | 가격 변화율 표기(▲▼ + %) | 목록·상세 |
+| `PrivacyLink.tsx` | 개인정보처리방침 링크 | 탭 하단·설정 영역 |
+| `usePressScale.ts` | 누름 시 축소 피드백 훅(컴포넌트 아님) | 카드·버튼 공통 |
+
+> `ShopSection`은 쿠팡 파트너스 표시의무(수수료 고지)가 걸려 있어 문구를 임의로 줄이거나 지우면 안 된다. `mobile/scripts/README-coupang.md` 참조.
+
 ---
 
 ## Do's and Don'ts
@@ -631,7 +646,7 @@ dialog의 1차 모바일 대체. `{elevation.shadow-sheet}`, `{colors.overlay-sc
 ### 2026-07-05 실측 감사에서 발견된 드리프트 (미해결)
 
 - ~~**용어 '평년' 전수 치환 미완**~~ → **2026-07-09 해소**: UI 카피를 '이맘때 평균'으로 전수 통일(comparison-toggle 섹션의 어휘 결정 참조).
-- **데드 컴포넌트 4종**: `SegmentedControl.tsx`(실컨트롤은 Tabs)·`ComparisonToggle.tsx`(vsYesterday 동선 미구현)·`GuestCTA`(홈 진입이 search-field 직행)·`border-focus` 토큰(focus는 border-strong 사용). 유지할 근거가 생기지 않으면 삭제 후보.
+- **데드 컴포넌트** [2026-09-17 재확인]: `SegmentedControl.tsx`는 **삭제 완료**(파일 없음). 나머지 3종은 그대로 남아 있다 — `ComparisonToggle.tsx`(vsYesterday 동선 미구현, `src/app` 어디서도 import 안 함)·`GuestCTA`(홈 진입이 search-field 직행, 미사용)·`borderFocus` 토큰(`tokens.ts:62`에 정의돼 있으나 소비처 없음). 유지할 근거가 생기지 않으면 삭제 후보.
 - **safe-area 3자 불일치**: Figma ver.0.2 top 44 / bottom 120 ↔ 코드 동적 insets.top / bottom **140** 하드코딩(4개 화면 리터럴). 토큰화 + 값 통일 필요.
 - **카드 그림자**: Figma 상세 카드 스타일 목록에 shadow-1 존재, 코드 카드는 전부 플랫(밴드 대비 분리). 어느 쪽이 의도인지 확정 필요 — 현 문서는 코드(플랫) 기준.
 - **Figma ver.0.2 내부 바인딩 드리프트**: (a) 레시피 상세 nav-bar 타이틀 색 raw `#000000` — `text/primary` 미바인딩, (b) Tabs s selected 텍스트가 `text/tertiary`로 캡처됨(스펙 확인 필요), (c) 관심 품목 "관심 레시피" 섹션 타이포가 leading normal·tracking 미적용 raw 인스턴스, (d) 유기농 상세 hero gap 12 vs 일반/도매 16, (e) 도매 화면 프레임명 "03 상세 - 소매 일반" 오기, (f) 일부 auto-layout gap이 spacing 변수 바인딩인데 실효값 0.

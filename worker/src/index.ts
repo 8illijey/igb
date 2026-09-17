@@ -51,6 +51,13 @@ const KAMIS_HEADERS = {
 const DATAGO_BASE = 'https://apis.data.go.kr/B552845/perRegion/price';
 const ymd = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 
+// ⚠️ 아래는 **미러 폴백 경로**의 이야기다. 평상시 경로가 아니다.
+//    이 워커는 KAMIS 원본을 1순위로 부르고(아래 `upstream = await fetch(KAMIS_BASE...)`),
+//    원본이 타임아웃·차단·빈응답일 때만 미러 변환으로 내려간다. KAMIS가 살아 있으면
+//    dpr1~dpr7이 전부 원본 값이고, 아래 주입 로직은 **실행되지 않는다**.
+//    2026-09-17 실측: 네 카테고리 124행 모두 원본 응답(`day7: "일평년"`, dpr5·dpr6 실값).
+//    지금 어느 경로로 도는지: `cd mobile && npm run check-live`
+//
 // 미러엔 평년(원본 dpr7)이 없다 → verdicts(CI 사전계산)의 normal을 daily 변환 시 dpr7에 주입.
 // 그래야 앱 홈/상세의 '평년 대비' 판정이 무변경으로 복구된다. 1시간 메모리 캐시(isolate 단위).
 // 소스 2개를 순서대로 시도. 1순위는 배포된 사이트(Vercel CDN), 2순위가 GitHub raw.
@@ -81,12 +88,17 @@ async function getJson(file: string): Promise<Record<string, any>> {
 }
 
 /**
- * 평년(dpr7) 주입 소스.
+ * 평년(dpr7) 주입 소스 — **KAMIS 원본이 죽었을 때만 쓰인다.** 원본이 살아 있으면 이 함수는 안 불린다.
+ *
  * baselines.json = scripts/build-baselines.mjs가 미러 5년치 원천 가격으로 KAMIS 정의대로
- * 계산한 날짜별 평년(365칸). verdicts를 쓰던 이전 방식은 순환이었다 — verdicts가
- * 다시 이 워커를 거쳐 만들어졌기 때문에, 사실상 자체 최근 1년 평균을 '평년'으로
- * 되돌려주고 있었다(2026-08-18 확인: 56종 중 50종에서 normal === months[이번달]).
- * baselines는 원천 가격만으로 만들어져 순환이 없다.
+ * 계산한 날짜별 평년(365칸). KAMIS 공식 dpr7의 근사치이고 절대오차 중앙값 3.2%다 —
+ * 원본을 대체할 값이 아니라 원본이 없을 때 쓰는 대타다.
+ *
+ * [2026-08-18 기록] verdicts를 1순위로 쓰던 이전 방식은 순환이었다 — verdicts가 다시 이 워커를
+ * 거쳐 만들어졌기 때문에 사실상 자체 최근 1년 평균을 '평년'으로 되돌려주고 있었다
+ * (당시 56종 중 50종에서 normal === months[이번달]). 그래서 baselines를 1순위로 올렸다.
+ * verdicts는 지금도 2순위 폴백으로 남아 있어(아래 `verd[key]`) 순환 가능성이 완전히 사라진 건 아니다 —
+ * baselines에 없는 품목이 미러 경로로 돌 때만 해당한다.
  */
 const CUM_DAYS = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 function dayIndex(d = new Date()): number {
