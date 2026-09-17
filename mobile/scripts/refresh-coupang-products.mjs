@@ -654,9 +654,11 @@
       //    (기존 vendorItemId 재사용 매칭은 그대로 작동 — URL에서 파싱해 채운다)
       //  · 리뷰수·직매입·로켓프레시 구분이 응답에 없다 → 그 가점만큼 점수가 무뎌지고,
       //    status는 'rocket'까지만 구분된다(프레시 로고 대신 로켓 로고가 붙는다).
-      const accessKey = process.env.COUPANG_ACCESS_KEY;
-      const secretKey = process.env.COUPANG_SECRET_KEY;
-      const cookie = process.env.COUPANG_PARTNERS_COOKIE;
+      // trim 필수 — 시크릿을 붙여넣을 때 끝에 개행이 섞이면 HMAC 서명이 통째로 어긋난다.
+      // 응답은 401 HmacSignatureMismatchedException뿐이라 키 값 문제인지 알고리즘 문제인지 구분이 안 된다.
+      const accessKey = process.env.COUPANG_ACCESS_KEY?.trim();
+      const secretKey = process.env.COUPANG_SECRET_KEY?.trim();
+      const cookie = process.env.COUPANG_PARTNERS_COOKIE?.trim();
       if (!accessKey && !cookie) {
         console.error(
           'COUPANG_ACCESS_KEY/COUPANG_SECRET_KEY(오픈 API) 또는 COUPANG_PARTNERS_COOKIE(웹 API)가 필요합니다.\n' +
@@ -749,6 +751,17 @@
         await fs.writeFile(COOLDOWN, String(Date.now()), 'utf8');
         console.error(`429 감지 — 24시간 쿨다운 기록(${COOLDOWN}). 내일 이 시간 이후 재실행하세요.`);
         process.exit(2);
+      }
+      // 한 품목도 못 받았으면 실패다 — 429가 아닌 모든 고장이 여기로 모인다.
+      //
+      // [2026-09-17 사고] 오픈 API 첫 실행이 86건 전부 401(HmacSignatureMismatchedException)이었는데
+      // 401은 stats.skipped로만 쌓여서 워크플로가 green으로 끝나고 Discord엔 "갱신 완료"가 갔다.
+      // 데이터는 직전 값 유지 덕에 안 깨졌지만, 고장이 안 보이는 게 더 위험하다.
+      // 개별 실패 유형(401/타임아웃/KAMIS 빈 응답)마다 검사를 붙이는 대신 결과로 판정한다.
+      if (stats.items === 0) {
+        console.error(`한 품목도 갱신하지 못했습니다 — 건너뜀 ${stats.skipped.length}건. 직전 값을 유지합니다.`);
+        console.error(`처음 3건: ${stats.skipped.slice(0, 3).join(' | ')}`);
+        process.exit(3);
       }
     })().catch((e) => {
       console.error(e);
