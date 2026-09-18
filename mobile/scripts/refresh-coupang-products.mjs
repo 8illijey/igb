@@ -670,6 +670,11 @@
       const makeOpenApiPost = async () => {
         const crypto = await import('node:crypto');
         const urlByProduct = new Map(); // 검색에서 본 productId → 추적 URL. 링크 생성 에뮬레이션용.
+        /** URL에서 숫자 id를 뽑는다. 못 찾으면 undefined — NaN을 저장하지 않는다. */
+        const numFrom = (u, re) => {
+          const m = u.match(re);
+          return m ? Number(m[1]) : undefined;
+        };
         const auth = (method, apiPath, query) => {
           // signed-date는 yyMMdd'T'HHmmss'Z' (UTC), 서명 대상은 date+method+path+query.
           const dt = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z').slice(2);
@@ -699,8 +704,12 @@
                 salesPrice: p.productPrice,
                 image: p.productImage,
                 productId: p.productId,
-                itemId: (u.match(/itemId=(\d+)/) || [])[1],
-                vendorItemId: (u.match(/vendorItemId=(\d+)/) || [])[1],
+                // Number 필수 — 정규식 캡처는 문자열이라 그대로 두면 웹 API(숫자)와 타입이 갈린다.
+                // coupang-products.json은 앱이 CoupangProduct(vendorItemId?: number)로 읽으므로
+                // 문자열이 섞이면 tsc가 깨진다 (2026-09-17 오픈 API 첫 성공 회차에서 실제로 발생).
+                // 매칭 자체는 양쪽 다 String()으로 비교해 영향이 없었다 — 타입만 문제였다.
+                itemId: numFrom(u, /itemId=(\d+)/),
+                vendorItemId: numFrom(u, /vendorItemId=(\d+)/),
                 deliveryChargeType: p.isRocket ? ['ROCKET'] : [],
               };
             });
