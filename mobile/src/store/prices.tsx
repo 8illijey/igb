@@ -1,11 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchAllCategories, PriceItem } from '../api/kamis';
+import { regionCode } from '../api/regions';
+import { useRegion } from './region';
 import { PRICE_SNAPSHOT } from '../snapshot.gen';
 
 // 가격 목록 캐시 — 첫 로드는 KAMIS를 최대 4~28콜(주말 백필) 치므로 10초+. 이전 결과를 즉시 그려
 // (stale-while-revalidate) 체감 로딩을 없앤다. 새로고침은 항상 백그라운드로 돌아 최신으로 교체.
-const CACHE_KEY = 'igb.prices.snapshot';
+// 지역마다 값이 다르므로 캐시도 지역별로 나눈다 — 한 키를 공유하면 부산 값이 전국 화면에 뜬다.
+const cacheKey = (region: string) => `igb.prices.snapshot${region === 'all' ? '' : '.' + region}`;
 
 interface PricesState {
   items: PriceItem[];
@@ -28,6 +31,8 @@ export const itemKey = (i: Pick<PriceItem, 'itemCode' | 'kindCode'>) =>
   `${i.itemCode}-${i.kindCode}`;
 
 export function PricesProvider({ children }: { children: React.ReactNode }) {
+  const { region, ready: regionReady } = useRegion();
+  const CACHE_KEY = cacheKey(region);
   // 초기값 = 빌드 시점 스냅샷(매일 CI가 갱신) — SSG 정적 HTML에 실제 카드가 담기고(LCP 대책),
   // 첫 방문도 스피너 없이 즉시 그려진다. 캐시·라이브 응답이 오는 순서대로 교체된다.
   const [items, setItems] = useState<PriceItem[]>(PRICE_SNAPSHOT);
@@ -38,7 +43,7 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const fresh = await fetchAllCategories();
+      const fresh = await fetchAllCategories(regionCode(region));
       // 장애 중 '데이터 없음' 정상 JSON이 오면 빈 목록이 성공으로 캐시를 덮는다(2026-07-15 실제 발생) — 실패로 취급해 이전 화면 유지.
       if (!fresh.length) throw new Error('시세 응답이 비어 있어요');
       setItems(fresh);
@@ -48,9 +53,12 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [region, CACHE_KEY]);
 
   useEffect(() => {
+    // 저장된 지역을 읽기 전엔 조회하지 않는다 — 안 그러면 전국으로 한 번 받고 지역으로 다시 받아
+    // 목록이 눈앞에서 두 번 바뀐다(그 사이 판정도 달라 보인다).
+    if (!regionReady) return;
     let alive = true;
     // 캐시 즉시 그리기 — 네트워크보다 먼저 화면을 채운다(빈 스피너 제거). 날짜 무관(stale 허용).
     AsyncStorage.getItem(CACHE_KEY)
@@ -69,7 +77,7 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [refresh]);
+  }, [refresh, regionReady, CACHE_KEY]);
 
   const value = useMemo<PricesState>(
     () => ({
