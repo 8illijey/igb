@@ -134,6 +134,15 @@ jobs:
             fi
           fi
 
+          # 조사 당일치 — snapshot.gen.ts는 품목별 surveyDate를 들고 있다(위 gen-seo 단계 산출물).
+          # verdicts.json의 date는 '가장 최근 조사일' 하나뿐이라 그날 몇 품목이 실제로 갱신됐는지
+          # 알 수 없다. 주말엔 일부만 올라온다 — 2026-09-19(토) 실측 86개 중 17개(20%)인데
+          # 핑은 "오늘자 시세 반영 완료"라고 나갔다. 평일은 98%(86/87)라 80% 선에서 깔끔히 갈린다.
+          read -r NEW TOT <<<"$(sed -n 's/^export const PRICE_SNAPSHOT[^=]*= //p' mobile/src/snapshot.gen.ts 2>/dev/null \
+            | sed 's/;$//' \
+            | jq -r 'map(.surveyDate) as $d | ($d | max) as $m
+                | [($d | map(select(. == $m)) | length), ($d | length)] | @tsv' 2>/dev/null || echo "0 0")"
+
           # 배포 반영 대기 — 20초 간격 30회(최대 10분). 캐시를 피하려 쿼리스트링을 매번 바꾼다.
           DEPLOYED=0
           for _ in $(seq 1 30); do
@@ -144,10 +153,14 @@ jobs:
 
           NOW=$(TZ=Asia/Seoul date '+%m/%d %H:%M')
           if [ "$DEPLOYED" = 1 ]; then
-            if [ "$SURVEY" = "$TODAY" ]; then
-              MSG="✅ 오늘자 시세 반영 완료 — 앱에서 확인 가능 ($NOW)${FILL_TXT}"
-            else
+            if [ "$SURVEY" != "$TODAY" ]; then
               MSG="✅ 시세 반영 완료 — 조사일 ${SURVEY:-확인불가} 기준, 앱에서 확인 가능 ($NOW)${FILL_TXT}"
+            elif [ "${TOT:-0}" -gt 0 ] && [ $(( NEW * 100 / TOT )) -lt 80 ]; then
+              # 조사일은 오늘인데 극히 일부만 갱신된 경우(주말·공휴일). '오늘자 완료'라고 하면
+              # 전 품목이 바뀐 것처럼 읽힌다 — 실제 숫자를 앞 문장에 넣는다.
+              MSG="✅ 시세 일부 갱신 — ${TOT}개 중 ${NEW}개만 오늘(${SURVEY}) 조사분이고 나머지는 직전 조사일 값이에요 ($NOW)${FILL_TXT}"
+            else
+              MSG="✅ 오늘자 시세 반영 완료 — 앱에서 확인 가능 ($NOW)${FILL_TXT}"
             fi
           else
             # 빌드·커밋은 됐는데 10분 안에 사이트가 안 바뀐 경우 — 거짓 '완료'를 보내지 않는다.
