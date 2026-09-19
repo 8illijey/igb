@@ -31,3 +31,16 @@ venv/
 
 # Logs
 *.log
+
+# iCloud/macOS 중복 복사본 ("og 2.png" 등)
+* [0-9].*
+
+# 대용량 시드 데이터 (181MB, GitHub 100MB 제한 초과)
+worker/scripts/seed-bulk*.json
+
+# 대화 로그
+docs/대화록-*.md
+대화기록_*.md
+
+# 로컬 에이전트 도구 설정
+.agents/
