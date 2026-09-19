@@ -42,6 +42,7 @@
   },
   "scripts": {
     "start": "expo start",
+    "check-live": "node ./scripts/check-live.mjs",
     "reset-project": "node ./scripts/reset-project.js",
     "gen-recipes": "node ./scripts/gen-recipes.mjs",
     "refresh-coupang": "node ./scripts/refresh-coupang-products.mjs",

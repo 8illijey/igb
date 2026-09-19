@@ -70,6 +70,27 @@ function seasonOrder(ms) {
   return [...ms.slice(cut), ...ms.slice(0, cut)];
 }
 
+// ── 5년 평년 월별(baselines) ──
+// '가격이 오르는 시기' 문단용. verdicts.months(최근 1년)와 달리 5년 평년이라 해마다 흔들리지 않는
+// 계절 패턴이고, 어느 블로그에도 없는 품목별 고유 문장이 된다(애드센스 심사·검색 대비).
+// baselines는 조사 공백을 최근접값으로 메워 두므로(fillGaps) 연중 조사 품목만 월별로 말한다 —
+// 수박·건고추처럼 철 밖이 메운 값인 품목은 월별 패턴이 허구다. 300일 이상 실측일 때만 싣는다.
+let baselines = {};
+try {
+  baselines = JSON.parse(readFileSync(path.join(ROOT, 'public/baselines.json'), 'utf8')).items ?? {};
+} catch (e) {
+  console.warn(`  baselines.json을 못 읽었다(${e.message}) — 월별 평년 없이 진행한다.`);
+}
+const CUM = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]; // build-baselines와 같은 달력(윤일 무시)
+function normalMonthsOf(key) {
+  const b = baselines[key];
+  if (!b?.days || (b.coverage ?? 0) < 300) return null;
+  return CUM.slice(0, 12).map((s, m) => {
+    const seg = b.days.slice(s, CUM[m + 1]).filter((v) => v != null);
+    return seg.length ? Math.round(seg.reduce((a, v) => a + v, 0) / seg.length) : null;
+  });
+}
+
 // price를 같이 넣는다 — 상세 제목이 '배추 5,684원 | 이거비싸?' 형태라 정적 HTML에도 값이 있어야 한다.
 // 매일 verdicts CI가 이 스크립트를 돌리고 커밋 → Vercel 재배포라 제목의 가격도 매일 갱신된다.
 const rows = items
@@ -88,7 +109,17 @@ const rows = items
     } else if (valid.length >= 1) {
       seasonMonths = seasonOrder(valid.map((x) => x.idx + 1));
     }
-    return { key, name: i.itemName, unit: i.unit, price: i.today ?? null, normal: v.normal ?? null, minMonth, maxMonth, seasonMonths };
+    return {
+      key,
+      name: i.itemName,
+      unit: i.unit,
+      price: i.today ?? null,
+      normal: v.normal ?? null,
+      minMonth,
+      maxMonth,
+      seasonMonths,
+      normalMonths: normalMonthsOf(key),
+    };
   })
   .sort((a, b) => a.key.localeCompare(b.key));
 
@@ -132,6 +163,8 @@ export interface SeoItem {
   maxMonth: number | null;
   /** 제철 품목(조사월 6개 미만)의 조사월 목록 — 철 시작 달부터 정렬. */
   seasonMonths: number[] | null;
+  /** 5년 평년의 월별 평균(1~12월, 소매). 연중 조사 품목(실측 300일 이상)만 값이 있다. */
+  normalMonths: (number | null)[] | null;
 }
 export const SEO_ITEMS: SeoItem[] = ${JSON.stringify(rows, null, 2)};
 /** 이 파일을 만든 날(YYYYMMDD). 공유 카드 이미지 URL의 캐시 무효화에 쓴다 —

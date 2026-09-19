@@ -31,3 +31,11 @@ venv/
 
 # Logs
 *.log
+
+# 작업 부산물 — 실수로 커밋되면 곤란한 것들
+# tmp/에는 쿠팡 세션 쿠키(coupang_cookie.txt)가 들어간다. 자격증명이다.
+# worker/scripts/seed-bulk.json은 181MB짜리 KV 시드다.
+tmp/
+worker/scripts/seed-bulk.json
+.playwright-mcp/
+.claude/launch.json

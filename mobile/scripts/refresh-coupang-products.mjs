@@ -8,7 +8,8 @@
  *
  * 딥링크를 재사용하는 이유 — 최적화가 아니라 필수다.
  *  · 딥링크는 상품에 1:1로 붙는 영구 URL이라, 같은 상품에 다시 만들어도 목적지가 동일한 링크만 늘어난다.
- *  · 파트너스 웹 API는 **분당 50회** 제한이고, 3회 초과하면 계정 이용이 제한된다.
+ *  · 공식 한도: 검색 API 50/분, 링크생성 50/분, **전체 합산 100/분**, 리포트 API 500/시간.
+ *    3회 초과하면 계정 이용이 제한된다.
  *    (2026-08-17 최초 201개 일괄 생성 중 2회 초과 → 24시간 차단을 실제로 맞음)
  *  · 그래서 이 스크립트는 분당 상한(RPM)을 스스로 지키고, 429를 보면 **즉시 중단**한다.
  *    남은 품목을 포기하더라도 3회째 위반은 만들지 않는다.
@@ -38,9 +39,17 @@
   const PICK_N = 3;
 
   /**
-   * 파트너스 웹 API 분당 한도는 50(검색·링크생성 각각), 전체 100. 2026-09-09 경고 3회 누적으로
-   * 실제 이용제한을 맞았다 — 유력 원인은 CLI+REPL 중복 동시 실행(35×2=70/분).
-   * 상한을 20으로 내리고(둘이 겹쳐도 40<50), MAX_SAFE_RPM 초과는 어떤 경로로도 못 넘게 클램프.
+   * 쿠팡 파트너스 공식 호출 한도 — 넘기면 경고가 쌓이고 3회째에 계정이 제한된다.
+   *   · 검색 API              50 / 분
+   *   · 링크생성(파트너스 웹)  50 / 분
+   *   · 전체 합산             100 / 분   ← 종류별 한도와 **따로** 걸린다
+   *   · 리포트 API            500 / 시간  (이 스크립트는 안 쓴다)
+   *
+   * 2026-09-09 경고 3회 누적으로 실제 이용제한을 맞았다 — 유력 원인은 CLI+REPL 중복
+   * 동시 실행(35×2=70/분). 한도는 계정 단위라 프로세스를 나눠도 합산된다.
+   * 상한을 20으로 내려 둔 이유: 검색·링크생성이 겹쳐도 40<50이고, 두 프로세스가
+   * 동시에 돌아도 합산 40<100이다. MAX_SAFE_RPM 초과는 어떤 경로로도 못 넘게 클램프.
+   * **이 두 상수를 올리는 변경은 하지 마라.**
    */
   const DEFAULT_RPM = 20;
   const MAX_SAFE_RPM = 20;
@@ -645,9 +654,11 @@
       //    (기존 vendorItemId 재사용 매칭은 그대로 작동 — URL에서 파싱해 채운다)
       //  · 리뷰수·직매입·로켓프레시 구분이 응답에 없다 → 그 가점만큼 점수가 무뎌지고,
       //    status는 'rocket'까지만 구분된다(프레시 로고 대신 로켓 로고가 붙는다).
-      const accessKey = process.env.COUPANG_ACCESS_KEY;
-      const secretKey = process.env.COUPANG_SECRET_KEY;
-      const cookie = process.env.COUPANG_PARTNERS_COOKIE;
+      // trim 필수 — 시크릿을 붙여넣을 때 끝에 개행이 섞이면 HMAC 서명이 통째로 어긋난다.
+      // 응답은 401 HmacSignatureMismatchedException뿐이라 키 값 문제인지 알고리즘 문제인지 구분이 안 된다.
+      const accessKey = process.env.COUPANG_ACCESS_KEY?.trim();
+      const secretKey = process.env.COUPANG_SECRET_KEY?.trim();
+      const cookie = process.env.COUPANG_PARTNERS_COOKIE?.trim();
       if (!accessKey && !cookie) {
         console.error(
           'COUPANG_ACCESS_KEY/COUPANG_SECRET_KEY(오픈 API) 또는 COUPANG_PARTNERS_COOKIE(웹 API)가 필요합니다.\n' +
@@ -659,6 +670,11 @@
       const makeOpenApiPost = async () => {
         const crypto = await import('node:crypto');
         const urlByProduct = new Map(); // 검색에서 본 productId → 추적 URL. 링크 생성 에뮬레이션용.
+        /** URL에서 숫자 id를 뽑는다. 못 찾으면 undefined — NaN을 저장하지 않는다. */
+        const numFrom = (u, re) => {
+          const m = u.match(re);
+          return m ? Number(m[1]) : undefined;
+        };
         const auth = (method, apiPath, query) => {
           // signed-date는 yyMMdd'T'HHmmss'Z' (UTC), 서명 대상은 date+method+path+query.
           const dt = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z').slice(2);
@@ -688,8 +704,12 @@
                 salesPrice: p.productPrice,
                 image: p.productImage,
                 productId: p.productId,
-                itemId: (u.match(/itemId=(\d+)/) || [])[1],
-                vendorItemId: (u.match(/vendorItemId=(\d+)/) || [])[1],
+                // Number 필수 — 정규식 캡처는 문자열이라 그대로 두면 웹 API(숫자)와 타입이 갈린다.
+                // coupang-products.json은 앱이 CoupangProduct(vendorItemId?: number)로 읽으므로
+                // 문자열이 섞이면 tsc가 깨진다 (2026-09-17 오픈 API 첫 성공 회차에서 실제로 발생).
+                // 매칭 자체는 양쪽 다 String()으로 비교해 영향이 없었다 — 타입만 문제였다.
+                itemId: numFrom(u, /itemId=(\d+)/),
+                vendorItemId: numFrom(u, /vendorItemId=(\d+)/),
                 deliveryChargeType: p.isRocket ? ['ROCKET'] : [],
               };
             });
@@ -740,6 +760,17 @@
         await fs.writeFile(COOLDOWN, String(Date.now()), 'utf8');
         console.error(`429 감지 — 24시간 쿨다운 기록(${COOLDOWN}). 내일 이 시간 이후 재실행하세요.`);
         process.exit(2);
+      }
+      // 한 품목도 못 받았으면 실패다 — 429가 아닌 모든 고장이 여기로 모인다.
+      //
+      // [2026-09-17 사고] 오픈 API 첫 실행이 86건 전부 401(HmacSignatureMismatchedException)이었는데
+      // 401은 stats.skipped로만 쌓여서 워크플로가 green으로 끝나고 Discord엔 "갱신 완료"가 갔다.
+      // 데이터는 직전 값 유지 덕에 안 깨졌지만, 고장이 안 보이는 게 더 위험하다.
+      // 개별 실패 유형(401/타임아웃/KAMIS 빈 응답)마다 검사를 붙이는 대신 결과로 판정한다.
+      if (stats.items === 0) {
+        console.error(`한 품목도 갱신하지 못했습니다 — 건너뜀 ${stats.skipped.length}건. 직전 값을 유지합니다.`);
+        console.error(`처음 3건: ${stats.skipped.slice(0, 3).join(' | ')}`);
+        process.exit(3);
       }
     })().catch((e) => {
       console.error(e);

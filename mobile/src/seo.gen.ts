@@ -13,6 +13,8 @@ export interface SeoItem {
   maxMonth: number | null;
   /** 제철 품목(조사월 6개 미만)의 조사월 목록 — 철 시작 달부터 정렬. */
   seasonMonths: number[] | null;
+  /** 5년 평년의 월별 평균(1~12월, 소매). 연중 조사 품목(실측 300일 이상)만 값이 있다. */
+  normalMonths: (number | null)[] | null;
 }
 export const SEO_ITEMS: SeoItem[] = [
   {
@@ -23,7 +25,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 54046,
     "minMonth": 8,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      54287,
+      53777,
+      52971,
+      51993,
+      53247,
+      53578,
+      53992,
+      54292,
+      53620,
+      54147,
+      55158,
+      55404
+    ]
   },
   {
     "key": "111-10",
@@ -33,7 +49,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 30500,
     "minMonth": 8,
     "maxMonth": 3,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      29690,
+      29007,
+      28691,
+      29060,
+      29086,
+      28501,
+      28556,
+      27912,
+      29856,
+      31845,
+      30226,
+      30354
+    ]
   },
   {
     "key": "112-01",
@@ -43,7 +73,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4279,
     "minMonth": 7,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      4383,
+      4326,
+      4431,
+      4215,
+      4310,
+      4283,
+      4220,
+      4285,
+      4240,
+      4236,
+      4244,
+      4373
+    ]
   },
   {
     "key": "113-01",
@@ -55,7 +99,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "maxMonth": null,
     "seasonMonths": [
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "115-01",
@@ -67,7 +112,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "maxMonth": null,
     "seasonMonths": [
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "121-04",
@@ -79,7 +125,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "maxMonth": null,
     "seasonMonths": [
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "141-01",
@@ -89,7 +136,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 5218,
     "minMonth": 2,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      5113,
+      5159,
+      5159,
+      5137,
+      5124,
+      5249,
+      5284,
+      5215,
+      5110,
+      5184,
+      5064,
+      5099
+    ]
   },
   {
     "key": "142-00",
@@ -99,7 +160,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 9151,
     "minMonth": 5,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      8909,
+      8846,
+      9309,
+      9550,
+      9432,
+      9391,
+      9405,
+      9501,
+      9395,
+      9357,
+      9326,
+      9740
+    ]
   },
   {
     "key": "143-00",
@@ -109,7 +184,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 11452,
     "minMonth": 2,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      12661,
+      12686,
+      13031,
+      12675,
+      12748,
+      12749,
+      12391,
+      12436,
+      12366,
+      12828,
+      12701,
+      12743
+    ]
   },
   {
     "key": "151-00",
@@ -119,7 +208,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 5566,
     "minMonth": 7,
     "maxMonth": 5,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      4961,
+      4854,
+      4894,
+      4974,
+      5091,
+      5000,
+      5152,
+      5416,
+      5193,
+      4913,
+      4803,
+      4709
+    ]
   },
   {
     "key": "152-01",
@@ -129,7 +232,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 335,
     "minMonth": 9,
     "maxMonth": 4,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      327,
+      378,
+      394,
+      425,
+      474,
+      396,
+      311,
+      299,
+      305,
+      315,
+      316,
+      343
+    ]
   },
   {
     "key": "211-02",
@@ -139,7 +256,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 6765,
     "minMonth": 5,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "212-00",
@@ -149,7 +267,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4304,
     "minMonth": 5,
     "maxMonth": 3,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      3713,
+      3638,
+      3714,
+      4150,
+      4472,
+      3521,
+      3457,
+      3869,
+      3936,
+      4195,
+      3821,
+      3330
+    ]
   },
   {
     "key": "213-00",
@@ -159,7 +291,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2543,
     "minMonth": 4,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      794,
+      916,
+      724,
+      619,
+      667,
+      798,
+      1546,
+      2404,
+      2412,
+      1304,
+      888,
+      774
+    ]
   },
   {
     "key": "214-01",
@@ -169,7 +315,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1884,
     "minMonth": 5,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1053,
+      983,
+      840,
+      811,
+      816,
+      876,
+      1527,
+      1715,
+      1782,
+      1455,
+      1157,
+      953
+    ]
   },
   {
     "key": "214-02",
@@ -179,7 +339,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2140,
     "minMonth": 5,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1166,
+      1106,
+      992,
+      950,
+      971,
+      1023,
+      1669,
+      1860,
+      1917,
+      1594,
+      1278,
+      1041
+    ]
   },
   {
     "key": "215-00",
@@ -189,7 +363,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4166,
     "minMonth": 6,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      3295,
+      3746,
+      3338,
+      2865,
+      2423,
+      2327,
+      3471,
+      4123,
+      3938,
+      3107,
+      3162,
+      3208
+    ]
   },
   {
     "key": "221-00",
@@ -199,7 +387,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 26939,
     "minMonth": 7,
     "maxMonth": 3,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      25313,
+      26725,
+      26981,
+      23909,
+      20050,
+      19496,
+      21832,
+      26461,
+      24707,
+      21974,
+      23391,
+      26204
+    ]
   },
   {
     "key": "222-00",
@@ -209,7 +411,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 25193,
     "minMonth": 7,
     "maxMonth": 3,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "223-01",
@@ -219,7 +422,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 13443,
     "minMonth": 5,
     "maxMonth": 1,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      20154,
+      21537,
+      20439,
+      15614,
+      11806,
+      11664,
+      15438,
+      16069,
+      16753,
+      16462,
+      17466,
+      18461
+    ]
   },
   {
     "key": "223-02",
@@ -229,7 +446,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 12079,
     "minMonth": 5,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      11147,
+      11099,
+      9832,
+      7223,
+      6035,
+      5713,
+      8061,
+      9489,
+      10657,
+      10152,
+      9681,
+      10247
+    ]
   },
   {
     "key": "223-03",
@@ -239,7 +470,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 14663,
     "minMonth": 6,
     "maxMonth": 1,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      16060,
+      16845,
+      15532,
+      13356,
+      10876,
+      10281,
+      13514,
+      14094,
+      14648,
+      13581,
+      15555,
+      15575
+    ]
   },
   {
     "key": "224-01",
@@ -249,7 +494,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2138,
     "minMonth": 5,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      2162,
+      2251,
+      2023,
+      1440,
+      1139,
+      1144,
+      1128,
+      1377,
+      1743,
+      1508,
+      1506,
+      1623
+    ]
   },
   {
     "key": "224-02",
@@ -259,7 +518,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2439,
     "minMonth": 5,
     "maxMonth": 11,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      2157,
+      2437,
+      2327,
+      1746,
+      1499,
+      1509,
+      1685,
+      2208,
+      2462,
+      2317,
+      2237,
+      2057
+    ]
   },
   {
     "key": "225-00",
@@ -269,7 +542,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 7462,
     "minMonth": 7,
     "maxMonth": 11,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      5209,
+      5817,
+      6202,
+      5326,
+      4562,
+      3856,
+      4346,
+      5586,
+      7419,
+      8854,
+      6972,
+      5484
+    ]
   },
   {
     "key": "231-02",
@@ -279,7 +566,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2711,
     "minMonth": 4,
     "maxMonth": 12,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "232-01",
@@ -289,7 +577,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4992,
     "minMonth": 4,
     "maxMonth": 5,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      3413,
+      3663,
+      3714,
+      3951,
+      3615,
+      3309,
+      3229,
+      3552,
+      4279,
+      4530,
+      4279,
+      3534
+    ]
   },
   {
     "key": "233-00",
@@ -299,7 +601,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4065,
     "minMonth": 6,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      3304,
+      3605,
+      3330,
+      2823,
+      2484,
+      2373,
+      3655,
+      4146,
+      3950,
+      3304,
+      3507,
+      3520
+    ]
   },
   {
     "key": "241-00",
@@ -309,7 +625,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 17741,
     "minMonth": 10,
     "maxMonth": 11,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      19652,
+      20093,
+      21162,
+      20518,
+      20972,
+      21136,
+      21141,
+      20858,
+      18444,
+      17391,
+      18153,
+      19305
+    ]
   },
   {
     "key": "242-00",
@@ -319,7 +649,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1852,
     "minMonth": 12,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1532,
+      2115,
+      2103,
+      1717,
+      1479,
+      1456,
+      1735,
+      1619,
+      1734,
+      1701,
+      1728,
+      1283
+    ]
   },
   {
     "key": "242-02",
@@ -329,7 +673,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1835,
     "minMonth": 8,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1474,
+      1638,
+      1462,
+      1304,
+      1184,
+      1147,
+      1255,
+      1197,
+      1512,
+      1487,
+      1229,
+      1160
+    ]
   },
   {
     "key": "242-03",
@@ -339,7 +697,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1422,
     "minMonth": 11,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1191,
+      1557,
+      1412,
+      918,
+      831,
+      889,
+      1039,
+      968,
+      1152,
+      1083,
+      1017,
+      1003
+    ]
   },
   {
     "key": "242-04",
@@ -349,7 +721,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1344,
     "minMonth": 8,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1460,
+      1779,
+      1603,
+      1140,
+      1016,
+      995,
+      1207,
+      1116,
+      1325,
+      1234,
+      1125,
+      1061
+    ]
   },
   {
     "key": "243-00",
@@ -359,7 +745,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1820,
     "minMonth": 8,
     "maxMonth": 12,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1608,
+      1594,
+      2177,
+      2765,
+      2003,
+      1823,
+      1638,
+      1429,
+      1546,
+      1813,
+      1830,
+      2009
+    ]
   },
   {
     "key": "245-00",
@@ -369,7 +769,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2082,
     "minMonth": 7,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      2283,
+      2452,
+      2805,
+      2556,
+      2013,
+      1953,
+      1910,
+      1969,
+      2017,
+      2146,
+      1969,
+      2129
+    ]
   },
   {
     "key": "246-00",
@@ -379,7 +793,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 3237,
     "minMonth": 4,
     "maxMonth": 12,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      3182,
+      3407,
+      3154,
+      2355,
+      2527,
+      2463,
+      2571,
+      2846,
+      2791,
+      2958,
+      2984,
+      3288
+    ]
   },
   {
     "key": "246-02",
@@ -389,7 +817,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 9101,
     "minMonth": 4,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      9820,
+      9351,
+      6050,
+      4981,
+      6331,
+      7945,
+      9900,
+      10392,
+      8674,
+      8738,
+      7097,
+      8008
+    ]
   },
   {
     "key": "247-00",
@@ -399,7 +841,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 14221,
     "minMonth": 11,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      12222,
+      12455,
+      12571,
+      13054,
+      13248,
+      13414,
+      13832,
+      14110,
+      14594,
+      12701,
+      9734,
+      12902
+    ]
   },
   {
     "key": "248-00",
@@ -409,7 +865,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 34223,
     "minMonth": 12,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      34155,
+      35695,
+      35199,
+      34800,
+      35542,
+      36030,
+      36617,
+      36475,
+      36658,
+      35883,
+      31895,
+      32246
+    ]
   },
   {
     "key": "248-01",
@@ -419,7 +889,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 13085,
     "minMonth": 10,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      13029,
+      13017,
+      13022,
+      13236,
+      13338,
+      13333,
+      13333,
+      13333,
+      13333,
+      13554,
+      13733,
+      13724
+    ]
   },
   {
     "key": "251-00",
@@ -431,7 +915,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "maxMonth": null,
     "seasonMonths": [
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "252-00",
@@ -441,7 +926,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1685,
     "minMonth": 5,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1625,
+      1629,
+      1416,
+      1194,
+      1096,
+      1083,
+      1337,
+      1666,
+      1848,
+      1907,
+      1519,
+      1708
+    ]
   },
   {
     "key": "253-00",
@@ -451,7 +950,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1597,
     "minMonth": 7,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1524,
+      1437,
+      1312,
+      1191,
+      1225,
+      1110,
+      1131,
+      1464,
+      1755,
+      1572,
+      1340,
+      1289
+    ]
   },
   {
     "key": "254-00",
@@ -463,7 +976,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "maxMonth": null,
     "seasonMonths": [
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "255-00",
@@ -473,7 +987,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1310,
     "minMonth": 8,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1842,
+      2049,
+      1847,
+      1502,
+      1293,
+      1283,
+      1194,
+      1081,
+      1451,
+      1395,
+      1472,
+      1343
+    ]
   },
   {
     "key": "256-00",
@@ -483,7 +1011,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2310,
     "minMonth": 7,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      1799,
+      2031,
+      1855,
+      1561,
+      1297,
+      1170,
+      1126,
+      1624,
+      1986,
+      1798,
+      1437,
+      1375
+    ]
   },
   {
     "key": "257-00",
@@ -493,7 +1035,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 10370,
     "minMonth": 8,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      14324,
+      14600,
+      15912,
+      14858,
+      12619,
+      9913,
+      8631,
+      9133,
+      9769,
+      9703,
+      10067,
+      13849
+    ]
   },
   {
     "key": "258-01",
@@ -503,7 +1059,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 10624,
     "minMonth": 11,
     "maxMonth": 6,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      9737,
+      9853,
+      10090,
+      10515,
+      10392,
+      10232,
+      10198,
+      10189,
+      9920,
+      10144,
+      9506,
+      10065
+    ]
   },
   {
     "key": "279-00",
@@ -513,7 +1083,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 5055,
     "minMonth": 7,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      2542,
+      2807,
+      3118,
+      3189,
+      2731,
+      2018,
+      2606,
+      3677,
+      4585,
+      3984,
+      3129,
+      2467
+    ]
   },
   {
     "key": "280-00",
@@ -523,7 +1107,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 3992,
     "minMonth": 7,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      2228,
+      2371,
+      2728,
+      3383,
+      2637,
+      1895,
+      2228,
+      3053,
+      4102,
+      3833,
+      3150,
+      2303
+    ]
   },
   {
     "key": "411-07",
@@ -533,7 +1131,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 27413,
     "minMonth": 9,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "412-01",
@@ -543,7 +1142,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 31609,
     "minMonth": 11,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "412-04",
@@ -553,7 +1153,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 29770,
     "minMonth": 11,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "413-01",
@@ -567,7 +1168,8 @@ export const SEO_ITEMS: SeoItem[] = [
       7,
       8,
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "414-01",
@@ -583,7 +1185,8 @@ export const SEO_ITEMS: SeoItem[] = [
       9,
       10,
       11
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "414-02",
@@ -593,7 +1196,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 23479,
     "minMonth": 1,
     "maxMonth": 11,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "414-12",
@@ -603,7 +1207,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 27582,
     "minMonth": 11,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "415-02",
@@ -613,7 +1218,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 9284,
     "minMonth": 11,
     "maxMonth": 3,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "418-02",
@@ -623,7 +1229,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 320,
     "minMonth": 8,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      287,
+      300,
+      304,
+      305,
+      298,
+      297,
+      294,
+      291,
+      299,
+      296,
+      286,
+      291
+    ]
   },
   {
     "key": "420-02",
@@ -633,7 +1253,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 7398,
     "minMonth": 3,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      6066,
+      6162,
+      5957,
+      6205,
+      6379,
+      6344,
+      5966,
+      6097,
+      6707,
+      6773,
+      6434,
+      6237
+    ]
   },
   {
     "key": "421-06",
@@ -643,7 +1277,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 12079,
     "minMonth": 9,
     "maxMonth": 2,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "422-01",
@@ -653,7 +1288,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 11041,
     "minMonth": 7,
     "maxMonth": 11,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      11367,
+      11290,
+      11441,
+      10391,
+      8232,
+      7783,
+      7599,
+      9203,
+      10658,
+      11178,
+      10741,
+      11125
+    ]
   },
   {
     "key": "422-02",
@@ -663,7 +1312,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 11722,
     "minMonth": 7,
     "maxMonth": 11,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      9122,
+      9339,
+      9825,
+      8460,
+      6519,
+      5890,
+      6758,
+      8861,
+      11676,
+      11183,
+      10023,
+      9260
+    ]
   },
   {
     "key": "424-00",
@@ -673,7 +1336,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 9769,
     "minMonth": 9,
     "maxMonth": 1,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      8910,
+      8968,
+      8818,
+      8809,
+      9153,
+      9305,
+      8816,
+      8547,
+      8543,
+      8499,
+      8499,
+      9143
+    ]
   },
   {
     "key": "425-00",
@@ -683,7 +1360,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2813,
     "minMonth": 3,
     "maxMonth": 5,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      2544,
+      2040,
+      2397,
+      2195,
+      3096,
+      2283,
+      1787,
+      2036,
+      2820,
+      3209,
+      3687,
+      3295
+    ]
   },
   {
     "key": "428-00",
@@ -693,7 +1384,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 7045,
     "minMonth": 4,
     "maxMonth": 9,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      5771,
+      5186,
+      4064,
+      3822,
+      3875,
+      3978,
+      4479,
+      6315,
+      6814,
+      6126,
+      5772,
+      5421
+    ]
   },
   {
     "key": "429-02",
@@ -705,7 +1410,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "maxMonth": null,
     "seasonMonths": [
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "430-00",
@@ -715,7 +1421,21 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1967,
     "minMonth": 7,
     "maxMonth": 4,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": [
+      2022,
+      2125,
+      2269,
+      2223,
+      2139,
+      2107,
+      1826,
+      1696,
+      1880,
+      1888,
+      1866,
+      1978
+    ]
   },
   {
     "key": "4301-21",
@@ -725,7 +1445,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 14629,
     "minMonth": 10,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4301-22",
@@ -735,7 +1456,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 13698,
     "minMonth": 12,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4301-36",
@@ -745,7 +1467,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4593,
     "minMonth": 11,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4301-40",
@@ -755,7 +1478,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 6423,
     "minMonth": 11,
     "maxMonth": 3,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4301-50",
@@ -765,7 +1489,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 8019,
     "minMonth": 10,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4304-25",
@@ -775,7 +1500,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1476,
     "minMonth": 11,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4304-27",
@@ -785,7 +1511,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2744,
     "minMonth": 3,
     "maxMonth": 6,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4304-28",
@@ -795,7 +1522,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1509,
     "minMonth": 4,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4304-68",
@@ -805,7 +1533,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2582,
     "minMonth": 3,
     "maxMonth": 6,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "437-01",
@@ -817,7 +1546,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "maxMonth": null,
     "seasonMonths": [
       9
-    ]
+    ],
+    "normalMonths": null
   },
   {
     "key": "4401-31",
@@ -827,7 +1557,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4165,
     "minMonth": 9,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4401-37",
@@ -837,7 +1568,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 4594,
     "minMonth": 5,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "4402-27",
@@ -847,7 +1579,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 1486,
     "minMonth": 4,
     "maxMonth": 7,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "9901-24",
@@ -857,7 +1590,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 8593,
     "minMonth": 12,
     "maxMonth": 10,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "9901-99",
@@ -867,7 +1601,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 5784,
     "minMonth": 12,
     "maxMonth": 4,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "9903-21",
@@ -877,7 +1612,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 3577,
     "minMonth": 11,
     "maxMonth": 6,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "9903-23",
@@ -887,7 +1623,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 6326,
     "minMonth": 11,
     "maxMonth": 6,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   },
   {
     "key": "9908-01",
@@ -897,7 +1634,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "normal": 2906,
     "minMonth": 5,
     "maxMonth": 8,
-    "seasonMonths": null
+    "seasonMonths": null,
+    "normalMonths": null
   }
 ];
 /** 이 파일을 만든 날(YYYYMMDD). 공유 카드 이미지 URL의 캐시 무효화에 쓴다 —

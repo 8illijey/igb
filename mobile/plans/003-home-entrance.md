@@ -1,5 +1,11 @@
 # 003 — 홈 진입 연출: 카드 스태거 페이드인 + 히어로 가격 카운트업
 
+> **상태: 구현 완료 (2026-08).** 아래는 당시 계획 원문 — 코드 스니펫은 commit bf73639 시점의 "before"다.
+> [2026-09-17 확인] `app/(tabs)/index.tsx`에 `useCountUp`, `sawSpinner` ref, `FadeInDown.duration(300).delay(60 + n * 40)`이
+> 계획대로 들어가 있다. 차이는 하나 — `animateEntrance` 계산에 `!reduced`가 직접 포함돼 있어
+> reduced motion이면 entering 자체가 붙지 않는다(계획은 카운트업에만 reduced 게이트를 걸었다).
+> 줄 번호는 이후 파일이 커져 더 이상 맞지 않는다.
+
 - **Status**: DONE (2026-08-07)
 - **Commit**: bf73639
 - **Severity**: LOW

@@ -33,8 +33,11 @@ jobs:
         env:
           COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
           COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
-        # exit 2 = 파트너스 분당 한도(429)로 중단 — 파일은 '완료분+어제 값'으로 안전하게
-        # 쓰여 있지만, 커밋하지 않고 실패로 알린다. 다음날 회차가 처음부터 다시 뽑는다.
+        # 실패로 끝나면 Commit을 건너뛰고 아래 '실패' 알림이 나간다. 파일은 어느 경우든
+        # '완료분+어제 값'이라 데이터가 깨지진 않는다.
+        #   exit 2 = 파트너스 분당 한도(429)로 중단. 다음날 회차가 처음부터 다시 뽑는다.
+        #   exit 3 = 한 품목도 못 받음(401 서명 오류·네트워크 장애·KAMIS 빈 응답 등).
+        #            2026-09-17 첫 실행이 86건 전부 401이었는데 green으로 끝나 추가한 가드다.
         run: node scripts/refresh-coupang-products.mjs
       - name: Commit
         run: |

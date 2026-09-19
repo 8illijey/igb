@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Info } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Linking, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   EcoData,
@@ -20,8 +20,6 @@ import {
   SeriesPoint,
   won,
 } from '../../api/kamis';
-import { coupangProducts, CoupangProduct, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
-import { track } from '../../analytics';
 import Head from 'expo-router/head';
 import { SEO_BUILD_DAY, SEO_BY_KEY, SEO_ITEMS, type SeoItem } from '../../seo.gen';
 import { usePrecomputedSeries } from '../../api/series';
@@ -39,6 +37,7 @@ import { thumbFor } from '../../thumbnails';
 import { subjectParticle, topicParticle, withParticle } from '../../utils/korean';
 import { colors, palette, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 import { FavoriteHeart } from '../../components/igb/FavoriteHeart';
+import { ShopSection } from '../../components/igb/ShopSection';
 
 type Market = 'retail' | 'eco' | 'wholesale';
 
@@ -719,6 +718,13 @@ export default function ItemDetailScreen() {
             {/* 검색엔진용 요약 문단은 제거(2026-09-03) — 사전 렌더로 본문이 이미 품목별
                 실데이터로 풍부해져 중복 재서술이 됐다. 고유 정보였던 '가장 싼/비싼 달'은
                 AnnualFlow 캡션으로 병합. */}
+            {/* '가격이 오르는 시기'(2026-09-11) — 위 삭제와 다르다. AnnualFlow는 최근 1년,
+                이건 5년 평년이라 해마다 안 흔들리는 계절 패턴이고 화면 어디에도 없는 숫자다.
+                쿠팡 아래에 두는 이유: 판단·제휴가 수익 지점이라 그 위에 글을 두면 스크롤 이탈이
+                는다. 크롤러는 위치를 안 가린다. 평년은 소매 조사라 도매 탭엔 안 붙인다. */}
+            {market !== 'wholesale' && seo?.normalMonths && (
+              <PriceSeasonSection name={item.itemName} unit={item.unit} months={seo.normalMonths} />
+            )}
             <Text style={styles.source}>자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}</Text>
           </View>
         ) : null}
@@ -762,6 +768,50 @@ function seoBodyText(seo: SeoItem): string {
     parts.push(`${seo.seasonMonths.join('·')}월에 주로 조사되는 제철 품목이에요.`);
   parts.push('최근 1년 추이와 연간 가격 흐름, 소매·도매 가격도 함께 볼 수 있어요.');
   return parts.join(' ');
+}
+
+/**
+ * '가격이 오르는 시기' 문장 — 5년 평년 월별값만으로 만든다.
+ * 출하량 데이터가 없으므로 인과('출하가 줄어서')는 말하지 않고 관측된 가격 패턴만 사실로 전한다.
+ * 문장마다 이 품목만의 숫자가 들어가야 한다 — 전 품목 공용 문장은 얇은 중복 문서가 된다(2026-09-03 교훈).
+ */
+export function priceSeasonText(name: string, unit: string, months: (number | null)[], thisMonth: number): string[] {
+  const valid = months.map((m, i) => ({ m, i })).filter((x): x is { m: number; i: number } => x.m != null && x.m > 0);
+  if (valid.length < 12) return []; // 연중 품목만 — 빈 달이 있으면 '가장 싼 달'이 허구가 된다
+  const min = valid.reduce((a, b) => (b.m < a.m ? b : a));
+  const max = valid.reduce((a, b) => (b.m > a.m ? b : a));
+  const p = topicParticle(name);
+  const spread = Math.round(((max.m - min.m) / min.m) * 100);
+  const out = [
+    `최근 5년 평년 기준 ${name}${p} ${MONTHS[min.i]}월이 가장 싸고(${unit} ${won(min.m)}원), ${MONTHS[max.i]}월이 가장 비싸요(${won(max.m)}원).`,
+  ];
+  if (spread < 8) {
+    out.push(`가장 비싼 달과 싼 달의 차이가 ${spread}%로, 연중 가격이 비교적 안정적인 품목이에요.`);
+  } else {
+    out.push(`가장 비싼 달은 가장 싼 달보다 ${spread}% 높아요.`);
+    // 달 사이 상승폭이 가장 큰 구간 = '오르는 시기'. 12월→1월도 이어 본다.
+    const rise = months
+      .map((m, i) => ({ i, pct: m != null && months[(i + 11) % 12] != null ? (m - months[(i + 11) % 12]!) / months[(i + 11) % 12]! : -Infinity }))
+      .reduce((a, b) => (b.pct > a.pct ? b : a));
+    if (rise.pct > 0)
+      out.push(`한 달 사이 가장 크게 오르는 때는 ${MONTHS[(rise.i + 11) % 12]}월에서 ${MONTHS[rise.i]}월로 넘어갈 때로, 평년 기준 ${Math.round(rise.pct * 100)}% 올라요.`);
+  }
+  const rank = valid.filter((x) => x.m < months[thisMonth]!).length + 1;
+  out.push(`이번 달(${MONTHS[thisMonth]}월) 평년 가격은 ${won(months[thisMonth]!)}원으로, 1년 중 ${rank}번째로 싼 달이에요.`);
+  return out;
+}
+
+function PriceSeasonSection({ name, unit, months }: { name: string; unit: string; months: (number | null)[] }) {
+  const lines = priceSeasonText(name, unit, months, new Date().getMonth());
+  if (lines.length === 0) return null;
+  return (
+    <View style={styles.flowCard}>
+      <Text role="heading" aria-level={2} style={styles.sectionTitle}>
+        {name} 가격이 오르는 시기
+      </Text>
+      <Text style={styles.seoBody}>{lines.join(' ')}</Text>
+    </View>
+  );
 }
 
 /** 스켈레톤 — 펄스(opacity) 애니메이션. children을 주면 그 묶음 전체가 한 단위로 펄스(차트 실루엣 등). */
@@ -1030,136 +1080,6 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
   );
 }
 
-/**
- * "지금 온라인에서 사기" — 제휴 아웃링크. 가격 숫자는 표시하지 않는다(실시간 조회 불가 → 오정보 방지).
- * 제휴 설정이 안 된 몰 행은 숨김 — 네이버(무수익 검색 링크)는 항상 있어 섹션이 비지 않는다.
- */
-/** GA4 이커머스 items[] 한 칸. 표시용이 아니라 계측 전용이다. */
-function gaItem(p: CoupangProduct, idx: number, itemCode: string, itemName: string, market: 'retail' | 'eco') {
-  return {
-    // vendorItemId는 상품 단위로 영구적이라(딥링크 재사용 키와 동일) 날마다 값이 안 흔들린다.
-    // 없으면 productId, 그것도 없으면 상품명 — 최소한 집계는 되게.
-    item_id: String(p.vendorItemId ?? p.productId ?? p.name),
-    item_name: p.name,
-    // 품목명을 카테고리로 넣으면 '배추 상품들'처럼 품목 단위로 묶어 볼 수 있다.
-    item_category: itemName,
-    // 품종까지 구분되는 라우트 키('211-02'). 같은 품목의 다른 품종을 갈라 보려고 넣는다.
-    item_category2: itemCode,
-    // 일반/유기농 탭 구분 — 유기농은 단가가 배 이상이라 섞으면 평균이 왜곡된다.
-    item_category3: market,
-    index: idx + 1,
-    price: p.price,
-    quantity: 1,
-  };
-}
-
-const LIST_ID = 'coupang_detail';
-const LIST_NAME = '지금 쿠팡에서 사기';
-
-/** 지금 쿠팡에서 사기 — 상품 카드 리스트(이미지·상품명·로켓 배지·가격). Figma 933:2564 1:1. */
-function ShopSection({
-  itemCode,
-  itemName,
-  market = 'retail',
-}: {
-  itemCode: string;
-  itemName: string;
-  market?: 'retail' | 'eco';
-}) {
-  const products = coupangProducts(itemCode, market);
-
-  // ── 노출 계측 ────────────────────────────────────────────────────────────
-  // 이 섹션은 상세 페이지 맨 아래(뷰포트 900 기준 y≈958)라 첫 화면 밖이다. 그래서
-  // 클릭 수만 보면 "안 보여서 안 눌렀다"와 "보고도 안 눌렀다"가 구분이 안 된다.
-  // 둘은 처방이 정반대다 — 전자는 섹션을 올려야 하고, 후자는 문구·가격 근거를 고쳐야 한다.
-  // 그래서 절반 이상 보인 순간 view_item_list를 한 번만 쏜다. 클릭÷노출이 진짜 CTR.
-  //
-  // 웹 전용: IntersectionObserver는 네이티브에 없다. RN Web은 View의 ref로 실제 DOM
-  // 노드를 넘겨주므로 그대로 observe할 수 있다.
-  const sectionRef = useRef<View | null>(null);
-
-  // '한 번만' 상태를 ref로 들고 있지 않는다 — disconnect()가 이미 1회를 보장하고,
-  // deps에 itemCode·market이 있어 다른 품목으로 이동하면 effect가 다시 돌면서
-  // 새 observer가 붙는다. 별도 ref를 두면 라우트 이동 시 수동으로 리셋해야 하고,
-  // 그걸 빼먹으면 두 번째 품목부터 노출이 영영 안 잡힌다.
-  useEffect(() => {
-    if (products.length === 0) return;
-    const node = sectionRef.current as unknown as Element | null;
-    if (!node || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        io.disconnect();
-        track('view_item_list', {
-          item_list_id: LIST_ID,
-          item_list_name: LIST_NAME,
-          currency: 'KRW',
-          items: products.map((p, i) => gaItem(p, i, itemCode, itemName, market)),
-        });
-      },
-      { threshold: 0.5 },
-    );
-    io.observe(node);
-    return () => io.disconnect();
-  }, [itemCode, itemName, market, products]);
-
-  if (products.length === 0) return null;
-  return (
-    <View style={styles.buySection} ref={sectionRef}>
-      <Text style={styles.sectionTitle}>{LIST_NAME}</Text>
-      <View style={styles.coupangCard}>
-        {products.map((p, idx) => (
-          <View key={idx}>
-            {idx > 0 && <View style={styles.buyDivider} />}
-            <Pressable
-              style={styles.coupangRow}
-              onPress={() => {
-                // 기존 워커 집계는 그대로 둔다 — GA가 광고 차단기에 막혀도 남는 백업이다.
-                trackShoppingClick('coupang', itemCode);
-                // GA4 추천 이벤트. 커스텀 이름을 쓰면 상품명·품목이 '맞춤 측정기준'을
-                // 등록해야만 보고서에 뜨는데, select_item은 items[]가 기본 측정기준이라
-                // GA 관리화면에서 아무것도 안 해도 상품별로 쪼개 볼 수 있다.
-                track('select_item', {
-                  item_list_id: LIST_ID,
-                  item_list_name: LIST_NAME,
-                  currency: 'KRW',
-                  items: [gaItem(p, idx, itemCode, itemName, market)],
-                });
-                Linking.openURL(p.url);
-              }}
-            >
-              <View style={styles.coupangThumb}>
-                {p.imageUrl ? (
-                  <Image source={{ uri: p.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                ) : null}
-              </View>
-              <View style={styles.coupangInfo}>
-                <Text style={styles.coupangName} numberOfLines={2}>
-                  {p.name}
-                </Text>
-                <View style={styles.coupangPriceRow}>
-                  {p.status && (
-                    <Image
-                      source={{ uri: ROCKET_LOGO[p.status] }}
-                      style={{ height: 16, width: ROCKET_LOGO_W[p.status] }}
-                      contentFit="contain"
-                    />
-                  )}
-                  <Text style={styles.coupangPrice}>{won(p.price)}원</Text>
-                </View>
-              </View>
-            </Pressable>
-          </View>
-        ))}
-      </View>
-      {/* 쿠팡 파트너스 표시의무 — 수수료 고지 필수 */}
-      <Text style={styles.buyCaption}>
-        이 게시물은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다. 정확한 가격은 판매처에서 확인하세요.
-      </Text>
-    </View>
-  );
-}
-
 /** main-header type=detail — back + 제목 + 관심(heart). 하트 상호작용은 FavoriteHeart 공용. */
 function Header({ title, fav, onFav }: { title: string; fav: boolean; onFav: () => void }) {
   return (
@@ -1311,19 +1231,4 @@ const styles = StyleSheet.create({
   buyPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
   buyDivider: { height: 1, backgroundColor: colors.borderDefault },
   buyCaption: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
-  // 쿠팡 상품 리스트 (Figma 933:2564)
-  coupangCard: { borderRadius: radius.l, backgroundColor: colors.bgElevated, overflow: 'hidden' },
-  coupangRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s3,
-    paddingHorizontal: spacing.s4,
-    paddingVertical: spacing.s3,
-    minHeight: 80,
-  },
-  coupangThumb: { width: 56, height: 56, borderRadius: radius.s, backgroundColor: colors.bgSecondary, overflow: 'hidden' },
-  coupangInfo: { flex: 1, gap: spacing.s1 },
-  coupangName: { ...type.size[15], ...type.w.regular, color: colors.textPrimary } as const,
-  coupangPriceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
-  coupangPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
 });

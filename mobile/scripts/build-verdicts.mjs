@@ -18,6 +18,9 @@ const KEY = getEnv('EXPO_PUBLIC_KAMIS_KEY');
 const ID = getEnv('EXPO_PUBLIC_KAMIS_ID');
 
 // KAMIS는 해외 IP를 차단할 수 있어 CI에선 워커 프록시 경유(KAMIS_PROXY) — 프록시가 서버측 키를 주입하므로 로컬 키 불필요.
+// 프록시라고 값이 달라지는 건 아니다: 워커는 KAMIS 원본을 1순위로 부르고 실패할 때만 미러로 내려간다.
+// 따라서 여기서 읽는 dpr7은 평상시 KAMIS 공식 일평년이다 — 우리 baselines 값이 아니다.
+// 지금 어느 경로인지 확인: npm run check-live  (자세한 건 scripts/VERDICTS.md)
 const BASE = process.env.KAMIS_PROXY || 'https://www.kamis.or.kr/service/price/xml.do';
 const CATEGORIES = ['100', '200', '400', '500'];
 const THRESHOLD = 0.01; // 앱 kamis.ts와 동일(±1%)

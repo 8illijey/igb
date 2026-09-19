@@ -1,5 +1,19 @@
 # 모션·인터랙션 개선 계획 (improve-animations 감사, 2026-08-07)
 
+> **상태: 001~004 전부 구현 완료 (2026-08).** 이 디렉터리는 과거 작업 계획이자 기록이다 —
+> 무엇을 왜 그렇게 정했는지(타이밍 값, reduced motion 원칙, 버린 선택지)가 남아 있어 보존한다.
+> **아래의 "current" 코드 스니펫과 파일 경로는 계획 작성 시점(2026-08-07, commit bf73639)의 것이다.**
+> 지금 코드의 모습이 아니다. 현재 상태는 `src/`를 직접 보라.
+>
+> [2026-09-17 확인] 계획 이후 생긴 구조 변화:
+> - `SegmentedControl.tsx`는 **없어졌다.** `Tabs.tsx`의 `variant='pill'`로 흡수됐고, 슬라이드 인디케이터는
+>   `underline`·`pill` 두 variant 모두에 들어가 있다.
+> - 하트는 상세 화면 인라인이 아니라 공용 컴포넌트 `components/igb/FavoriteHeart.tsx`로 빠졌다
+>   (상세 + 레시피 상세 두 곳에서 쓴다).
+> - 001이 범위 밖으로 뺐던 `GlassTabBar.tsx`도 지금은 `usePressScale`을 쓴다.
+> - 모션 토큰 이름은 `motion.easeOut`이 아니라 `motion.easeOutBezier`(베지어 계수 배열)다.
+>   Reanimated `Easing` 객체는 `usePressScale.ts`가 `easeOut`으로 export한다.
+
 감사 결론: 앱 전체에 모션이 사실상 전무 (스켈레톤 펄스·검색 페이드 2건뿐). reanimated 4.3.1 설치돼 있으나 미사용. 교정보다 **추가**가 레버리지의 전부.
 
 | # | 계획 | 심각도 | 상태 |

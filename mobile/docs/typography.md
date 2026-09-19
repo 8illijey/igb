@@ -4,6 +4,9 @@
 > 역할(role)이 아니라 **사이즈를 먼저 고르고, 굵기를 얹어** 조합한다(토스식).
 > **같은 사이즈는 line-height·자간을 공유**한다 — 예: 본문과 보조 가격이 똑같이 `size 15`.
 > 가격 등 자릿수 정렬은 `tabularNums`(Tabular Figures)를 함께 얹는다.
+>
+> 실제 토큰은 `src/theme/tokens.ts`의 `type.size` / `type.w` / `font`.
+> [2026-09-17 확인] 아래 사이즈 표 10줄은 코드와 일치한다.
 
 ## 사이즈 스케일
 
@@ -27,7 +30,14 @@
 | `regular` | Pretendard Regular (400) |
 | `semibold` | Pretendard SemiBold (600) |
 | `bold` | Pretendard Bold (700) |
-| `extrabold` | Pretendard ExtraBold (800) — 워드마크 등 |
+
+**ExtraBold(800)는 토큰에 없다.** 원래 워드마크용으로 두었는데, 워드마크가 SVG 아웃라인
+(`components/igb/Wordmark.tsx`)으로 바뀌면서 참조가 사라져 번들에서 뺐다(~750KB 절감).
+`assets/fonts/`에 파일은 남아 있지만 `_layout.tsx`가 로드하지 않고 `type.w`에도 없다.
+
+굵기는 CSS `font-weight`가 아니라 **가족명(fontFamily)** 으로 고른다 — 웹의 동적 서브셋 CSS도
+같은 가족명으로 별칭을 걸어두었다(`public/fonts/pretendard-subset.css`). 한쪽만 바꾸면
+웹에서 조용히 시스템 폰트로 떨어진다.
 
 ## 코드 사용법
 

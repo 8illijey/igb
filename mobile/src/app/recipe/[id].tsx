@@ -8,6 +8,7 @@ import { PriceItem, won } from '../../api/kamis';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { FavoriteHeart } from '../../components/igb/FavoriteHeart';
 import { GlassHeader } from '../../components/igb/GlassHeader';
+import { RecipeShopSection } from '../../components/igb/ShopSection';
 import { SignalChip } from '../../components/igb/SignalChip';
 import {
   Ingredient,
@@ -158,6 +159,9 @@ export default function RecipeDetailScreen() {
               <IngredientRow key={c.name} ing={c} item={findItem(items, c.name)} silent />
             ))}
           </View>
+
+          {/* 재료 살 곳 — 시세 추적 재료의 쿠팡 대표 상품. 구매 의도가 제일 높은 화면인데 링크가 없었다. */}
+          <RecipeShopSection ingredients={matched} />
 
           {/* 섹션 구분 — 화면 full-width 회색 밴드 */}
           <View style={styles.sectionBand} />

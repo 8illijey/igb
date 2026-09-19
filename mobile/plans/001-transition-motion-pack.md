@@ -1,5 +1,12 @@
 # 001 — 전환 모션 팩: 세그먼트 pill 슬라이드 + 탭 밑줄 슬라이드 + 전역 press 피드백
 
+> **상태: 구현 완료 (2026-08).** 아래는 당시 계획 원문 — 코드 스니펫은 commit bf73639 시점의 "before"다.
+> [2026-09-17 확인] 현재 코드와의 차이:
+> `SegmentedControl.tsx`는 사라지고 `Tabs.tsx`의 `variant='pill'`로 흡수됐다(슬라이드 인디케이터는 두 variant 모두 있음).
+> 토큰 이름은 `motion.easeOut`이 아니라 `motion.easeOutBezier`(계수 배열)이고, Reanimated `Easing` 객체는
+> `usePressScale.ts`가 `easeOut`으로 export한다. `usePressScale`은 계획한 3곳 외에 `Tabs`·`FavoriteHeart`·
+> `GlassTabBar`(당시 범위 밖이었음)에서도 쓰인다.
+
 - **Status**: DONE (2026-08-07)
 - **Commit**: bf73639
 - **Severity**: MEDIUM
