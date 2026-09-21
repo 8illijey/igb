@@ -47,23 +47,32 @@ const VERDICTS_URLS = [
   'https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts.json',
 ];
 
-async function fetchVerdicts(): Promise<Record<string, Verdict>> {
+/** verdicts.json 한 벌 — items와 그 값들의 조사일(date). */
+interface VerdictsPayload {
+  date: string | null;
+  items: Record<string, Verdict>;
+}
+
+async function fetchVerdicts(): Promise<VerdictsPayload> {
   for (const url of VERDICTS_URLS) {
     try {
       const r = await fetch(url);
       if (!r.ok) continue;
-      const items = ((await r.json())?.items ?? {}) as Record<string, Verdict>;
+      const json = await r.json();
+      const items = (json?.items ?? {}) as Record<string, Verdict>;
       // 빈 맵은 '성공했지만 쓸모없는 응답' — 다음 소스를 더 시도한다.
-      if (Object.keys(items).length) return items;
+      // date는 items의 기준 조사일이다. 상세가 라이브 사다리 값과 어느 쪽이 최신인지
+      // 비교하는 데 쓰므로 같이 들고 나간다 — 예전엔 여기서 버렸다.
+      if (Object.keys(items).length) return { date: (json?.date as string) ?? null, items };
     } catch {
       // 다음 소스로
     }
   }
-  return {}; // 전부 실패 → 빈 맵. 앱은 기기 계산으로 폴백한다.
+  return { date: null, items: {} }; // 전부 실패 → 빈 맵. 앱은 기기 계산으로 폴백한다.
 }
 
-let cache: Promise<Record<string, Verdict>> | null = null;
-function load(): Promise<Record<string, Verdict>> {
+let cache: Promise<VerdictsPayload> | null = null;
+function load(): Promise<VerdictsPayload> {
   if (!cache) cache = fetchVerdicts();
   return cache;
 }
@@ -73,10 +82,23 @@ export function useVerdicts(): Record<string, Verdict> {
   const [v, setV] = useState<Record<string, Verdict>>({});
   useEffect(() => {
     let alive = true;
-    load().then((m) => alive && setV(m));
+    load().then((m) => alive && setV(m.items));
     return () => {
       alive = false;
     };
   }, []);
   return v;
+}
+
+/** 위 판정들의 기준 조사일(YYYY-MM-DD). 아직 못 받았으면 null. */
+export function useVerdictsDate(): string | null {
+  const [d, setD] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    load().then((m) => alive && setD(m.date));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return d;
 }

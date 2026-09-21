@@ -23,7 +23,8 @@ import {
 import Head from 'expo-router/head';
 import { SEO_BUILD_DAY, SEO_BY_KEY, SEO_ITEMS, type SeoItem } from '../../seo.gen';
 import { usePrecomputedSeries } from '../../api/series';
-import { useVerdicts } from '../../api/verdicts';
+import { pickFresher } from '../../api/pickFresher';
+import { useVerdicts, useVerdictsDate } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { Tabs } from '../../components/igb/Tabs';
@@ -122,6 +123,42 @@ const AVG_GRAMS: Record<string, number> = {
   '222': 250, // 참외 1개
   '223': 200, // 오이 1개
 };
+
+/**
+ * 보여주는 값이 오늘 것이 아닐 때, 왜 그런지 한 줄로 알린다.
+ *
+ * 여기까지 오는 건 **어느 소스에도 최근 값이 없는** 품목이다. 라이브 사다리가 뒤로 밀리는
+ * 흔한 경우(주말 건너뜀)는 앞단의 pickFresher가 verdicts로 메우므로 여기 안 온다.
+ * 남는 건 제철이 끝나 조사 자체가 멈춘 품목이다.
+ *   [2026-09-21 실측] 87행 중 5일 이상 묵은 건 아오리사과 1개(09-07)뿐이었다.
+ *   같은 날 14시엔 샤인머스켓도 09-14로 보였는데, 그건 verdicts에 09-18 값이 있었던
+ *   경우라 지금은 pickFresher가 해결한다 — 이 함수까지 오지 않는다.
+ *
+ * 1~2일 차이엔 말하지 않는다. 오전엔 대부분의 품목이 어제값이라, 그때마다 경고를 붙이면
+ * 전 품목에 안내가 깔려 아무도 안 읽는다. 5일로 자르면 사다리 0·1칸이 만들 수 없는
+ * 간격이라 7·14칸으로 떨어진 경우만 정확히 걸린다.
+ */
+const STALE_DAYS = 5;
+function staleNotice(surveyDate: string | undefined): string | null {
+  if (!surveyDate) return null;
+  const d = new Date(`${surveyDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const gap = Math.round((today.getTime() - d.getTime()) / 86400000);
+  if (gap < STALE_DAYS) return null;
+  // 'KAMIS'라고 쓰지 않는다 — 사용자는 그게 뭔지 모른다. 출처 표기는 화면 맨 아래에 이미 있고,
+  // 여기서 필요한 건 출처가 아니라 '왜 오늘 값이 아닌지'다.
+  //
+  // 이유를 하나로 단정하지 않는 이유: 두 경우가 섞여 있는데 응답으로는 구분이 안 된다.
+  //   · 주말·공휴일이 껴서 사다리가 1주전으로 건너뜀 (오후에 해소된다)
+  //   · 제철이 끝나 조사 자체가 멈춤 (계속 이 상태다)
+  // 둘 다에 참인 건 '조사가 매일 있는 건 아니다' 하나뿐이라 그것만 말한다.
+  // '오후면 올라와요'라고 쓰면 제철 끝난 품목에서 거짓말이 된다.
+  // 두 문장을 줄바꿈으로 나눈다 — 앞은 '왜', 뒤는 '그래서 이 값이 뭔지'라 성격이 다르다.
+  // 한 문단으로 흘리면 세 줄짜리 회색 덩어리가 돼서 눈이 미끄러진다.
+  return `가격 조사가 매일 있는 건 아니에요.\n가장 최근인 ${d.getMonth() + 1}월 ${d.getDate()}일 조사값이라 지금 가격과 다를 수 있어요.`;
+}
 
 /** "1개 약 X원 · 100g당 Y원" 캡션. 단위에서 무게/개수를 파싱하고,
  *  무게 정보가 없으면 품목 평균중량(AVG_GRAMS)으로 추정해 "(1포기 약 1kg)"처럼 가정을 명시한다. */
@@ -274,7 +311,16 @@ export default function ItemDetailScreen() {
       .catch(() => setEcoBaseline(null));
   }, [market, eco, item, ecoAllowItemLevel]);
 
-  const active = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
+  const verdicts = useVerdicts();
+  const verdictsDate = useVerdictsDate();
+  const rawActive = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
+  // 라이브 사다리가 주말을 건너뛰어 일주일 전 값을 줄 때가 있다 → 더 최신인 쪽을 고른다.
+  // 왜·언제 그런지는 api/pickFresher.ts 헤더에 실측과 함께 적어 두었다.
+  const active = useMemo(
+    () => pickFresher(rawActive, market, verdicts[key], verdictsDate),
+    [rawActive, market, verdicts, key, verdictsDate],
+  );
+  const stale = staleNotice(active?.surveyDate);
   const cls = market === 'wholesale' ? '02' : '01';
 
   // 사전계산 일별 시계열(series.json) — 상세 차트가 KAMIS 1년치를 다시 받지 않게 한다.
@@ -363,7 +409,6 @@ export default function ItemDetailScreen() {
   }, [yearSeries, active?.today, active?.surveyDate]);
 
   // 최근 1년 평균 — 사전계산(서버) 우선, 없으면 365일 기기 계산. 사전계산이 있으면 추천이 즉시 확정.
-  const verdicts = useVerdicts();
   // 대표 품종(kind)은 홈과 verdicts가 서로 다른 시점에 뽑아 어긋날 수 있다(예: 봄배추 211-01 vs 고랭지 211-02).
   // 같은 품목 verdict가 유일하면 그걸 쓴다. 고기는 부위(kind)마다 가격이 달라 정확 일치만(prices.resolve와 동일 원칙).
   // 형제 품종의 verdict를 빌리지 않는다. 예전엔 '대표 품종'이 홈과 verdicts 사이에
@@ -448,7 +493,7 @@ export default function ItemDetailScreen() {
     market === 'wholesale' ? verdicts[vKey]?.wholesaleMonths?.[new Date().getMonth()] ?? null : null;
   /** 차트 기준선·라벨의 '이맘때 평균'. 소매는 KAMIS 평년, 도매는 위 사전계산값. */
   const baseline = market === 'wholesale' ? wholesaleBaseline : active?.normal ?? null;
-  // 도매는 기준값이 없으면 buy=null → 칩을 아예 안 띄운다(signalHidden).
+  // 기준값이 없으면 buy=null → 칩을 아예 안 띄운다(signalHidden). 소매·도매 동일.
   const buy =
     active?.today == null
       ? null
@@ -459,9 +504,12 @@ export default function ItemDetailScreen() {
         : evalBuy(active.today, active.normal);
   const displayLevel: SignalLevel = buy ? buy.level : 'fair';
   const recReady = buy != null;
-  // 도매인데 기준값이 없는 경우 — 로딩이 아니라 '판단을 안 함'이니 스켈레톤 대신 아무것도 안 보인다.
-  // (도매 사전계산이 없는 축산·유제품 6개: 소·돼지·수입소·수입돼지·계란·우유)
-  const signalHidden = market === 'wholesale' && !recReady && active?.today != null;
+  // 기준값이 없는 경우 — 로딩이 아니라 '판단을 안 함'이니 스켈레톤 대신 아무것도 안 보인다.
+  // 가격(today)이 이미 왔는데 판정이 없다는 건 기다려도 안 온다는 뜻이라, 스켈레톤을 두면
+  // 영영 도는 로딩이 된다.
+  //   · 도매: 사전계산이 없는 축산·유제품 6개(소·돼지·수입소·수입돼지·계란·우유)
+  //   · 소매: KAMIS가 평년(dpr7)을 안 주는 품종 — 2026-09-21에 도매와 같은 규칙으로 맞췄다.
+  const signalHidden = !recReady && active?.today != null;
   // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
   const chartReady = chartDisplay != null;
   // 데이터가 없는 탭은 아예 안 그린다 — 눌렀을 때 빈 안내문만 뜨면 버그처럼 보인다.
@@ -696,6 +744,9 @@ export default function ItemDetailScreen() {
                     level={recReady ? displayLevel : 'fair'}
                   />
                 )}
+                {/* 날짜축 아래 — '연간 가격 흐름'의 캡션과 같은 자리·같은 스타일.
+                    차트 오른쪽 끝 날짜가 오늘이 아닌 이유를 그 바로 밑에서 설명한다. */}
+                {stale ? <Text style={styles.flowCaption}>{stale}</Text> : null}
               </View>
 
               {/* 연간 가격 흐름 — 계산 중에도 타이틀 + '흐름 파악 중' (섹션 안 사라짐) */}
@@ -740,7 +791,15 @@ export default function ItemDetailScreen() {
 function evalBuy(today: number, normal: number | null) {
   // 홈 카드와 '완전히 같은' 판정: 반올림된 평년 대비 %(=item.vsNormalPct)에 ±1% 임계.
   const pctN = normal != null && normal > 0 ? Math.round(((today - normal) / normal) * 100) : null;
-  const level: SignalLevel = pctN == null ? 'fair' : pctN <= -1 ? 'cheap' : pctN >= 1 ? 'expensive' : 'fair';
+  // 기준이 없으면 판정하지 않는다 — 'fair'로 떨어뜨리면 근거 없이 "평소 수준이에요"가 뜬다.
+  //
+  // KAMIS는 조사 이력이 짧거나 들쭉날쭉한 품종에 평년(dpr7)을 아예 안 준다
+  // ([2026-09-21 실측] 아오리사과·원황배·골드키위·수입냉동블루베리 등 11개 행).
+  // 그런 품목은 차트가 기준선과 '이맘때 평균' 라벨을 이미 감추는데(baseline != null 가드)
+  // 칩만 "평소 수준이에요"라고 말해서, 한 화면이 서로 다른 소리를 하고 있었다.
+  // 위 wholesaleBaseline 주석의 결론과 같다 — 기준이 없으면 신호를 안 내는 쪽을 택한다.
+  if (pctN == null) return null;
+  const level: SignalLevel = pctN <= -1 ? 'cheap' : pctN >= 1 ? 'expensive' : 'fair';
   return { level };
 }
 
