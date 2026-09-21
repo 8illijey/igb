@@ -2,9 +2,8 @@ import { Image } from 'expo-image';
 import React, { useEffect, useRef } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { track } from '../../analytics';
-import { PriceItem, won } from '../../api/kamis';
+import { won } from '../../api/kamis';
 import { coupangProducts, CoupangProduct, ROCKET_LOGO, ROCKET_LOGO_W, trackShoppingClick } from '../../api/shopping';
-import { itemKey } from '../../store/prices';
 import { colors, radius, spacing, type } from '../../theme/tokens';
 
 /** GA4 이커머스 items[] 한 칸. 표시용이 아니라 계측 전용이다. */
@@ -143,56 +142,6 @@ export function ShopSection({
         ))}
       </View>
       <Text style={styles.caption}>{DISCLOSURE}</Text>
-    </View>
-  );
-}
-
-const RECIPE = { id: 'coupang_recipe', name: '재료 쿠팡에서 보기' };
-
-/**
- * 레시피 상세 — 시세 추적 재료마다 대표 상품 1개씩.
- *
- * '장바구니에 담기'가 아니다. 쿠팡 파트너스엔 여러 상품을 한 번에 담는 링크가 없고 상품별 랜딩뿐이라,
- * 그렇게 부르면 눌러본 사람이 속았다고 느낀다. 재료별 링크 목록이라고 있는 그대로 말한다.
- *
- * 재료당 상품 1개인 이유: 재료 8개 × 상품 3개면 24행이라 '만드는 법'이 화면 밖으로 밀린다.
- * 더 보고 싶으면 재료 행을 눌러 품목 상세로 가면 전부 있다.
- *
- * 간장·설탕처럼 KAMIS 품목이 아닌 재료는 상품이 없다 — 숨기지 말고 "N개 중 M개"로 밝힌다.
- * 갱신 스크립트가 못 뽑은 품목도 마찬가지로 빠진다(shopping.ts: 없으면 없다고 한다).
- */
-export function RecipeShopSection({ ingredients }: { ingredients: { name: string; item?: PriceItem }[] }) {
-  const rows = ingredients.flatMap((ing) => {
-    if (!ing.item) return [];
-    const key = itemKey(ing.item);
-    const p = coupangProducts(key)[0];
-    return p ? [{ ing: ing.name, key, itemName: ing.item.itemName, p }] : [];
-  });
-  const gaItems = rows.map((r, i) => gaItem(r.p, i, r.key, r.itemName, 'recipe'));
-  const ref = useViewItemList(RECIPE.id, RECIPE.name, gaItems);
-  if (rows.length === 0) return null;
-  return (
-    <View style={styles.section} ref={ref}>
-      <Text style={styles.title}>{RECIPE.name}</Text>
-      <View style={styles.card}>
-        {rows.map((r, idx) => (
-          // 재료명이 키 — 두 재료가 같은 품목으로 풀리면(대파·쪽파→파) 품목 키는 겹친다.
-          <View key={r.ing}>
-            {idx > 0 && <View style={styles.divider} />}
-            <ProductRow
-              p={r.p}
-              label={r.ing}
-              onPress={() => openProduct(r.p, gaItems[idx], RECIPE.id, RECIPE.name, r.key)}
-            />
-          </View>
-        ))}
-      </View>
-      <Text style={styles.caption}>
-        {rows.length < ingredients.length
-          ? `재료 ${ingredients.length}개 중 ${rows.length}개만 쿠팡 상품이 있어요. `
-          : ''}
-        {DISCLOSURE}
-      </Text>
     </View>
   );
 }
