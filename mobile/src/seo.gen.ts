@@ -230,7 +230,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 300,
     "normal": 343,
-    "minMonth": 8,
+    "minMonth": 9,
     "maxMonth": 4,
     "seasonMonths": null,
     "normalMonths": [
@@ -575,8 +575,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 4103,
     "normal": 5018,
-    "minMonth": 12,
-    "maxMonth": 9,
+    "minMonth": 11,
+    "maxMonth": 5,
     "seasonMonths": null,
     "normalMonths": [
       3413,
@@ -768,7 +768,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 2061,
     "normal": 2103,
     "minMonth": 7,
-    "maxMonth": 10,
+    "maxMonth": 1,
     "seasonMonths": null,
     "normalMonths": [
       2283,
@@ -816,7 +816,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 8624,
     "normal": 8977,
     "minMonth": 4,
-    "maxMonth": 8,
+    "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": [
       9820,
@@ -864,7 +864,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 34446,
     "normal": 34312,
     "minMonth": 12,
-    "maxMonth": 8,
+    "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
       34155,
@@ -887,8 +887,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 13572,
     "normal": 13108,
-    "minMonth": 10,
-    "maxMonth": 8,
+    "minMonth": 1,
+    "maxMonth": 10,
     "seasonMonths": null,
     "normalMonths": [
       13029,
@@ -1057,7 +1057,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 11406,
     "normal": 10672,
-    "minMonth": 11,
+    "minMonth": 2,
     "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
@@ -1528,7 +1528,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 7933,
     "normal": 6045,
-    "minMonth": 10,
+    "minMonth": 11,
     "maxMonth": 3,
     "seasonMonths": null,
     "normalMonths": [
@@ -1552,7 +1552,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 9523,
     "normal": 8402,
-    "minMonth": 12,
+    "minMonth": 10,
     "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": null
