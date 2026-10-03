@@ -5,6 +5,7 @@
  * 응답 포맷은 .api-samples/*.json 실응답 기준.
  */
 import type { SignalLevel } from '../theme/tokens';
+import { REGIONS } from './regions';
 
 // KAMIS는 worker 프록시 경유 — cert_key/cert_id는 서버에서 주입되어 클라이언트에 노출되지 않는다.
 // 워커 URL 하드코딩: Vercel env EXPO_PUBLIC_KAMIS_URL이 자기 오리진 값으로 오염돼 전 요청이 앱 HTML을 받는
@@ -208,10 +209,13 @@ export async function fetchCategory(
   categoryCode: string,
   regday?: string,
   cls: MarketCls = '01',
+  countyCode?: string | null,
 ): Promise<PriceItem[]> {
   const url = `${BASE}?${qs({
     action: 'dailyPriceByCategoryList',
     p_product_cls_code: cls,
+    // 지역을 고르면 그 지역 오늘가가 온다(추가 요청 없음, 파라미터만). 전국이면 아래 주석대로 아예 뺀다.
+    ...(countyCode ? { p_country_code: countyCode } : {}),
     // p_country_code를 일부러 안 보낸다 = 전국 평균. 예전엔 '1101'(서울) 고정이었는데,
     // 같은 화면의 다른 숫자는 전부 전국 기준이라 혼자만 기준이 달랐다(2026-08-20 확인):
     //   · 평년(dpr7)은 p_country_code와 무관하게 항상 전국 단일값
@@ -269,10 +273,10 @@ export async function fetchCategory(
 }
 
 /** 전 카테고리 병렬 수집. 당일 데이터가 비면 최근 영업일까지 거슬러 재시도. */
-export async function fetchAllCategories(): Promise<PriceItem[]> {
+export async function fetchAllCategories(countyCode?: string | null): Promise<PriceItem[]> {
   const load = async (regday?: string) => {
     const results = await Promise.allSettled(
-      CATEGORIES.map((c) => fetchCategory(c.code, regday)),
+      CATEGORIES.map((c) => fetchCategory(c.code, regday, '01', countyCode)),
     );
     return results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
   };
@@ -437,7 +441,7 @@ const TYPE_LABEL: Record<string, string> = { SSM: '기업형 슈퍼', 유통: '�
  * 주의: 익명 코드('B-유통' 등)는 지역마다 재사용된다(B-유통 = 8개 지역).
  * 그래서 최신값 맵의 키에 반드시 지역명을 포함해야 한다 — 안 그러면 한 곳만 남는다.
  */
-function groupMarkets(rows: any[]): MarketPrice[] {
+function groupMarkets(rows: any[], region?: string | null): MarketPrice[] {
   const latest = new Map<string, { regday: string; price: number; name: string }>();
   for (const r of rows) {
     // KAMIS는 빈 필드를 문자열이 아니라 빈 배열 []로 준다 — []는 truthy라 단순 검사를 통과해
@@ -447,6 +451,8 @@ function groupMarkets(rows: any[]): MarketPrice[] {
     const county = String(r.countyname ?? '');
     // '평균'·'평년'·'전국'은 판매처가 아니라 KAMIS가 만든 집계 의사행 — 넣으면 이중 계산된다.
     if (!county || county === '평균' || county === '평년' || county === '전국') continue;
+    // 지역 선택 시 그 지역 판매처만. 이름으로 거른다 — 응답 행에 지역 코드 필드가 없다(countyname만 온다).
+    if (region && county !== region) continue;
     const p = parsePrice(r.price);
     if (p == null) continue;
     const key = `${county}|${name}`;
@@ -472,12 +478,61 @@ function groupMarkets(rows: any[]): MarketPrice[] {
   return out.sort((a, b) => a.price - b.price);
 }
 
-/** 소매/도매 판매처별 최신 가격 (최근 7일) */
+/** 판매처 목록 + 그 표본의 요약. avg는 업태 평균이 아니라 판매처 단위 평균이다(업태별 표본 수가 달라서). */
+export interface MarketsResult {
+  markets: MarketPrice[];
+  /** 선택 범위 판매처들의 최신가 평균. 표본이 없으면 null. */
+  avg: number | null;
+  /** 표본 판매처 수 — 세종·성남·고양·용인은 1곳뿐이라 반드시 함께 보여준다. */
+  count: number;
+}
+
+/** 판매처 단위 평균 — 업태로 접기 전 원본 표본으로 계산한다. */
+function marketAvg(rows: any[], region?: string | null): { avg: number | null; count: number } {
+  const latest = new Map<string, { regday: string; price: number }>();
+  for (const r of rows) {
+    const name = typeof r.marketname === 'string' ? r.marketname.trim() : '';
+    if (!name) continue;
+    const county = String(r.countyname ?? '');
+    if (!county || county === '평균' || county === '평년' || county === '전국') continue;
+    if (region && county !== region) continue;
+    const p = parsePrice(r.price);
+    if (p == null) continue;
+    const key = `${county}|${name}`;
+    const prev = latest.get(key);
+    if (!prev || String(r.regday) >= prev.regday) latest.set(key, { regday: String(r.regday), price: p });
+  }
+  const prices = [...latest.values()].map((v) => v.price);
+  if (!prices.length) return { avg: null, count: 0 };
+  return { avg: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length / 10) * 10, count: prices.length };
+}
+
+/** 전국 + 지역 12곳 요약을 한 응답에서 모두 만든 결과. */
+export interface MarketsByRegion {
+  all: MarketsResult;
+  /** 지역명 → 요약. 표본이 0인 지역은 키가 없다(도매는 대부분 여기 해당). */
+  byRegion: Record<string, MarketsResult>;
+}
+
+/**
+ * 소매/도매 판매처별 최신 가격 (최근 7일) — 전국과 지역별을 한 번에.
+ *
+ * 지역별로 따로 요청하지 않는다. periodProductList 응답엔 24개 지역 행이 이미 전부 들어있고
+ * p_countycode를 바꿔도 응답이 같기 때문이다(2026-09-09 확인). 그래서 지역 전환은 네트워크 0회다.
+ */
 export async function fetchMarketPrices(
   item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode' | 'rankCode'>,
   cls: MarketCls = '01',
-): Promise<MarketPrice[]> {
-  return groupMarkets(await fetchPeriodRows(item, 7, cls));
+): Promise<MarketsByRegion> {
+  const rows = await fetchPeriodRows(item, 7, cls);
+  const byRegion: Record<string, MarketsResult> = {};
+  for (const { name } of REGIONS) {
+    const summary = marketAvg(rows, name);
+    // 표본 0이면 넣지 않는다 — UI가 "데이터 없음"과 "0원"을 구분해야 한다.
+    if (summary.count === 0) continue;
+    byRegion[name] = { markets: groupMarkets(rows, name), ...summary };
+  }
+  return { all: { markets: groupMarkets(rows), ...marketAvg(rows) }, byRegion };
 }
 
 /**
