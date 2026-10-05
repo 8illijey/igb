@@ -186,7 +186,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 11492,
     "normal": 11273,
     "minMonth": 2,
-    "maxMonth": 10,
+    "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
       12661,
