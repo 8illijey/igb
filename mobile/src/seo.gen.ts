@@ -1084,7 +1084,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 10559,
     "normal": 10763,
-    "minMonth": 2,
+    "minMonth": 11,
     "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
@@ -1156,8 +1156,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "10개",
     "price": 23436,
     "normal": 25242,
-    "minMonth": 7,
-    "maxMonth": 8,
+    "minMonth": 9,
+    "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": null
   },
@@ -1375,7 +1375,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 7799,
     "normal": 10072,
     "minMonth": 9,
-    "maxMonth": 7,
+    "maxMonth": 1,
     "seasonMonths": null,
     "normalMonths": [
       8910,
@@ -1410,7 +1410,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 7512,
     "normal": 6516,
     "minMonth": 4,
-    "maxMonth": 12,
+    "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": [
       5771,
@@ -1471,7 +1471,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 18801,
     "normal": 14845,
-    "minMonth": 11,
+    "minMonth": 12,
     "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": [
@@ -1495,8 +1495,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 15721,
     "normal": 13110,
-    "minMonth": 8,
-    "maxMonth": 6,
+    "minMonth": 12,
+    "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": [
       12428,
@@ -1519,8 +1519,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 5817,
     "normal": 4505,
-    "minMonth": 2,
-    "maxMonth": 6,
+    "minMonth": 11,
+    "maxMonth": 8,
     "seasonMonths": null,
     "normalMonths": [
       4758,
@@ -1543,8 +1543,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 7424,
     "normal": 5877,
-    "minMonth": 9,
-    "maxMonth": 6,
+    "minMonth": 11,
+    "maxMonth": 3,
     "seasonMonths": null,
     "normalMonths": [
       6554,
@@ -1567,7 +1567,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 8598,
     "normal": 8378,
-    "minMonth": 12,
+    "minMonth": 2,
     "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": [
