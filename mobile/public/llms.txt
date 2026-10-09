@@ -4,9 +4,9 @@
 
 ## 품목 시세
 - [쌀 20kg 가격](https://igeobissa.com/item/111-01)
-- [20kg(햅쌀) 가격](https://igeobissa.com/item/111-05)
+- [쌀 20kg 가격](https://igeobissa.com/item/111-05)
 - [쌀 10kg 가격](https://igeobissa.com/item/111-10)
-- [10kg(햅쌀) 가격](https://igeobissa.com/item/111-11)
+- [쌀 10kg 가격](https://igeobissa.com/item/111-11)
 - [찹쌀 가격](https://igeobissa.com/item/112-01)
 - [혼식곡 가격](https://igeobissa.com/item/113-01)
 - [현미 가격](https://igeobissa.com/item/115-01)
