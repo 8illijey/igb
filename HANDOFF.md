@@ -1,73 +1,109 @@
 # HANDOFF — 새 세션 인수인계
 
 > 새 세션에서 "HANDOFF.md 읽고 이어서 작업해줘"라고 하면 이 문서가 맥락을 대신함.
-> 최종 갱신: 2026-09-17
+> 최종 갱신: 2026-10-11
 >
 > **작업 전 [AGENTS.md](AGENTS.md)를 먼저 읽을 것.** 외부 시스템 상태를 단정하기 전에
 > `cd mobile && npm run check-live`로 실측하는 규칙이 거기 있다.
+> 아래 [확인 날짜]가 붙은 숫자는 그 날의 값이다. 지금 값은 다시 재야 한다.
 
 ## 지금 무엇인가
 
 **운영 중인 서비스**다. https://igeobissa.com — KAMIS 가격 데이터로 "지금 사도 되는 값인지"를
-싸요/평소/비싼편으로 판정해 보여준다. 포트폴리오 챕터 제작이 주 작업이던 시기는 지났다
-(그 기록은 맨 아래 [지난 기록](#지난-기록)).
+싸요/평소/비싼편으로 판정해 보여준다. 지금 주 작업은 **지역(내 도시) 선택 기능 출시**다.
 
-## 현재 상태 [2026-09-17 확인]
+## 현재 상태 [2026-10-11 확인]
 
 | 항목 | 상태 | 확인 방법 |
 |---|---|---|
-| 서비스 | https://igeobissa.com 운영 중 | 브라우저 접속 / `cd mobile && npm run check-live` |
-| 호스팅 | Vercel. 리포 `8illijey/igb`, rootDirectory `mobile`, main 푸시 시 자동 배포 | Vercel 대시보드 |
+| 서비스 | https://igeobissa.com 운영 중. 라이브는 main 기준이라 **지역 기능은 아직 없다** | 브라우저 / `cd mobile && npm run check-live` |
+| 호스팅 | Vercel. 리포 `8illijey/igb`(**공개 저장소**), rootDirectory `mobile`, main 푸시 시 자동 배포 | Vercel 대시보드 |
 | 런타임 | Expo ~56.0.11 / React 19.2.3 / React Native 0.85.3. 웹 정적 빌드 | `mobile/package.json` |
-| 콘텐츠 | 품목 90개, 레시피 30개 프리렌더, sitemap 123 URL | `mobile/public/sitemap.xml` |
-| 워커 | `igeobissa-recipes.designerxyzi.workers.dev` (Cloudflare). 마지막 배포 2026-09-09 | `cd worker && npx wrangler deploy` (수동) |
+| 콘텐츠 | sitemap 120 URL (품목 상세 + 레시피 등) | `mobile/public/sitemap.xml` |
+| 워커 | `igeobissa-recipes.designerxyzi.workers.dev` (Cloudflare). 마지막 변경 2026-09-17 | `cd worker && npx wrangler deploy` (수동) |
 | 데이터 경로 | 워커가 KAMIS 원본 1순위 → 실패 시 공공데이터포털 미러 → KV last-good | `npm run check-live` |
 | 애널리틱스 | GA4 `G-TV6GZBZXQ4` + Microsoft Clarity `y9vcmep20b` | 각 콘솔 |
+| 마케팅 | 쓰레드 `@igeobissa`를 Aside SNS 루틴이 매일 운영(데일리 시세 글 17:30, 댓글 답장). 인스타는 2026-10-10부터 중단 | 루틴 기록 / 다음 액션 사이트 › 이거비싸 › 마케팅 |
 
 ### 화면
 
 홈 · 관심품목 · 레시피 (탭 3개) + 품목 상세 + 레시피 상세 + 검색 + 개인정보처리방침.
-로그인·회원가입 없음. 관심품목과 최근 검색어는 기기 로컬(AsyncStorage)에만 남는다.
+로그인·회원가입 없음. 관심품목·최근 검색어(그리고 지역 기능이 들어가면 고른 지역 `igb.region.v1`)는 기기 로컬에만 남는다.
 
-### 자동화 (`.github/workflows/`)
+### 자동화 (`.github/workflows/`, 전부 main에 커밋돼 가동 중)
 
-| 워크플로 | 주기 | 상태 |
+| 워크플로 | 주기 | 비고 |
 |---|---|---|
-| `verdicts.yml` | 하루 3회 16:30 · 17:30 · 18:30 KST | 커밋됨, 가동 중 |
-| `baselines.yml` | 주 1회 (월 04:40 KST) | 커밋됨 |
-| `health.yml` | 매시 | 커밋됨. verdicts 누락 시 재발화하는 워치독 포함 |
-| `coupang.yml` | 매일 16:20 KST로 설계 | **미커밋 + API 시크릿 미등록** |
+| `verdicts.yml` | 하루 3회 16:30 · 17:30 · 18:30 KST | 앞 회차가 성공하면 뒤 회차는 건너뜀 |
+| `baselines.yml` | 주 1회 (월 04:40 KST) | |
+| `health.yml` | 매시 | verdicts 누락 시 재발화하는 워치독 포함 |
+| `coupang.yml` | 매일 | 2026-09-17부터 매일 "쿠팡 상품·가격 갱신" 커밋이 쌓이고 있다. **한도를 절대 올리지 마라** (2026-08-17, 09-09에 이용제한 두 번). `mobile/scripts/README-coupang.md` |
 
 **verdicts를 하루 3회 거는 이유:** GitHub cron은 지연·누락이 잦고(2026-08-28 실사고: 예약이
 11시간 밀려 차트가 하루 종일 전날짜였다), KAMIS 기간별 API는 품목마다 게시가 늦어 16:05에는
 절반만 받힌다(2026-09-09). 시간대를 벌리고, 앞 회차가 성공했으면 뒤 회차는 건너뛴다.
 
-## 지금 열려 있는 일
+## 진행 중: 지역(내 도시) 선택 기능
 
-1. **쿠팡 상품 갱신이 멈춰 있다.** `coupang.yml`이 아직 미커밋이고 API 시크릿도 GitHub에
-   등록되지 않아, 상세 페이지의 쿠팡 상품·가격은 2026-09-09 이후 갱신되지 않았다
-   [2026-09-17 확인]. 워크플로 커밋 + 시크릿 등록이 남은 일.
-   **한도를 절대 올리지 마라** — 2026-08-17과 2026-09-09에 실제로 두 번 이용제한을 당했다.
-   자세한 건 `mobile/scripts/README-coupang.md`.
-2. **검색 색인이 거의 안 잡힌다.** Google Search Console 기준 색인 4개 / 미색인 118개,
-   주 사유 "발견됨 - 현재 색인이 생성되지 않음" [2026-09-17 확인, GSC].
-   프리렌더·sitemap·구조화 데이터는 이미 들어가 있으므로, 원인은 기술적 색인 가능성보다
-   크롤 우선순위 쪽일 가능성이 높다. 진단 필요.
-3. **실사용자가 적다.** GA4 최근 28일 활성 사용자 115명이지만 상당수가 봇·데이터센터이고,
-   실제 한국 사용자는 약 46명(하루 1.6명) [2026-09-17 확인, GA4].
-   지표를 볼 때 115가 아니라 46을 기준으로 삼을 것.
-4. **H1 사용자 테스트 미실시.** `user-test-kit.md`에 설계가 준비돼 있으나 아직 돌리지 않았다.
-   이제는 재현 목업이 아니라 라이브 화면으로 바로 돌릴 수 있다.
+쓰레드에서 "지역마다 가격이 다르다"는 반응이 많아 2026-10-10에 시작했다. **코드는 거의 끝났고, 한 번도 커밋하지 않았다.**
+
+**무엇을 하나** — 홈 헤더의 📍칩에서 도시를 고르면, 그 도시 가격으로 오늘가·판정·%·기준선을 보여준다. 기본값은 '전국'.
+
+**정해진 것**
+- KAMIS 소매 일별가는 **22개 조사도시** 단위다(서울·부산·대구·인천·광주·대전·울산·세종·수원·성남·고양·용인·춘천·강릉·청주·천안·전주·순천·포항·안동·창원·제주).
+  시·도로 묶어 평균 내지 않는다(경기 4개 도시끼리도 오이 격차 105%). 도시 그대로 보여준다.
+- **지역 기준선은 '그 도시의 최근 28일 평균'**이다. 평년(dpr7)은 어느 지역이든 전국 단일값이고, 과거 연도 지역 데이터가 없어 지역 평년을 계산할 수 없다.
+  문구도 나눈다: 전국 = "이맘때 평균", 지역 = "최근 평균".
+- 연간 흐름(월별)과 판매처별 평균은 지역 데이터가 없어 전국 값을 유지한다.
+- UI는 바텀시트(새 의존성 없이 RN Modal + 스프링 슬라이드·그래버 드래그로 닫기·햅틱).
+
+**파일 (전부 미커밋)**
+- 새 파일: `mobile/src/data/regions.ts`, `mobile/src/store/region.tsx`, `mobile/src/components/igb/RegionSheet.tsx`,
+  `mobile/scripts/build-verdicts-regional.mjs`, `mobile/public/verdicts-regional.json`
+- 수정: `mobile/src/api/kamis.ts`, `mobile/src/api/verdicts.ts`(`useRegionalVerdicts`, `fetchRegionalSeries`), `mobile/src/app/(tabs)/index.tsx`, `mobile/src/app/_layout.tsx`, `mobile/src/app/item/[key].tsx`
+- 지역 데이터 빌드: `build-verdicts-regional.mjs`를 워커 프록시로 실행(`KAMIS_PROXY=.../kamis`) → `public/verdicts-regional.json` `{date, windowDays, regions: {도시: {itemKey: {level, today, recentAvg}}}}`
+
+**남은 일 (순서대로)**
+1. **예지님 결정 3가지** — 사이트 '다음 액션'(localhost:4321) › 이거비싸 › 할 일에서 고른다.
+   ① 도매·유기농 탭도 지역 가격으로 바꿀지(도매만 / 둘 다 / 소매만 유지. 유기농은 24개 중 9개 품목만 지역 데이터가 있음)
+   ② 예전 지역 초안 PR #2(12개 도시, 전국 평년과 비교하던 버린 방식)를 닫을지
+   ③ 최신 main에서 새 브랜치를 따 지역 기능만 올릴지(추천) / 지금 브랜치째 올릴지
+2. 빌드 스크립트 기본 기간을 40일 → **28일**로 (40일이면 일부 도시가 KAMIS 1000행 상한에 잘린다)
+3. `vercel.json` 캐시 대상에 `verdicts-regional.json` 추가
+4. 커밋·PR·배포. `b.html`, `tmp-check/`, `mobile/scripts/.photos/`, `gen-gemini-images.mjs`, `fetch-item-photos.mjs`, `worker/scripts/`, `.agents/`는 지역 기능과 무관하니 빼고 올린다
+5. 매일 자동화: `verdicts.yml`에 지역 빌드 단계 추가. 지역 빌드가 실패해도 전국 판정 갱신은 막지 않게
+6. 배포 뒤 쓰레드에 출시 알리기 (SNS 루틴에 맡길 수 있음)
+
+**알려진 것** — 홈의 "Unexpected text node" 콘솔 에러는 지역 기능 전부터 있던 버그다. 지역 작업에서 쫓지 말 것.
+
+## 저장소 상태 [2026-10-11 확인]
+
+- 로컬 작업 브랜치는 `chore/drop-price-season`. main에 없는 커밋 2개가 있다(PR 없음):
+  `7345905` 품목 상세의 '가격이 오르는 시기' 문단 제거, `55f5989` 품종이 사라지면 형제 품종 가격이 그 이름으로 보이던 버그 수정.
+  **라이브에는 아직 '가격이 오르는 시기' 문단이 보인다.** 지역 기능과 따로 올릴 것.
+- 원격 브랜치 `feat/region-prices`(= PR #2, 버린 방식), `feat/recipe-coupang`, `chore/gitignore-local-artifacts`가 남아 있다. 정리 대상.
+- `stash@{0}`(seo/snapshot 로컬 수정)는 쓸모없어졌다.
+
+## 그 밖에 열려 있는 일
+
+1. **신선 고르기·보관법 카드 이미지** — Figma에 `fresh-card`·캐러셀 인디케이터(14개 변형)를 만들었고 코드에는 없다.
+   이미지 3장은 Gemini API 무료 등급 429로 막혀 있다. 프롬프트 3개와 `mobile/scripts/gen-gemini-images.mjs`는 준비돼 있다(결제 등록 또는 gemini.google.com에서 직접 생성 중 결정 필요).
+   고르는 법·손질·보관 정보를 주는 공공 API는 없다(2026-10-09 확인) → 직접 작성해야 한다.
+2. **검색 색인** — 구글 색인 약 10개(2026-09-24), 네이버 약 15개(2026-09-25, 서치어드바이저 소유확인·사이트맵 정상).
+   의심: sitemap의 모든 URL이 lastmod를 오늘 날짜로 선언. 사이트 제목 43자 → 38자(네이버 권장 40자) 제안은 아직 미반영.
+3. **실사용자가 적다** — GA4 최근 28일 활성 115명 중 실제 한국 사용자 약 46명(하루 1.6명) [2026-09-17 확인]. 지표는 46 쪽을 기준으로 볼 것.
+   쓰레드 최근 30일 조회 3,644회(+101.5%), 새 팔로워 0명 [2026-10-11, SNS 루틴 기록].
+4. **H1 사용자 테스트 미실시** — `user-test-kit.md`에 설계가 준비돼 있다. 라이브 화면으로 바로 돌릴 수 있다.
 
 ## 수익화
 
-쿠팡 파트너스 제휴 링크(품목 상세 페이지)가 유일하다. 광고는 미도입.
+쿠팡 파트너스 제휴 링크(품목 상세 페이지)가 유일하다. 광고는 미도입(2026-09-10에 "광고보다 유저 수가 먼저"로 결정).
 
 ## 디자인
 
-- Figma 파일 키 `aVckg0tEHUX7ZNkiDYZwdR`
-- 디자인 토큰 마지막 동기화 2026-06-13 — 그 이후 Figma에서 바뀐 값은 코드에 반영되지 않았을 수 있다
-- 토큰·규칙은 `design.md`, 픽셀 대조 절차는 `design-fidelity-SKILL.md`
+- Figma 파일 키 `aVckg0tEHUX7ZNkiDYZwdR` (IGB Design System). 지역 바텀시트용 `location-row`, `location-list` 컴포넌트가 있다
+- 토큰·규칙은 `design.md`. 픽셀 대조 절차는 개인 스킬 `design-fidelity`(`~/.claude/skills/design-fidelity/SKILL.md`)
+  — 저장소에 있던 사본(`design-fidelity-SKILL.md`)은 원본과 갈라져서 2026-10-11에 지웠다
 
 ## 문서 지도
 
@@ -81,7 +117,11 @@
 | `mobile/AGENTS.md` | Expo 버전 주의 |
 | `mobile/scripts/VERDICTS.md` | 판정 사전계산 |
 | `mobile/scripts/README-coupang.md` | 쿠팡 갱신 절차와 한도 |
+| `mobile/plans/` | 모션 개선 계획 001~004 (2026-08 전부 구현 완료, 기록용) |
 | `worker/README.md` | 워커 구조 |
+
+대화 기록(`conversation-log.md`, `대화록-*.md`, `대화기록_내_메시지.md`)과 6/13 스냅샷(`igeobissa-bundle.md`)은
+**공개 저장소에 둘 수 없어서 2026-10-11에 저장소 밖 `~/projects/igeobissa-archive/`로 옮겼다.** 다시 저장소에 넣지 말 것.
 
 ---
 
@@ -148,5 +188,5 @@
   **이 값은 당시 스냅샷이다.** 라이브 가격은 매일 바뀌므로 지금 화면과 다르다.
 - 검증 페이지의 [N.N초] 등 플레이스홀더에 **가짜 수치 넣지 말 것** (면접 리스크)
 - design.md 686줄, 대화기록 2만여 줄, 기간 약 5주, "2,000+ 메시지" — 덱에서 쓰던 검증된 숫자들.
-  design.md는 그 뒤로 늘어 **현재 701줄**이고 `대화기록_내_메시지.md`는 23,485줄이다
-  [2026-09-17 확인: `wc -l design.md 대화기록_내_메시지.md`]. 덱을 다시 쓴다면 수치를 다시 셀 것.
+  design.md는 그 뒤로 늘어 701줄(2026-09-17)이고, 대화기록(`대화기록_내_메시지.md`, 23,485줄)은
+  2026-10-11에 저장소 밖 `~/projects/igeobissa-archive/`로 옮겼다. 덱을 다시 쓴다면 수치를 다시 셀 것.

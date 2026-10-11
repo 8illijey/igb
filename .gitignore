@@ -39,3 +39,9 @@ tmp/
 worker/scripts/seed-bulk.json
 .playwright-mcp/
 .claude/launch.json
+
+# 대화 기록·스냅샷은 공개 저장소에 올리지 않는다 (2026-10-11, ~/projects/igeobissa-archive 로 이동)
+docs/conversation-log.md
+docs/대화록*.md
+대화기록*.md
+igeobissa-bundle.md
