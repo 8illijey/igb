@@ -379,9 +379,10 @@ async function fetchPeriodRows(
   return parts.filter((p): p is any[] => p !== null).flat();
 }
 
-function rowsToSeries(rows: any[]): SeriesPoint[] {
+/** county: '평균'=전국, 그 외엔 조사도시명(지역). p_countycode 없이 받으면 전 도시 행이 같이 온다. */
+function rowsToSeries(rows: any[], county = '평균'): SeriesPoint[] {
   return rows
-    .filter((r) => r.countyname === '평균')
+    .filter((r) => r.countyname === county)
     .map((r) => ({ date: String(r.regday), year: r.yyyy != null ? String(r.yyyy) : undefined, price: parsePrice(r.price) }))
     .filter((p) => p.price != null) as SeriesPoint[];
 }
@@ -395,6 +396,47 @@ export async function fetchSeries(
   // 병렬 청크는 순서가 섞이므로 연월일로 정렬 + 경계 중복 제거(차트는 시간순 전제).
   series.sort((a, b) => `${a.year ?? ''}${a.date}`.localeCompare(`${b.year ?? ''}${b.date}`));
   return series.filter((p, i) => i === 0 || `${p.year ?? ''}${p.date}` !== `${series[i - 1].year ?? ''}${series[i - 1].date}`);
+}
+
+/**
+ * 특정 조사도시의 최근 시세 — 상세 '최근 시세' 차트의 지역 버전.
+ * p_countycode를 안 보내면 전 도시 행이 오므로, countyname===city 행만 골라 쓴다.
+ * (전국 fetchSeries는 countyname='평균' 행을 읽는다 — rowsToSeries 참조.)
+ * 창이 길면 1000행 상한에 걸리므로 상세 차트처럼 28일 안팎으로만 쓴다.
+ */
+export async function fetchRegionalSeries(
+  item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode' | 'rankCode'>,
+  city: string,
+  days = 28,
+  cls: MarketCls = '01',
+): Promise<SeriesPoint[]> {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - days);
+  const rankCandidates = item.categoryCode === '500' ? ['1', '2'] : [item.rankCode, '04', '05'];
+  for (const rank of [...new Set(rankCandidates)]) {
+    const url = `${BASE}?${qs({
+      action: 'periodProductList',
+      p_productclscode: cls,
+      p_startday: fmtDate(start),
+      p_endday: fmtDate(end),
+      p_itemcategorycode: item.categoryCode,
+      p_itemcode: item.itemCode,
+      p_kindcode: item.kindCode,
+      p_productrankcode: rank,
+      p_convert_kg_yn: 'N',
+    })}`;
+    const res = await fetch(url);
+    if (!res.ok) continue;
+    const rows: any[] = (await res.json())?.data?.item ?? [];
+    if (!Array.isArray(rows) || !rows.length) continue;
+    const pts = rowsToSeries(rows, city);
+    if (pts.length) {
+      pts.sort((a, b) => `${a.year ?? ''}${a.date}`.localeCompare(`${b.year ?? ''}${b.date}`));
+      return pts.filter((p, i) => i === 0 || `${p.year ?? ''}${p.date}` !== `${pts[i - 1].year ?? ''}${pts[i - 1].date}`);
+    }
+  }
+  return [];
 }
 
 /** 작년 같은 시기 궤적(차트 점선) — 365일 전 ±2~3주 작은 창만 fetch. 365일 전체(≈27s) 대신 빠르게.
@@ -492,6 +534,8 @@ export interface EcoData {
   prevWeek: number | null;
   vsPrevWeekPct: number | null;
   unit: string | null;
+  /** 지역 값이면 그 도시명. 요청한 도시에 조사가 없어 전국으로 떨어졌으면 null. */
+  city: string | null;
 }
 
 /** regday("MM/DD")만 있고 yyyy가 없는 시계열(친환경)에 연도 추론 부여.
@@ -512,6 +556,7 @@ function assignYears(series: SeriesPoint[]): SeriesPoint[] {
 export async function fetchEco(
   item: Pick<PriceItem, 'categoryCode' | 'itemCode' | 'kindCode'>,
   allowItemLevel = true,
+  city?: string,
 ): Promise<EcoData | null> {
   const end = new Date();
   const start = new Date();
@@ -553,7 +598,11 @@ export async function fetchEco(
   );
   const hit = results.find((r) => r != null); // combos 우선순위(품종 순)로 첫 유효
   if (!hit) return null;
-  const { rows, series } = hit;
+  // 지역 — 같은 응답의 그 도시 행으로 바꾼다. 친환경은 5개 도시만 조사해서, 없으면 전국 그대로(city=null).
+  const citySeries = city ? assignYears(rowsToSeries(hit.rows, city)) : [];
+  const own = citySeries.length >= 2;
+  const rows = own ? hit.rows.filter((r) => r.countyname === city) : hit.rows;
+  const series = own ? citySeries : hit.series;
   const latest = series[series.length - 1]?.price ?? null;
   const prevWeek = series[series.length - 2]?.price ?? null;
   return {
@@ -564,6 +613,7 @@ export async function fetchEco(
     vsPrevWeekPct:
       latest != null && prevWeek != null ? Math.round(((latest - prevWeek) / prevWeek) * 100) : null,
     unit: rows.find((r) => r.unit)?.unit ?? null,
+    city: own ? city! : null,
   };
 }
 
