@@ -1,12 +1,12 @@
 # 이거비싸? — 오늘 장보기 시세
 
-> 배추·삼겹살·계란 등 86개 농축수산물의 오늘 소매·도매 가격과 이맘때 평년 대비 판정을 매일 갱신하는 서비스입니다. 자료 출처는 KAMIS(한국농수산식품유통공사)입니다.
+> 배추·삼겹살·계란 등 89개 농축수산물의 오늘 소매·도매 가격과 이맘때 평년 대비 판정을 매일 갱신하는 서비스입니다. 자료 출처는 KAMIS(한국농수산식품유통공사)입니다.
 
 ## 품목 시세
 - [쌀 20kg 가격](https://igeobissa.com/item/111-01)
-- [20kg(햅쌀) 가격](https://igeobissa.com/item/111-05)
+- [쌀 20kg 가격](https://igeobissa.com/item/111-05)
 - [쌀 10kg 가격](https://igeobissa.com/item/111-10)
-- [10kg(햅쌀) 가격](https://igeobissa.com/item/111-11)
+- [쌀 10kg 가격](https://igeobissa.com/item/111-11)
 - [찹쌀 가격](https://igeobissa.com/item/112-01)
 - [혼식곡 가격](https://igeobissa.com/item/113-01)
 - [현미 가격](https://igeobissa.com/item/115-01)
@@ -33,7 +33,7 @@
 - [당근 가격](https://igeobissa.com/item/232-01)
 - [열무 가격](https://igeobissa.com/item/233-00)
 - [건고추 가격](https://igeobissa.com/item/241-00)
-- [풋고추(녹광 등) 가격](https://igeobissa.com/item/242-00)
+- [풋고추 가격](https://igeobissa.com/item/242-00)
 - [꽈리고추 가격](https://igeobissa.com/item/242-02)
 - [청양고추 가격](https://igeobissa.com/item/242-03)
 - [오이맛고추 가격](https://igeobissa.com/item/242-04)
@@ -84,7 +84,10 @@
 - [수입 소고기 갈비 가격](https://igeobissa.com/item/4401-31)
 - [수입 소고기 갈비살 가격](https://igeobissa.com/item/4401-37)
 - [수입 돼지고기 삼겹살 가격](https://igeobissa.com/item/4402-27)
-- [닭고기 절단육 가격](https://igeobissa.com/item/9901-24)
+- [닭고기 육계9호 가격](https://igeobissa.com/item/9901-02)
+- [닭고기 육계10호 가격](https://igeobissa.com/item/9901-03)
+- [닭고기 육계11호 가격](https://igeobissa.com/item/9901-04)
+- [닭고기 육계12호 가격](https://igeobissa.com/item/9901-05)
 - [닭고기 육계 가격](https://igeobissa.com/item/9901-99)
 - [계란 10구 가격](https://igeobissa.com/item/9903-21)
 - [계란 30구 가격](https://igeobissa.com/item/9903-23)
