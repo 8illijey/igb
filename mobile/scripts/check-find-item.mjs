@@ -39,6 +39,10 @@ assert.equal(nameOf('소고기', '소고기(살치살'), '한우 등심 1+등급
 assert.equal(nameOf('소고기', '소고기 우둔살'), '한우 설도 1+등급');
 assert.equal(nameOf('소고기', '떡갈비 : 다진소고기'), '한우 설도 1+등급'); // '갈비'에 먼저 걸리지 않는다
 assert.equal(nameOf('소고기', '양지머리'), '한우 양지 1+등급');
+// 원문이 그냥 '소고기'면 요리 이름으로 — 스테이크는 등심(2026-10-16 새우와스테이크). 원문 부위가 먼저다.
+assert.equal(findItem(items, '소고기', '소고기', '새우와스테이크')?.itemName, '한우 등심 1+등급');
+assert.equal(findItem(items, '소고기', '소고기우둔살', '토마토소고기찜')?.itemName, '한우 설도 1+등급');
+assert.equal(findItem(items, '소고기', '다진소고기', '떡갈비주먹밥')?.itemName, '한우 설도 1+등급');
 assert.equal(nameOf('돼지고기', '돼지고기 삼겹살'), '돼지고기 삼겹살');
 assert.equal(nameOf('돼지고기', '다진 돼지고기'), '돼지고기 앞다리');
 

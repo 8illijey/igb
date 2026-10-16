@@ -34,15 +34,14 @@ export default function SearchScreen() {
     // '호주산 소고기 갈비' → '수입 소고기 갈비'(KAMIS 원래 이름)로도 맞춰 본다.
     const kamisName = (i: (typeof items)[number]) =>
       i.itemCode === '4401' ? `수입 ${i.itemName.split(' ').slice(1).join(' ')}` : i.itemName;
-    // 고르고 나서 부위마다 가장 싼 하나만 — '1++'로 찾으면 1++만 남은 상태에서 고르므로 1++이 나온다.
-    return cheapestPerCut(
-      items.filter(
-        (i) =>
-          i.itemName.includes(q) ||
-          i.kindName.includes(q) ||
-          i.itemName.includes(hanwoo) ||
-          kamisName(i).includes(q),
-      ),
+    // 검색은 등급·원산지를 다 보여준다 — '삼겹살'을 찾으면 국산·수입이 둘 다 나와야 한다(2026-10-16).
+    // 부위별 최저가 하나만 남기는 건 홈(과 인기 TOP10)뿐이다.
+    return items.filter(
+      (i) =>
+        i.itemName.includes(q) ||
+        i.kindName.includes(q) ||
+        i.itemName.includes(hanwoo) ||
+        kamisName(i).includes(q),
     );
   }, [items, query]);
 

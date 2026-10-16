@@ -147,9 +147,17 @@ const CUT_RULES: Record<string, [RegExp, string][]> = {
     [/갈비/, '돼지고기 갈비'],
   ],
 };
-function cutTarget(name: string, raw: string | undefined): string | null {
-  if (!raw) return null;
-  return CUT_RULES[name]?.find(([re]) => re.test(raw))?.[1] ?? null;
+/**
+ * 원문이 그냥 '소고기'일 때 요리 이름으로 부위를 정한다. 원문 규칙이 먼저다.
+ * 2026-10-16 새우와스테이크: 원문 '소고기(120g)'라 기본값 설도로 갔다 — 스테이크는 등심이다.
+ * 제목엔 원문 규칙을 쓰지 않는다. '떡갈비'가 '갈비'에 걸린다.
+ */
+const TITLE_RULES: Record<string, [RegExp, string][]> = {
+  소고기: [[/스테이크/, '한우 등심 1+등급']],
+};
+function cutTarget(name: string, raw: string | undefined, title: string | undefined): string | null {
+  const byRaw = raw ? CUT_RULES[name]?.find(([re]) => re.test(raw))?.[1] : undefined;
+  return byRaw ?? (title ? TITLE_RULES[name]?.find(([re]) => re.test(title))?.[1] : undefined) ?? null;
 }
 
 /** 레시피 이미지(번들). key 없으면 히어로, 숫자면 단계 이미지, 'ingredients'면 재료모음. (없으면 undefined) */
@@ -170,9 +178,9 @@ export function recipeStep(r: Recipe, i: number): ImageSourcePropType | undefine
 
 /** 재료명을 라이브 KAMIS 품목과 매칭 (신호가 있는 품목만). 별칭 보정 + 정확일치 우선 → 부분일치 폴백.
  *  정확일치를 먼저 보는 이유: "파"가 양파·파프리카에 부분포함되는 등의 오매칭 방지. */
-export function findItem(items: PriceItem[], name: string, raw?: string): PriceItem | undefined {
+export function findItem(items: PriceItem[], name: string, raw?: string, title?: string): PriceItem | undefined {
   const live = (i: PriceItem) => i.level != null;
-  const cut = cutTarget(name, raw);
+  const cut = cutTarget(name, raw, title);
   const byCut = cut ? items.find((i) => i.itemName === cut && live(i)) : undefined;
   if (byCut) return byCut;
   const q = KAMIS_ALIAS[name] ?? name;
