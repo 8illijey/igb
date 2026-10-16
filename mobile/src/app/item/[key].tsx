@@ -589,13 +589,15 @@ export default function ItemDetailScreen() {
   // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
   const chartReady = chartDisplay != null;
   // 데이터가 없는 탭은 아예 안 그린다 — 눌렀을 때 빈 안내문만 뜨면 버그처럼 보인다.
-  // 플래그가 없는 구본 verdicts(배포 과도기)에선 undefined라 예전처럼 둘 다 보여준다.
+  // 플래그가 없으면(verdicts 로딩 전) 도매는 보여주고 유기농은 숨긴다 — 각각 다수 쪽에 맞췄다.
   // 보고 있는 탭은 절대 숨기지 않는다(숨기면 돌아갈 길이 없다).
   // 탭 유무는 등급이 아니라 부위의 속성이다 — 등급 키(4301-22-02)에 기록이 없으면 첫 등급 키(4301-22) 것을 따른다.
   // 안 그러면 새 등급만 '도매' 탭이 떠서 누르면 빈 안내만 나온다(2026-10-16).
   const tabVerdict = verdicts[vKey] ?? (item ? verdicts[`${item.itemCode}-${item.kindCode}`] : undefined);
   const showWholesaleTab = market === 'wholesale' || (tabVerdict?.hasWholesale ?? true);
-  const showEcoTab = market === 'eco' || (tabVerdict?.hasEco ?? true);
+  // 유기농은 기본값이 '숨김' — verdicts가 오기 전(첫 화면·정적 HTML)엔 플래그가 없어서, true로 두면
+  // 유기농 없는 품목(99개 중 74개, 2026-10-17 실측)에도 토글이 잠깐 떴다 사라졌다. 있는 품목만 뒤늦게 나타난다.
+  const showEcoTab = market === 'eco' || (tabVerdict?.hasEco ?? false);
   /** 일반/유기농 토글을 실제로 그리는지 — hero 상단 패딩도 이 값을 따른다(간격 어긋남 방지). */
   const showEcoToggle = market !== 'wholesale' && showEcoTab;
   // 푸터 '기준일' = 지금 화면에 뜬 가격이 실제로 조사된 날.
