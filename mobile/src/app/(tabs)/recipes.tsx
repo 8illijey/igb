@@ -44,7 +44,7 @@ export default function RecipesScreen() {
     const base = results ?? recipeList;
     const all = base.map((r) => {
       const matched = r.ingredients
-        .map((ing) => ({ name: ing.name, item: findItem(items, ing.name) }))
+        .map((ing) => ({ name: ing.name, item: findItem(items, ing.name, ing.raw, r.title) }))
         .filter((m) => m.item != null);
       const cheapCount = matched.filter((m) => m.item!.level === 'cheap').length;
       return { ...r, matched, cheapCount };

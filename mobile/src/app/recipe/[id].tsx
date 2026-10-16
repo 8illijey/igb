@@ -81,7 +81,7 @@ export default function RecipeDetailScreen() {
   const [topH, setTopH] = useState(0);
 
   const matched = useMemo(
-    () => recipe?.ingredients.map((ing) => ({ ...ing, item: findItem(items, ing.name) })) ?? [],
+    () => recipe?.ingredients.map((ing) => ({ ...ing, item: findItem(items, ing.name, ing.raw, recipe.title) })) ?? [],
     [recipe, items],
   );
   const cheapCount = matched.filter((m) => m.item?.level === 'cheap').length;

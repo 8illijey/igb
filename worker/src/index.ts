@@ -365,10 +365,35 @@ function parseParts(parts: string): { name: string; amount: string }[] {
 
 /** 청크명이 시세 추적 품목이면 표준 토큰(매칭 일관성) 반환. 긴 토큰부터 검사.
  *  ponytail: '쪽파'가 별칭 '파'에 걸려 대파로 태깅될 수 있음 — 가격만 살짝 어긋나는 희귀 엣지라 둠. */
+/**
+ * 짧은 별칭('소'·'파'·'호박')과 한 글자 품목('무')이 다른 재료를 잡아먹는 경우 — 일치해도 버린다.
+ * 2026-10-16 레시피 30개 원문 대조: '소금(0.3g)'이 소고기 0.3g이 되어 연어오븐구이·해산물리조또 등에
+ * 한우 가격이 붙었고, 삼색소고기만두는 앞에 온 소금이 진짜 소고기(50g)를 밀어냈다. 단호박→애호박, 닭육수→닭고기도.
+ */
+const NOT_TOKEN: Record<string, RegExp> = {
+  소고기: /소금|소스|소면|소시지|소주|소다|소보로|육수/,
+  돼지고기: /육수/,
+  닭고기: /육수/,
+  애호박: /단호박/,
+  무: /무염|무가당|무순|무말랭이/,
+  대파: /파슬리|파인애플|파스타|파마산|파래/,
+};
+/** 품목명이 안 들어간 부위 이름 — '삼겹살(100g)'은 '돼지'가 없어 아무 품목에도 안 잡혔다(2026-10-16 삼겹선). */
+const ALSO_TOKEN: Record<string, RegExp> = {
+  돼지고기: /삼겹|목살/,
+  소고기: /쇠고기|소갈비|소불고기|차돌|우둔|홍두깨/,
+};
+/**
+ * 재료명에서 별칭으로 찾지 않는 품목. '소'는 KAMIS 품목명이라 시세 조회(levelOf)엔 필요하지만,
+ * 재료명에서 한 글자로 찾으면 소금·소스·채소를 잡는다. 예외를 NOT_TOKEN에 하나씩 더하는 방식은
+ * 2026-10-16 재생성 직후 '새싹채소'가 또 소고기가 되며 무너졌다. 원문은 늘 '소고기'·'쇠고기'를 쓴다.
+ */
+const NO_ALIAS_IN_NAME = new Set(['소고기']);
 function trackedToken(name: string): string | null {
   for (const t of ALLOWED_BY_LEN) {
-    const q = ALIAS[t] ?? t;
-    if (name.includes(t) || name.includes(q)) return t;
+    const q = NO_ALIAS_IN_NAME.has(t) ? t : (ALIAS[t] ?? t);
+    const hit = name.includes(t) || name.includes(q) || ALSO_TOKEN[t]?.test(name);
+    if (hit && !NOT_TOKEN[t]?.test(name)) return t;
   }
   return null;
 }
@@ -387,15 +412,17 @@ async function fetchByIngredient(env: Env, token: string): Promise<any[]> {
 
 /** 식약처 row 1개 → 앱 레시피 객체. cheapSet/expensiveSet으로 cheapCount·hasExpensive 계산(목록 정렬·필터용). */
 function buildRecipe(r: any, cheapSet: Set<string>, expensiveSet: Set<string>) {
-  const tracked = new Map<string, string>(); // 표준토큰 → 분량
+  const tracked = new Map<string, { amount: string; raw: string }>(); // 표준토큰 → 분량·원문 이름
   const condiments: { name: string; amount: string }[] = [];
   for (const p of parseParts(String(r.RCP_PARTS_DTLS ?? ''))) {
     const tok = trackedToken(p.name);
     if (tok) {
-      if (!tracked.has(tok)) tracked.set(tok, p.amount);
+      if (!tracked.has(tok)) tracked.set(tok, { amount: p.amount, raw: p.name });
     } else condiments.push(p);
   }
-  const ingredients = [...tracked].map(([name, amount]) => ({ name, amount }));
+  // raw = 식약처 원문 재료명('쇠고기등심', '소고기 우둔살', '다진소고기'). 토큰('소고기')만 넘기면
+  // 앱이 부위를 몰라 모든 소고기를 한 품목에 붙였다(2026-10-16) — 앱이 raw로 부위·등급 품목을 고른다.
+  const ingredients = [...tracked].map(([name, v]) => ({ name, amount: v.amount, raw: v.raw }));
   const steps: string[] = [];
   const stepImages: string[] = [];
   for (const k of STEP_KEYS) {

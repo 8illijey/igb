@@ -83,7 +83,8 @@ function parsePrice(v: unknown): number | null {
 
 /** KAMIS 축산 품목명은 가축명(소·돼지·닭)으로 와서 식품명으로 보정한다 */
 const NAME_FIX: Record<string, string> = {
-  소: '소고기',
+  // KAMIS '소'는 한우(냉장) 조사값이다 — 수입 소고기(4401)는 따로 온다. '소고기'라 쓰면 둘이 섞여 읽힌다(2026-10-16).
+  소: '한우',
   돼지: '돼지고기',
   닭: '닭고기',
   // 참다래 = 키위의 국산 품종명(KAMIS 공식 명칭). 그대로 두면 뭐지 모른다는 질문을 받았다
@@ -92,6 +93,59 @@ const NAME_FIX: Record<string, string> = {
 };
 /** 고기류 — 부위(kindName)가 핵심이므로 이름에 붙인다. 계란·우유는 제외. */
 const MEAT_CODES = new Set(['4301', '4304', '4401', '4402', '9901']);
+
+/**
+ * 한 부위가 등급(rank)별로 따로 조사되는 품목 — 등급마다 독립 항목으로 낸다.
+ * 값 = daily rank_code 순서. 이 순서가 곧 period API의 p_productrankcode(1부터)다.
+ *   [2026-10-16 실측] 한우 등심 period 1/2/3 = daily 1++/1+/1등급 값과 일치,
+ *   수입 소고기 갈비 period 1/2 = 미국산/호주산. period에 81·82를 보내면 엉뚱한 값이 온다.
+ * 예전엔 부위당 첫 줄(1++·미국산)만 남기고 나머지를 버렸는데 화면엔 등급 표기가 없었다.
+ * 첫 등급은 기존 키(4301-22)를 그대로 쓴다 — 이미 색인된 주소·즐겨찾기를 깨지 않으려고.
+ * 앱·gen-seo·build-verdicts가 이 함수를 공유한다. refresh-coupang-products.mjs는 브라우저에서도 돌아
+ * import를 못 해서 같은 표를 베껴 두었다 — 바꾸면 거기도 바꿀 것.
+ */
+export const GRADED: Record<string, string[]> = {
+  '4301': ['01', '02', '03'], // 한우 1++ / 1+ / 1등급
+  '4401': ['81', '82'], // 수입 소고기 미국산 / 호주산
+};
+
+/** 상세 주소·verdicts·쿠팡 상품의 공통 키. 첫 등급 외에는 등급 코드가 붙는다(4301-22-02). */
+export function itemKeyOf(i: Pick<PriceItem, 'itemCode' | 'kindCode' | 'rankCode'>): string {
+  const base = `${i.itemCode}-${i.kindCode}`;
+  return (GRADED[i.itemCode]?.indexOf(i.rankCode) ?? 0) > 0 ? `${base}-${i.rankCode}` : base;
+}
+
+/**
+ * 같은 부위 묶음 — 소(한우·수입)와 돼지(국산·수입)를 부위 이름으로 묶는다('소:갈비', '돼지:삼겹살').
+ * 홈·검색은 묶음마다 오늘 가장 싼 하나만, 상세는 묶음 전체를 토글로 보여준다(2026-10-16 예지님 결정).
+ * 묶음이 아닌 품목은 null.
+ */
+const CUT_ANIMAL: Record<string, string> = { '4301': '소', '4401': '소', '4304': '돼지', '4402': '돼지' };
+export function cutGroupOf(i: Pick<PriceItem, 'itemCode' | 'kindName'>): string | null {
+  const animal = CUT_ANIMAL[i.itemCode];
+  return animal ? `${animal}:${stripUnitParen(i.kindName)}` : null;
+}
+
+/** 부위 묶음마다 오늘 가장 싼 하나만 남긴다. 묶음 밖 품목과 목록 순서는 그대로. 값이 전부 없으면 첫 줄을 남긴다. */
+export function cheapestPerCut<T extends PriceItem>(items: T[]): T[] {
+  const keep = new Map<string, T>();
+  for (const i of items) {
+    const g = cutGroupOf(i);
+    if (!g) continue;
+    const cur = keep.get(g);
+    if (!cur || (i.today != null && (cur.today == null || i.today < cur.today))) keep.set(g, i);
+  }
+  return items.filter((i) => {
+    const g = cutGroupOf(i);
+    return !g || keep.get(g) === i;
+  });
+}
+
+/** 등급 품목의 period API 등급 코드('1'·'2'·'3'). 등급 품목이 아니면 null. */
+export function periodRankOf(i: Pick<PriceItem, 'itemCode' | 'rankCode'>): string | null {
+  const idx = GRADED[i.itemCode]?.indexOf(i.rankCode) ?? -1;
+  return idx >= 0 ? String(idx + 1) : null;
+}
 /** 품종명 끝의 단위 괄호를 둔다. "육계(kg)"→"육계", "풋고추(녹광 등)"→"풋고추" */
 /**
  * 품종명 끝의 '단위 괄호' 한 덩어리만 떼어낸다. "육계(kg)"→"육계", "여름(고랭지)(1포기)"→"여름(고랭지)".
@@ -247,10 +301,15 @@ export async function fetchCategory(
       const backDays = [0, 1, 7, 14][ti === -1 ? 0 : ti];
       const base = new Date(`${regday ?? fmtDate(new Date())}T00:00:00`);
       base.setDate(base.getDate() - backDays);
+      const name = displayName(String(r.item_name), String(r.item_code), String(r.kind_name ?? ''));
+      // 등급 품목은 등급명까지 — '한우 등심 1++등급'. 수입 소고기는 '수입' 자리에 원산지를 쓴다
+      // — '호주산 소고기 갈비'(2026-10-16 예지님 요청).
+      const graded = GRADED[String(r.item_code)] && typeof r.rank === 'string' && r.rank;
+      const gradedName = !graded ? name : name.startsWith('수입 ') ? `${r.rank} ${name.slice(3)}` : `${name} ${r.rank}`;
       return {
         surveyDate: fmtDate(base),
         categoryCode,
-        itemName: displayName(String(r.item_name), String(r.item_code), String(r.kind_name ?? '')),
+        itemName: gradedName,
         itemCode: String(r.item_code),
         kindName: String(r.kind_name ?? ''),
         kindCode: String(r.kind_code ?? '00'),
@@ -287,10 +346,10 @@ export async function fetchAllCategories(): Promise<PriceItem[]> {
     const next = await load(fmtDate(d));
     if (withToday(next) > withToday(items)) items = next; // 더 완전한 날만 채택
   }
-  // 1차: 품목·품종 단위로 1행만 — 고기 등급(rank 1·2·3)이 같은 이름으로 중복되는 것 방지(상위 등급 유지).
+  // 1차: 키 단위로 1행만. 등급 품목(GRADED)은 등급마다 키가 달라 모두 남는다.
   const seen = new Set<string>();
   const unique = items.filter((i) => {
-    const k = `${i.itemCode}-${i.kindCode}`;
+    const k = itemKeyOf(i);
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
@@ -318,8 +377,13 @@ async function fetchPeriodRowsRange(
   end: Date,
   cls: MarketCls,
 ): Promise<any[]> {
-  const rankCandidates =
-    item.categoryCode === '500' ? ['1', '2'] : [item.rankCode, '04', '05'];
+  // 등급 품목은 자기 등급만 — '1'로 폴백하면 1+등급 페이지에 1++ 차트가 뜬다.
+  const graded = periodRankOf(item);
+  const rankCandidates = graded
+    ? [graded]
+    : item.categoryCode === '500'
+      ? ['1', '2']
+      : [item.rankCode, '04', '05'];
 
   for (const rank of [...new Set(rankCandidates)]) {
     const url = `${BASE}?${qs({

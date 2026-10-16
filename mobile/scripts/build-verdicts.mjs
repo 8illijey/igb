@@ -6,6 +6,8 @@
 // 산출물: mobile/public/verdicts.json  (Expo web가 /verdicts.json 으로 서빙)
 import fs from 'node:fs';
 import path from 'node:path';
+// 등급 품목(한우 1++/1+/1 등)의 키·period 등급 코드는 앱과 반드시 같아야 한다 — 베끼지 말고 가져온다.
+const { itemKeyOf, periodRankOf } = await import(new URL('../src/api/kamis.ts', import.meta.url).href);
 
 let envFile = '';
 try {
@@ -199,7 +201,7 @@ async function fetchAll() {
   // ③ 대표 선정: 품목·품종 1행 dedup → 표시명별 신호 좋은 단위 (오늘 목록 기준)
   const seen = new Set();
   const unique = today.filter((i) => {
-    const k = `${i.itemCode}-${i.kindCode}`;
+    const k = itemKeyOf(i);
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
@@ -213,7 +215,9 @@ async function fetchAll() {
 // ---- 365일 시계열 → 월별 데이터 포인트 (앱 fetchSeries와 동일 rank 후보·파싱) ----
 async function fetchYearPoints(item, cls = '01') {
   const end = new Date();
-  const ranks = item.categoryCode === '500' ? ['1', '2'] : [item.rankCode, '04', '05'];
+  // 등급 품목은 자기 등급만 — 폴백하면 1+등급 판정이 1++ 시계열로 계산된다.
+  const graded = periodRankOf(item);
+  const ranks = graded ? [graded] : item.categoryCode === '500' ? ['1', '2'] : [item.rankCode, '04', '05'];
   // 1년 범위 단일 호출은 ~16s라 fetchT(15s) 타임아웃에 걸려 빈 데이터가 됨(시금치·토마토 등 0개월 원인).
   // → 분기(92일) 4개로 쪼개 병렬 fetch(각 ~6s). months는 regday 월버킷이라 순서 무관.
   const per = 92;
@@ -489,16 +493,16 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
 
     if (repPts.incomplete || wsPts.incomplete)
       console.warn(
-        `시계열 불완전(재시도 후에도 실패 조각): ${it.itemCode}-${it.kindCode}` +
+        `시계열 불완전(재시도 후에도 실패 조각): ${itemKeyOf(it)}` +
           `${repPts.incomplete ? ' 소매' : ''}${wsPts.incomplete ? ' 도매' : ''} — series 수록 제외`,
       );
     const sr = repPts.incomplete ? [] : toSeries(repPts);
     const sw = wsPts.incomplete ? [] : toSeries(wsPts);
     if (sr.length || sw.length) {
-      series[`${it.itemCode}-${it.kindCode}`] = { ...(sr.length ? { r: sr } : {}), ...(sw.length ? { w: sw } : {}) };
+      series[itemKeyOf(it)] = { ...(sr.length ? { r: sr } : {}), ...(sw.length ? { w: sw } : {}) };
     }
 
-    const key = `${it.itemCode}-${it.kindCode}`;
+    const key = itemKeyOf(it);
     out[key] = {
       hasWholesale: hasWholesaleFor(key),
       hasEco: await hasEcoFor(it).catch(() => undefined),
@@ -528,7 +532,9 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
     for (const [k, v] of Object.entries(out)) {
       if ((v.months ?? []).some(Boolean)) continue;
       const code = k.split('-')[0];
-      const p = prev[k] ?? prev[Object.keys(prev).find((pk) => pk.startsWith(`${code}-`)) ?? ''];
+      // 등급 키(4301-22-02)는 정확 일치만 — 다른 등급·부위의 흐름을 빌려 오면 틀린 값이 된다.
+      const graded = k.split('-').length > 2;
+      const p = prev[k] ?? (graded ? undefined : prev[Object.keys(prev).find((pk) => pk.startsWith(`${code}-`)) ?? '']);
       if (!p || !(p.months ?? []).some(Boolean)) continue;
       v.months = p.months;
       if (v.wholesaleRecentAvg == null && p.wholesaleRecentAvg != null) {

@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import Reanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
-import { PriceItem, won } from '../../api/kamis';
+import { cheapestPerCut, PriceItem, won } from '../../api/kamis';
 import { useVerdicts, useRegionalVerdicts, type Verdict, type RegionalVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
@@ -271,7 +271,8 @@ export default function HomeScreen() {
   // 전체 품목 — BEST(싸) → FAIR(적정) → WAIT(비싸) 순, 같은 등급 내 평년 대비 낮은 순.
   const ranked = useMemo(
     () =>
-      items
+      // 고기는 부위마다 등급·원산지 중 오늘 가장 싼 하나만 — 나머지는 상세의 토글로 본다.
+      cheapestPerCut(items)
         .filter((i) => {
           const v = viewOf(i);
           return v.today != null && v.pct != null && v.level != null;

@@ -64,8 +64,9 @@
     멜론: '멜론', 방울토마토: '방울토마토', 고춧가루: '고춧가루', 알배기배추: '알배기배추', 브로콜리: '브로콜리',
     사과: '사과', 배: '배 신고배', 복숭아: '복숭아', 포도: '포도 샤인머스캣', 바나나: '바나나', 레몬: '레몬',
     체리: '체리', 참다래: '키위', 파인애플: '파인애플', 망고: '망고', 감귤: '감귤', 오렌지: '오렌지', 아보카도: '아보카도',
-    '소고기 안심': '소고기 안심', '소고기 등심': '한우 등심 구이용', '소고기 설도': '소고기 설도',
-    '소고기 양지': '소고기 양지', '소고기 갈비': '한우 갈비',
+    // 한우는 등급별 항목이라 검색어 뒤에 등급명이 붙는다('한우 안심 1+등급') — GRADE_TOKENS 참고.
+    '소고기 안심': '한우 안심', '소고기 등심': '한우 등심', '소고기 설도': '한우 설도',
+    '소고기 양지': '한우 양지', '소고기 갈비': '한우 갈비',
     '돼지고기 앞다리': '돼지고기 앞다리살', '돼지고기 삼겹살': '삼겹살', '돼지고기 갈비': '돼지갈비', '돼지고기 목심': '돼지고기 목살',
     '수입 소고기 갈비': '수입 소갈비', '수입 소고기 갈비살': '수입 소갈비살', '수입 돼지고기 삼겹살': '수입 삼겹살',
     '닭고기 육계9호': '생닭 9호', '닭고기 육계10호': '생닭 10호', '닭고기 육계12호': '생닭 12호', '닭고기 육계(kg)': '닭고기 생닭',
@@ -199,6 +200,8 @@
     // KAMIS는 '생과일 1개/100g'을 조사한다 — 냉동·건조는 단가 체계가 아예 다른 물건이다.
     망고: ['냉동', '건조', '말린', '주스', '퓨레', '젤리'],
     체리: ['냉동', '건조', '말린', '주스', '퓨레', '절임'],
+    // 갈비살은 별도 품목(4401-37) — '갈비'로 찾으면 갈비살이 섞인다(2026-10-16 미국산 갈비).
+    '수입 소고기 갈비': ['갈비살'],
   };
 
   /** KAMIS 조사 기준의 원산지 — 국산 품목에 수입육이, 수입 품목에 한우가 붙는 것을 막는다 */
@@ -239,6 +242,29 @@
 
   const NAME_FIX = { 소: '소고기', 돼지: '돼지고기', 닭: '닭고기' };
   const MEAT_CODES = new Set(['4301', '4304', '4401', '4402', '9901']);
+
+  /**
+   * 등급(원산지)별 항목 — 앱 src/api/kamis.ts의 GRADED·itemKeyOf와 같은 표다.
+   * 이 스크립트는 브라우저 REPL에서도 돌아 kamis.ts를 import하지 못해 베껴 둔다. 바꾸면 둘 다 바꿀 것.
+   * 첫 등급은 기존 키(4301-22), 나머지는 등급 코드가 붙는다(4301-22-02).
+   */
+  const GRADED = { '4301': ['01', '02', '03'], '4401': ['81', '82'] };
+  const keyOf = (it) =>
+    (GRADED[it.itemCode]?.indexOf(it.rankCode) ?? 0) > 0
+      ? `${it.itemCode}-${it.kindCode}-${it.rankCode}`
+      : `${it.itemCode}-${it.kindCode}`;
+  /**
+   * 등급 항목의 [필수 토큰, 배제 토큰] — 1+등급 페이지에 1++ 상품이 붙지 않게.
+   * '1+'는 '1++'에 포함되므로 배제가 필요하다. '1등급'은 '1+등급'·'1++등급'에 안 걸린다.
+   */
+  const GRADE_TOKENS = {
+    '4301-01': [['1++'], []],
+    // '1+1'은 행사 문구다 — '1+1 저온숙성 꽃등심'이 1+등급으로 붙었다(2026-10-16 첫 실행).
+    '4301-02': [['1+'], ['1++', '1+1']],
+    '4301-03': [['1등급'], []],
+    '4401-81': [['미국'], ['호주']],
+    '4401-82': [['호주'], ['미국']],
+  };
 
   // ── 유틸 ────────────────────────────────────────────────────────────────
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -312,6 +338,9 @@
         return {
           itemCode,
           kindCode: String(r.kind_code ?? '00'),
+          rankCode: String(r.rank_code ?? ''),
+          // 등급 항목만 등급명을 들고 간다 — 검색어 뒤에 붙인다('한우 등심 1+등급').
+          grade: GRADED[itemCode] && typeof r.rank === 'string' ? r.rank : null,
           itemName: MEAT_CODES.has(itemCode) && kindName ? `${base} ${kindName}` : base,
           unit: String(r.unit ?? ''),
           today,
@@ -338,11 +367,12 @@
     const seenName = new Set();
     const out = [];
     for (const it of items) {
-      const k = `${it.itemCode}-${it.kindCode}`;
+      const k = keyOf(it);
       // 품종별 검색어가 정의된 품종은 전부 남긴다. 예전엔 품목명당 1개만 남겨,
       // 대표 품종이 바뀜 날 그 페이지의 상품이 통째로 사라졌다(2026-08-18).
+      // 등급 항목은 이름(부위)이 같아도 등급마다 따로 남긴다.
       if (seenKey.has(k)) continue;
-      if (!KIND_KEYWORDS[k] && seenName.has(it.itemName)) continue;
+      if (!KIND_KEYWORDS[k] && !it.grade && seenName.has(it.itemName)) continue;
       seenKey.add(k);
       seenName.add(it.itemName);
       out.push(it);
@@ -360,6 +390,11 @@
     if (!tokens.some((t) => title.includes(t.trim()))) return -1;
     for (const bad of [...(EXCLUDE[item.itemName] || []), ...(KIND_EXCLUDE[kindKey] || [])])
       if (title.includes(bad)) return -1;
+    const grade = GRADE_TOKENS[`${item.itemCode}-${item.rankCode}`];
+    if (grade) {
+      if (!grade[0].some((t) => title.includes(t))) return -1;
+      if (grade[1].some((t) => title.includes(t))) return -1;
+    }
     // 유기농 탭은 인증 표기가 제목에 있는 상품만. 그냥 일반 상품을 붙이면
     // 유기농 시세(대추방울토마토 12,150원/kg) 옆에 일반 상품(5,550원)이 붙어
     // 다른 물건 가격으로 읽힌다(2026-08-20 수정).
@@ -514,8 +549,9 @@
     };
 
     for (const item of catalog) {
-      const key = `${item.itemCode}-${item.kindCode}`;
-      const keyword = KIND_KEYWORDS[key] || KEYWORDS[item.itemName];
+      const key = keyOf(item);
+      const base = KIND_KEYWORDS[key] || KEYWORDS[item.itemName];
+      const keyword = base && item.grade ? `${base} ${item.grade}` : base;
       if (!keyword) {
         // KAMIS가 새 품목을 추가하면 여기로 떨어진다. 조용히 빠뜨리지 말고 남긴다.
         stats.skipped.push(`${key} ${item.itemName} (검색어 미정의)`);
@@ -577,8 +613,9 @@
     // eco: 키는 같은 품목 바로 뒤에 붙여 놓는다(diff가 읽히게).
     const parse = (k) => {
       const eco = k.startsWith('eco:');
-      const [c, kk] = (eco ? k.slice(4) : k).split('-');
-      return { eco, c: Number(c), k: kk ?? '' };
+      // 등급 키(4301-22-02)는 등급 코드까지 비교해야 순서가 안정된다.
+      const [c, ...rest] = (eco ? k.slice(4) : k).split('-');
+      return { eco, c: Number(c), k: rest.join('-') };
     };
     const keys = Object.keys(data).sort((a, b) => {
       const pa = parse(a);

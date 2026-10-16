@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  cutGroupOf,
   EcoData,
   fetchCategory,
   fetchEco,
@@ -257,6 +258,12 @@ export default function ItemDetailScreen() {
     const top = cand.reduce((best, i) => (i.vsNormalPct! < best.vsNormalPct! ? i : best));
     return itemKey(top) === key;
   }, [items, key]);
+
+  // 같은 부위 묶음(한우 등급 + 수입 원산지, 국산·수입 삼겹살) — 묶음이 아니면 자기 하나뿐이라 토글이 안 뜬다.
+  const gradeSiblings = useMemo(() => {
+    const g = item ? cutGroupOf(item) : null;
+    return g ? items.filter((i) => cutGroupOf(i) === g) : [];
+  }, [items, item]);
 
   const [market, setMarket] = useState<Market>('retail');
   const [chart28, setChart28] = useState<SeriesPoint[] | null>(null); // 28일 — 차트 표시용. 가벼워 빠름(~3s)
@@ -572,10 +579,15 @@ export default function ItemDetailScreen() {
   // 데이터가 없는 탭은 아예 안 그린다 — 눌렀을 때 빈 안내문만 뜨면 버그처럼 보인다.
   // 플래그가 없는 구본 verdicts(배포 과도기)에선 undefined라 예전처럼 둘 다 보여준다.
   // 보고 있는 탭은 절대 숨기지 않는다(숨기면 돌아갈 길이 없다).
-  const showWholesaleTab = market === 'wholesale' || (verdicts[vKey]?.hasWholesale ?? true);
-  const showEcoTab = market === 'eco' || (verdicts[vKey]?.hasEco ?? true);
+  // 탭 유무는 등급이 아니라 부위의 속성이다 — 등급 키(4301-22-02)에 기록이 없으면 첫 등급 키(4301-22) 것을 따른다.
+  // 안 그러면 새 등급만 '도매' 탭이 떠서 누르면 빈 안내만 나온다(2026-10-16).
+  const tabVerdict = verdicts[vKey] ?? (item ? verdicts[`${item.itemCode}-${item.kindCode}`] : undefined);
+  const showWholesaleTab = market === 'wholesale' || (tabVerdict?.hasWholesale ?? true);
+  const showEcoTab = market === 'eco' || (tabVerdict?.hasEco ?? true);
   /** 일반/유기농 토글을 실제로 그리는지 — hero 상단 패딩도 이 값을 따른다(간격 어긋남 방지). */
   const showEcoToggle = market !== 'wholesale' && showEcoTab;
+  /** 등급 토글 — 같은 부위에 등급(원산지)이 여럿일 때만. 도매 탭에서도 유지한다(등급은 시장과 별개 축). */
+  const showGradeToggle = gradeSiblings.length > 1;
   // 푸터 '기준일' = 지금 화면에 뜬 가격이 실제로 조사된 날.
   //
   // 예전엔 차트(series.json)의 마지막 점을 썼는데, 그건 CI가 하루 한 번 만드는 값이고
@@ -644,7 +656,13 @@ export default function ItemDetailScreen() {
     <View style={styles.screen}>
       {seo && <SeoHead item={seo} today={active?.today ?? null} unit={active?.unit} />}
       <GlassHeader onHeight={setTopH}>
-        <Header title={item.itemName || seo?.name || ''} fav={isFavorite(favKey)} onFav={() => toggle(favKey)} />
+        {/* 등급·원산지 묶음이면 헤더는 부위 공통 이름 — 토글을 누를 때마다 바뀌면 화면 단계가 안 맞는다.
+            등급·원산지는 hero 이름(item.itemName)이 보여준다(2026-10-16 예지님 요청). */}
+        <Header
+          title={cutTitle(gradeSiblings) ?? (item.itemName || seo?.name || '')}
+          fav={isFavorite(favKey)}
+          onFav={() => toggle(favKey)}
+        />
       </GlassHeader>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topH }]}>
         {regionNote && <RegionNote bleed text={regionNote} />}
@@ -669,7 +687,20 @@ export default function ItemDetailScreen() {
             예전엔 이 조건이 market==='wholesale'로만 걸려 있어, 유기농 데이터가 없어
             토글을 숨긴 소매 화면만 간격이 즐어들었다(2026-08-20 사용자 지적).
             렌더 조건과 패딩 조건을 한 변수로 묶어 다시 어긋나지 않게 한다. */}
-        <View style={[styles.content01, !showEcoToggle && { paddingTop: spacing.s5 }]}>
+        <View style={[styles.content01, !showEcoToggle && !showGradeToggle && { paddingTop: spacing.s5 }]}>
+          {/* 등급(원산지) 토글 — 일반/유기농과 같은 pill. 소매/도매 탭과 따로 둬서 나중에 축산 도매가 생겨도
+              두 축이 섞이지 않게 한다(2026-10-16 예지님 요청). */}
+          {showGradeToggle && (
+            // 갈비는 5개(한우 3등급 + 미국산·호주산)라 좁은 화면에서 넘친다 — 가로로 밀어 본다.
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Tabs
+                variant="pill"
+                value={itemKey(item)}
+                onChange={(k) => router.replace(`/item/${k}`)}
+                options={gradeSiblings.map((s) => ({ value: itemKey(s), label: gradeLabel(s) }))}
+              />
+            </ScrollView>
+          )}
           {showEcoToggle && (
             <Tabs
               variant="pill"
@@ -1218,6 +1249,35 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
       </Text>
     </View>
   );
+}
+
+/**
+ * 등급 토글 라벨. 한우는 이름 끝('한우 등심 1++등급' → '1++등급'), 수입 소고기는 맨 앞('호주산 소고기 갈비' → '호주산'),
+ * 삼겹살은 국산/수입. 갈비 묶음에 '한우'를 붙이면 5개가 한 줄을 넘어 선택된 칸이 화면 밖으로 밀린다
+ * — 등급이 붙는 건 한우뿐이라 '1++등급'만으로 구분된다.
+ */
+function gradeLabel(s: PriceItem): string {
+  if (s.itemCode === '4304') return '국산';
+  if (s.itemCode === '4402') return '수입';
+  const words = s.itemName.split(' ');
+  return (s.itemCode === '4401' ? words[0] : words[words.length - 1]) ?? s.itemName;
+}
+
+/**
+ * 부위 묶음의 공통 이름(헤더용). 한우만이면 '한우 안심', 한우·수입이 섞이면 '소고기 갈비',
+ * 수입만이면 '수입 소고기 갈비살', 돼지는 '돼지고기 삼겹살'. 묶음이 아니면 null.
+ */
+function cutTitle(siblings: PriceItem[]): string | null {
+  if (siblings.length < 2) return null;
+  const codes = new Set(siblings.map((s) => s.itemCode));
+  const animal = codes.has('4301')
+    ? codes.size > 1
+      ? '소고기'
+      : '한우'
+    : codes.has('4401')
+      ? '수입 소고기'
+      : '돼지고기';
+  return `${animal} ${stripUnitParen(siblings[0].kindName)}`;
 }
 
 /** main-header type=detail — back + 제목 + 관심(heart). 하트 상호작용은 FavoriteHeart 공용. */

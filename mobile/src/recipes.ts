@@ -7,7 +7,8 @@ import { recipeSlug } from './recipeSlug';
 
 export { recipeSlug };
 
-export type Ingredient = { name: string; amount: string };
+/** raw = 식약처 원문 재료명('쇠고기등심'). 워커가 name을 '소고기'로 줄이므로 부위는 raw에만 남는다. */
+export type Ingredient = { name: string; amount: string; raw?: string };
 export type Recipe = {
   title: string;
   ingredients: Ingredient[];
@@ -22,7 +23,11 @@ export type Recipe = {
 
 const normalize = (r: any): Recipe => ({
   title: String(r?.title ?? ''),
-  ingredients: (r?.ingredients ?? []).map((x: any) => ({ name: String(x?.name ?? ''), amount: String(x?.amount ?? '') })),
+  ingredients: (r?.ingredients ?? []).map((x: any) => ({
+    name: String(x?.name ?? ''),
+    amount: String(x?.amount ?? ''),
+    ...(x?.raw ? { raw: String(x.raw) } : {}),
+  })),
   condiments: (r?.condiments ?? []).map((x: any) => ({ name: String(x?.name ?? ''), amount: String(x?.amount ?? '') })),
   steps: (r?.steps ?? []).map(String),
   note: String(r?.note ?? ''),
@@ -113,7 +118,47 @@ const KAMIS_ALIAS: Record<string, string> = {
   '다진 마늘': '깐마늘',
   다진마늘: '깐마늘',
   마늘: '깐마늘',
+  // 부위를 알 수 없는 '소고기'의 기본값. 부위가 원문에 있으면 cutTarget()이 먼저 고른다.
+  // 레시피 소고기는 떡갈비·만두·찜용(다짐육)이 대부분이라 설도, 등급은 가운데인 1+.
+  // includes('한우')로 두면 목록 첫 줄 '한우 안심 1++등급' — 가장 비싼 부위·등급 — 이 잡혔다(2026-10-16).
+  소고기: '한우 설도 1+등급',
+  쇠고기: '한우 설도 1+등급',
 };
+
+/**
+ * 원문 재료명의 부위 → KAMIS 품목명. 위에서부터 첫 일치.
+ * 식약처 원문 예(2026-10-16 표본): '쇠고기등심', '소고기 우둔살', '다진소고기', '소고기(살치살', '돼지고기(사태'.
+ * KAMIS에 없는 부위는 용도가 가장 가까운 부위로 — 살치·채끝→등심, 사태·차돌·국거리→양지,
+ * 우둔·홍두깨·다짐육·불고기·장조림→설도(기본값). 레시피엔 등급이 없어 한우는 1+등급으로 둔다.
+ */
+const CUT_RULES: Record<string, [RegExp, string][]> = {
+  // 다짐육을 맨 앞에 — 원문이 '떡갈비 : 다진소고기'처럼 요리명을 달고 오면 '갈비'에 먼저 걸린다.
+  소고기: [
+    [/다진|갈은|분쇄/, '한우 설도 1+등급'],
+    [/안심/, '한우 안심 1+등급'],
+    [/등심|채끝|살치/, '한우 등심 1+등급'],
+    [/갈비/, '한우 갈비 1+등급'],
+    [/양지|사태|차돌|국거리/, '한우 양지 1+등급'],
+  ],
+  돼지고기: [
+    [/다진|갈은|분쇄/, '돼지고기 앞다리'],
+    [/삼겹/, '돼지고기 삼겹살'],
+    [/목살|목심/, '돼지고기 목심'],
+    [/갈비/, '돼지고기 갈비'],
+  ],
+};
+/**
+ * 원문이 그냥 '소고기'일 때 요리 이름으로 부위를 정한다. 원문 규칙이 먼저다.
+ * 2026-10-16 새우와스테이크: 원문 '소고기(120g)'라 기본값 설도로 갔다 — 스테이크는 등심이다.
+ * 제목엔 원문 규칙을 쓰지 않는다. '떡갈비'가 '갈비'에 걸린다.
+ */
+const TITLE_RULES: Record<string, [RegExp, string][]> = {
+  소고기: [[/스테이크/, '한우 등심 1+등급']],
+};
+function cutTarget(name: string, raw: string | undefined, title: string | undefined): string | null {
+  const byRaw = raw ? CUT_RULES[name]?.find(([re]) => re.test(raw))?.[1] : undefined;
+  return byRaw ?? (title ? TITLE_RULES[name]?.find(([re]) => re.test(title))?.[1] : undefined) ?? null;
+}
 
 /** 레시피 이미지(번들). key 없으면 히어로, 숫자면 단계 이미지, 'ingredients'면 재료모음. (없으면 undefined) */
 export function recipeImage(title: string, key?: number | 'ingredients'): number | undefined {
@@ -133,8 +178,11 @@ export function recipeStep(r: Recipe, i: number): ImageSourcePropType | undefine
 
 /** 재료명을 라이브 KAMIS 품목과 매칭 (신호가 있는 품목만). 별칭 보정 + 정확일치 우선 → 부분일치 폴백.
  *  정확일치를 먼저 보는 이유: "파"가 양파·파프리카에 부분포함되는 등의 오매칭 방지. */
-export function findItem(items: PriceItem[], name: string): PriceItem | undefined {
+export function findItem(items: PriceItem[], name: string, raw?: string, title?: string): PriceItem | undefined {
   const live = (i: PriceItem) => i.level != null;
+  const cut = cutTarget(name, raw, title);
+  const byCut = cut ? items.find((i) => i.itemName === cut && live(i)) : undefined;
+  if (byCut) return byCut;
   const q = KAMIS_ALIAS[name] ?? name;
   // 정확 일치를 재료명·별칭 순으로 먼저. includes는 마지막 — '파'가 '양파'에, '호박'이 '애호박'에
   // 걸리는 식이라 정확 일치가 있는데도 먼저 돌면 엉뚱한 품목을 집는다.
