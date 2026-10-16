@@ -18,7 +18,9 @@ name: Build baselines
 #      2026-07~08에 실제로 겪었다. 없으면 그때 앱 홈이 통째로 빈다.
 #   ② 월별 계절 패턴(normalMonths)의 유일한 출처 — dpr7은 요청 날짜 하나의 값뿐이라
 #      12개월 곡선을 KAMIS로 만들려면 90품목 × 12~365회를 물어야 한다.
-#      (소비처: 품목 상세의 '가격이 오르는 시기' 문단 — gen-seo.mjs가 seo.gen.ts의 normalMonths로 굽는다)
+#      gen-seo.mjs가 seo.gen.ts의 normalMonths로 굽는다. [2026-10-16] 이걸 쓰던 화면
+#      ('가격이 오르는 시기' 문단)은 제거됐다 — 품목마다 있고 없고가 갈려 들쭉날쭉했다.
+#      그래서 지금 normalMonths도 소비처가 없다. ①(보험)만으로 이 워크플로를 유지하는 중이다.
 #
 # 비용: 주 1회 실행 + 산출물 337KB. 자세한 경위는 mobile/scripts/build-baselines.mjs 헤더.
 #
