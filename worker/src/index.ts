@@ -381,10 +381,17 @@ const NOT_TOKEN: Record<string, RegExp> = {
 /** 품목명이 안 들어간 부위 이름 — '삼겹살(100g)'은 '돼지'가 없어 아무 품목에도 안 잡혔다(2026-10-16 삼겹선). */
 const ALSO_TOKEN: Record<string, RegExp> = {
   돼지고기: /삼겹|목살/,
+  소고기: /쇠고기|소갈비|소불고기|차돌|우둔|홍두깨/,
 };
+/**
+ * 재료명에서 별칭으로 찾지 않는 품목. '소'는 KAMIS 품목명이라 시세 조회(levelOf)엔 필요하지만,
+ * 재료명에서 한 글자로 찾으면 소금·소스·채소를 잡는다. 예외를 NOT_TOKEN에 하나씩 더하는 방식은
+ * 2026-10-16 재생성 직후 '새싹채소'가 또 소고기가 되며 무너졌다. 원문은 늘 '소고기'·'쇠고기'를 쓴다.
+ */
+const NO_ALIAS_IN_NAME = new Set(['소고기']);
 function trackedToken(name: string): string | null {
   for (const t of ALLOWED_BY_LEN) {
-    const q = ALIAS[t] ?? t;
+    const q = NO_ALIAS_IN_NAME.has(t) ? t : (ALIAS[t] ?? t);
     const hit = name.includes(t) || name.includes(q) || ALSO_TOKEN[t]?.test(name);
     if (hit && !NOT_TOKEN[t]?.test(name)) return t;
   }
