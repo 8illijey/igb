@@ -166,7 +166,8 @@ function HeroVerdictCard({ item, view, animatePrice = false }: { item: PriceItem
   return (
     <Link href={`/item/${itemKey(item)}`} asChild>
     <Pressable
-      style={({ pressed }) => StyleSheet.flatten([styles.heroCard, pressed && { opacity: 0.85 }])}
+      // 함수형 style은 쓰지 마라 — Link asChild가 웹에서 함수를 버려 카드 배경·여백이 통째로 빠진다(2026-10-17).
+      style={styles.heroCard}
       accessibilityLabel={`${item.itemName} 시세 자세히 보기`}
     >
       <View style={styles.heroTopRow}>
@@ -174,15 +175,17 @@ function HeroVerdictCard({ item, view, animatePrice = false }: { item: PriceItem
         <Text style={styles.captionGrey}>오늘 · KAMIS 소매</Text>
       </View>
 
-      {/* Figma: 평가문구는 카드 상단 풀폭.
-          줄바꿈을 강제하지 않는다 — 좀은 화면에선 앞 문장이 한 번 더 접혀
-          '평균보다 / (빈줄) / 39% 싸요'처럼 떨어졌다(2026-08-24 아이폰 제보).
-          그냥 흐르게 두면 폭에 맞춰 알아서 나뉩다. */}
-      <Text style={styles.verdict}>
-        오늘은 {item.itemName}
-        {subjectParticle(item.itemName)} {view.baseLabel}보다{' '}
-        <Text style={{ color: c.main, textDecorationLine: 'underline' }}>{verdictTail}</Text>
-      </Text>
+      {/* Figma: 평가문구는 카드 상단 풀폭, '…평균보다' / '46% 싸요' 두 줄.
+          판정어는 '\n'이 아니라 별도 블록으로 내린다 — 한 Text 안에서 '보다 \n'으로 끊으면
+          좁은 화면에서 줄 끝 공백이 한 번 더 접혀 '평균보다 / (빈줄) / 39% 싸요'가 됐다(2026-08-24 아이폰 제보).
+          앞 문장은 길면 폭에 맞춰 알아서 접힌다. */}
+      <View>
+        <Text style={styles.verdict}>
+          오늘은 {item.itemName}
+          {subjectParticle(item.itemName)} {view.baseLabel}보다
+        </Text>
+        <Text style={[styles.verdict, { color: c.main, textDecorationLine: 'underline' }]}>{verdictTail}</Text>
+      </View>
 
       <View style={styles.heroMediaRow}>
         {/* Figma hero-verdict-card: 좌측 1:1 썸네일 (없으면 bgTertiary placeholder) */}
