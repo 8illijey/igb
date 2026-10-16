@@ -134,6 +134,90 @@ async function fetchRegionalRows(item, cls = '01') {
   return [];
 }
 
+// ── 고기(축산) 지역값 — 축산물품질평가원 '일자별 축산물소비자가격'(17개 시·도) ──
+//
+// 왜 따로인가 (2026-10-16 실측): KAMIS periodProductList는 축산을 '평균·평년·전국' 3행으로만 준다.
+// 도시를 고르면 고기는 늘 전국값+'조사 안 함' 안내였다. 축평원 API는 같은 조사의 시·도 값을 준다
+// (전국 평균이 KAMIS와 일치: 등심 1+ 14,104 · 삼겹살 2,864 · 호주산 갈비 4,300).
+//
+// 기준은 다른 품목과 같다 — 그 지역 오늘가 vs 지난 WINDOW_DAYS일 평균. 축평원의 지역 '평년'은 KAMIS 평년과
+// 숫자가 달라(등심 1+ 11,929 vs 11,646) 한 앱에 섞으면 같은 말에 다른 숫자가 된다. 그래서 쓰지 않는다.
+//
+// 호출: 축종 하나 × 하루 = 1회(그날 전 부위·등급·17개 시·도). 축종 7 × 28일 ≈ 200회. 개발계정 하루 1,000회.
+// 1++등급은 이 API에 없다 → 그 키는 지역 파일에 없고, 앱이 전국값+안내로 폴백한다.
+// 산출: regions[도시][키] = { level, today, recentAvg, s: 가격열, sido?: 빌려 쓴 시·도 } + meatDates(가격열의 날짜).
+//   s는 상세 '최근 시세' 차트용 — 고기는 KAMIS에서 그 도시 시계열을 라이브로 받을 수 없다.
+const EKAPE_BASE = 'http://data.ekape.or.kr/openapi-data/service/user/grade/consumerPriceDaily';
+const MEAT_KINDS = ['4301', '4304', '4401', '4402', '9901', '9903', '9908'];
+// 응답의 regionPrc1~17 순서(활용가이드 v2.9)
+const SIDO = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
+// 22개 조사도시 → 그 도시가 속한 시·도. 광역시·세종·제주는 자기 이름 그대로.
+const CITY_SIDO = {
+  수원: '경기', 성남: '경기', 고양: '경기', 용인: '경기', 춘천: '강원', 강릉: '강원',
+  청주: '충북', 천안: '충남', 전주: '전북', 순천: '전남', 포항: '경북', 안동: '경북', 창원: '경남',
+};
+// 축평원 grdNm → 우리 키의 rankCode(kamis.ts GRADED). 등급·원산지 없는 품목은 '구분없음'·'일반란'.
+const MEAT_RANK = { '1++등급': '01', '1+등급': '02', '1등급': '03', 미국산: '81', 호주산: '82' };
+
+function ekapeKey() {
+  if (process.env.EKAPE_KEY) return process.env.EKAPE_KEY.trim();
+  try { return fs.readFileSync(new URL('../ekape-key.txt', import.meta.url), 'utf8').trim(); } catch { return ''; }
+}
+
+async function addMeat(regions, knownKeys) {
+  const key = ekapeKey();
+  if (!key) throw new Error('EKAPE_KEY 없음');
+  const { itemKeyOf } = await import(new URL('../src/api/kamis.ts', import.meta.url).href);
+  const field = (xml, f) => (xml.match(new RegExp(`<${f}>([^<]*)</${f}>`)) || [])[1];
+
+  // byKey[키][시·도][YYYY-MM-DD] = 가격
+  const byKey = {};
+  const dates = new Set();
+  let calls = 0;
+  for (let back = WINDOW_DAYS - 1; back >= 0; back--) {
+    const d = new Date(); d.setDate(d.getDate() - back);
+    const ymd = fmtDate(d).replace(/-/g, '');
+    for (const jk of MEAT_KINDS) {
+      calls += 1;
+      const xml = await (await fetchT(`${EKAPE_BASE}?serviceKey=${encodeURIComponent(key)}&standYmd=${ymd}&judgeKind=${jk}`)).text();
+      const code = field(xml, 'resultCode');
+      if (code && code !== '00') throw new Error(`축평원 응답 ${code} ${field(xml, 'resultMsg') ?? ''}`);
+      for (const [, row] of xml.matchAll(/<item>(.*?)<\/item>/gs)) {
+        const day = field(row, 'standYmd') ?? '';
+        if (!/^\d{8}$/.test(day)) continue; // '평년' 행은 버린다
+        const k = itemKeyOf({ itemCode: jk, kindCode: field(row, 'itemCd') ?? '', rankCode: MEAT_RANK[field(row, 'grdNm')] ?? '' });
+        if (!knownKeys.has(k.split('-').slice(0, 2).join('-'))) continue; // 앱에 없는 부위(척아이롤 등)
+        const date = `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6)}`;
+        SIDO.forEach((sido, i) => {
+          const p = parsePrice(field(row, `regionPrc${i + 1}`));
+          if (p == null) return;
+          ((byKey[k] ??= {})[sido] ??= {})[date] = p;
+          dates.add(date);
+        });
+      }
+    }
+  }
+  const meatDates = [...dates].sort();
+  let n = 0;
+  for (const city of CITIES) {
+    const sido = CITY_SIDO[city] ?? city;
+    for (const [k, bySido] of Object.entries(byKey)) {
+      const pts = bySido[sido];
+      if (!pts) continue;
+      const s = meatDates.map((dt) => pts[dt] ?? null);
+      const vals = s.filter((v) => v != null);
+      const today = vals[vals.length - 1];
+      const recentAvg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+      const level = judge(today, recentAvg);
+      if (!level) continue;
+      regions[city][k] = { level, today, recentAvg, s, ...(sido !== city ? { sido } : {}) };
+      n += 1;
+    }
+  }
+  console.log(`  고기 지역값: ${Object.keys(byKey).length}개 품목 × 22개 도시 = ${n}건 (축평원 호출 ${calls}회, ${meatDates.length}일)`);
+  return meatDates;
+}
+
 (async () => {
   if (!process.env.KAMIS_PROXY && (!KEY || !ID)) throw new Error('KAMIS 키 없음 (.env 또는 KAMIS_PROXY)');
   const { reps, priceDate } = await fetchReps();
@@ -173,7 +257,16 @@ async function fetchRegionalRows(item, cls = '01') {
   const filled = Object.values(regions).reduce((n, m) => n + Object.keys(m).length, 0);
   if (filled === 0) { console.error('지역 판정 0건 — KAMIS 응답 확인. 기존 파일 보존.'); process.exit(1); }
 
-  const payload = { generatedAt: new Date().toISOString(), date: priceDate, windowDays: WINDOW_DAYS, regions };
+  // 고기는 KAMIS가 도시별로 안 준다 — 축산물품질평가원 시·도 값으로 채운다. 실패해도 나머지는 그대로 낸다.
+  const meatDates = await addMeat(regions, new Set(reps.map((r) => `${r.itemCode}-${r.kindCode}`))).catch((e) => {
+    console.warn(`  고기 지역값 건너뜀 — ${e.message}`);
+    return null;
+  });
+
+  const payload = {
+    generatedAt: new Date().toISOString(), date: priceDate, windowDays: WINDOW_DAYS, regions,
+    ...(meatDates ? { meatDates } : {}),
+  };
   const dir = new URL('../public/', import.meta.url);
   fs.mkdirSync(dir, { recursive: true });
   const out = path.join(dir.pathname, 'verdicts-regional.json');

@@ -96,6 +96,8 @@ jobs:
         continue-on-error: true
         env:
           KAMIS_PROXY: https://igeobissa-recipes.designerxyzi.workers.dev/kamis
+          # 고기 지역값(축산물품질평가원, 회차당 ~200회 — 개발계정 하루 1,000회). 시크릿이 없으면 고기만 건너뛴다.
+          EKAPE_KEY: ${{ secrets.EKAPE_KEY }}
         run: node scripts/build-verdicts-regional.mjs
       - name: Commit
         run: |

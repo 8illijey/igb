@@ -112,6 +112,13 @@ export interface RegionalVerdict {
   today: number | null;
   /** 그 지역 최근 N일(windowDays) 평균 — 판정·표시 기준선 */
   recentAvg: number | null;
+  /**
+   * 고기만 — 축산물품질평가원 시·도 값(2026-10-16). KAMIS가 고기를 도시별로 안 줘서 상세 차트용 가격열을
+   * 같이 싣는다(날짜는 payload.meatDates와 같은 순서, 조사 없는 날은 null).
+   */
+  s?: (number | null)[];
+  /** 그 도시가 아니라 속한 시·도 값을 빌려 썼을 때 그 이름(수원 → '경기'). */
+  sido?: string;
 }
 /** 도시명 → (itemCode-kindCode → RegionalVerdict) */
 export type RegionalVerdicts = Record<string, Record<string, RegionalVerdict>>;
@@ -127,6 +134,8 @@ const REGIONAL_URLS = [
 export interface RegionalPayload {
   regions: RegionalVerdicts;
   windowDays: number | null;
+  /** 고기 가격열(s)의 날짜(YYYY-MM-DD). 고기 지역값이 없는 파일이면 null. */
+  meatDates: string[] | null;
 }
 
 async function fetchRegional(): Promise<RegionalPayload> {
@@ -137,20 +146,24 @@ async function fetchRegional(): Promise<RegionalPayload> {
       const j = await r.json();
       const regions = (j?.regions ?? {}) as RegionalVerdicts;
       if (Object.keys(regions).length) {
-        return { regions, windowDays: typeof j?.windowDays === 'number' ? j.windowDays : null };
+        return {
+          regions,
+          windowDays: typeof j?.windowDays === 'number' ? j.windowDays : null,
+          meatDates: Array.isArray(j?.meatDates) ? (j.meatDates as string[]) : null,
+        };
       }
     } catch {
       // 다음 소스로
     }
   }
-  return { regions: {}, windowDays: null };
+  return { regions: {}, windowDays: null, meatDates: null };
 }
 
 let regionalCache: Promise<RegionalPayload> | null = null;
 
 /** 지역 판정. enabled=false(전국)면 받지 않는다 — 전국 사용자에겐 80KB를 안 내려준다. */
 export function useRegionalVerdicts(enabled: boolean): RegionalPayload {
-  const [m, setM] = useState<RegionalPayload>({ regions: {}, windowDays: null });
+  const [m, setM] = useState<RegionalPayload>({ regions: {}, windowDays: null, meatDates: null });
   useEffect(() => {
     if (!enabled) return;
     let alive = true;

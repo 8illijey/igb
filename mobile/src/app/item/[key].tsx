@@ -327,7 +327,7 @@ export default function ItemDetailScreen() {
 
   const verdicts = useVerdicts();
   const verdictsDate = useVerdictsDate();
-  const { regions: regional, windowDays } = useRegionalVerdicts(region !== NATIONWIDE);
+  const { regions: regional, windowDays, meatDates } = useRegionalVerdicts(region !== NATIONWIDE);
   const rawActive = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
   // 라이브 사다리가 주말을 건너뛰어 일주일 전 값을 줄 때가 있다 → 더 최신인 쪽을 고른다.
   // 왜·언제 그런지는 api/pickFresher.ts 헤더에 실측과 함께 적어 두었다.
@@ -554,15 +554,31 @@ export default function ItemDetailScreen() {
   // [2026-10-16 실측] 소매 미조사면 유기농도 늘 미조사, 도매는 3건만 예외(대구 망고(수입), 대전 쌀 20kg·쥬키니)
   // — 그 3건은 도매 탭이 그 도시 값인데 배너가 남는다. 나중에 처리하기로 함.
   // ponytail: 지역 파일 요청이 실패해도 windowDays가 없어 안 뜬다. 품목 행만 빠진 경우만 '조사 안 함'으로 읽는다.
+  const regRow = region !== NATIONWIDE ? regional[region]?.[vKey] : undefined;
   const regionNote =
-    region !== NATIONWIDE && windowDays != null && regional[region]?.[vKey]?.today == null
+    region !== NATIONWIDE && windowDays != null && regRow?.today == null
       ? `${region}에선 이 품목의 가격을 조사하지 않아, 전국 평균을 보여드려요.`
-      : null;
+      : // 고기는 시·도 단위 조사라 수원·춘천 등은 속한 도의 값을 쓴다 — 말없이 쓰면 그 도시 값으로 믿는다.
+        regRow?.sido
+        ? `${region}${topicParticle(region)} ${regRow.sido} 평균 가격을 보여드려요.`
+        : null;
+  // 고기 지역 차트는 지역 파일에 미리 담겨 있다 — KAMIS는 고기 도시 시계열을 안 줘서 라이브로 못 받는다.
+  const preRegChart = useMemo<SeriesPoint[] | null>(() => {
+    if (market !== 'retail' || !rv?.s || !meatDates) return null;
+    return meatDates.flatMap((d, i) => {
+      const price = rv.s![i];
+      return price == null ? [] : [{ date: d.slice(5).replace('-', '/'), year: d.slice(0, 4), price }];
+    });
+  }, [market, rv, meatDates]);
 
   // 지역 '최근 시세' 차트 — 그 도시 시계열을 라이브로 받는다(28일). 전국 경로는 그대로 둔다.
   useEffect(() => {
     if (!fetchRegChart || !active) {
       setRegionalChart(null);
+      return;
+    }
+    if (preRegChart) {
+      setRegionalChart(preRegChart);
       return;
     }
     let alive = true;
@@ -573,7 +589,7 @@ export default function ItemDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [fetchRegChart, region, active?.itemCode, active?.kindCode, cls, windowDays]);
+  }, [fetchRegChart, region, active?.itemCode, active?.kindCode, cls, windowDays, preRegChart]);
   // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
   const chartReady = chartDisplay != null;
   // 데이터가 없는 탭은 아예 안 그린다 — 눌렀을 때 빈 안내문만 뜨면 버그처럼 보인다.
