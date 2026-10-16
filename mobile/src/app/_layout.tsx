@@ -7,6 +7,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { FavoritesProvider } from '../store/favorites';
 import { PricesProvider } from '../store/prices';
 import { RecentSearchesProvider } from '../store/recentSearches';
+import { RegionProvider } from '../store/region';
 import { colors } from '../theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -43,6 +44,7 @@ export default function RootLayout() {
     <PricesProvider>
       <FavoritesProvider>
         <RecentSearchesProvider>
+        <RegionProvider>
         <StatusBar style="dark" />
         {/* 웹: 바깥 여백(gutter) 옅은 회색 + 폰 폭(min 375 / max 480) 흰 프레임 가운데. 네이티브는 기기 폭 그대로. */}
         <View style={styles.gutter}>
@@ -60,6 +62,7 @@ export default function RootLayout() {
             </Stack>
           </View>
         </View>
+        </RegionProvider>
         </RecentSearchesProvider>
       </FavoritesProvider>
     </PricesProvider>

@@ -89,11 +89,19 @@ jobs:
         working-directory: mobile
         # kamis.ts는 워커 URL이 하드코딩돼 있어 KAMIS_PROXY가 필요 없다.
         run: node scripts/gen-seo.mjs
+      # 지역(22개 조사도시) 판정 — 홈·상세의 지역 선택용. ~2분.
+      # 실패해도 전국 판정 갱신을 막지 않는다 — 스크립트는 0건이면 기존 파일을 그대로 두고 끝난다.
+      - name: Build regional verdicts
+        working-directory: mobile
+        continue-on-error: true
+        env:
+          KAMIS_PROXY: https://igeobissa-recipes.designerxyzi.workers.dev/kamis
+        run: node scripts/build-verdicts-regional.mjs
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add mobile/public/verdicts.json mobile/public/series.json mobile/src/seo.gen.ts mobile/src/snapshot.gen.ts mobile/public/robots.txt mobile/public/sitemap.xml mobile/public/llms.txt
+          git add mobile/public/verdicts.json mobile/public/verdicts-regional.json mobile/public/series.json mobile/src/seo.gen.ts mobile/src/snapshot.gen.ts mobile/public/robots.txt mobile/public/sitemap.xml mobile/public/llms.txt
           git commit -m "chore: update verdicts $(date -u +%F)" || { echo "변동 없음"; exit 0; }
           # 빌드 도는 15분 사이 main에 다른 커밋이 오면 push가 거부된다(2026-08-28 실사고) — 리베이스로 흡수.
           # 생성 파일이 충돌하면 새 빌드가 이긴다(-X theirs: rebase에선 재적용되는 우리 커밋이 theirs).

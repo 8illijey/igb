@@ -102,3 +102,63 @@ export function useVerdictsDate(): string | null {
   }, []);
   return d;
 }
+
+// ── 지역별 판정 (scripts/build-verdicts-regional.mjs) ──
+// 평년(dpr7)은 어느 지역이든 전국 단일값이라 지역 기준선으로 못 쓴다(2026-10 라이브 확인).
+// 그래서 지역은 '그 지역 최근 평균'(recentAvg, 기본 28일) 한 기준으로만 판정한다. 전국은 기존 평년+최근 그대로.
+// 지역/품목이 없으면 앱이 전국 verdicts로 폴백한다.
+export interface RegionalVerdict {
+  level: SignalLevel;
+  today: number | null;
+  /** 그 지역 최근 N일(windowDays) 평균 — 판정·표시 기준선 */
+  recentAvg: number | null;
+}
+/** 도시명 → (itemCode-kindCode → RegionalVerdict) */
+export type RegionalVerdicts = Record<string, Record<string, RegionalVerdict>>;
+
+const REGIONAL_URLS = [
+  typeof document !== 'undefined'
+    ? '/verdicts-regional.json'
+    : 'https://igeobissa.com/verdicts-regional.json',
+  'https://raw.githubusercontent.com/8illijey/igb/main/mobile/public/verdicts-regional.json',
+];
+
+/** 지역 판정 한 벌 — 도시별 판정 + 기준선 창(windowDays, '최근 N일 평균' 라벨에 쓴다). */
+export interface RegionalPayload {
+  regions: RegionalVerdicts;
+  windowDays: number | null;
+}
+
+async function fetchRegional(): Promise<RegionalPayload> {
+  for (const url of REGIONAL_URLS) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      const regions = (j?.regions ?? {}) as RegionalVerdicts;
+      if (Object.keys(regions).length) {
+        return { regions, windowDays: typeof j?.windowDays === 'number' ? j.windowDays : null };
+      }
+    } catch {
+      // 다음 소스로
+    }
+  }
+  return { regions: {}, windowDays: null };
+}
+
+let regionalCache: Promise<RegionalPayload> | null = null;
+
+/** 지역 판정. enabled=false(전국)면 받지 않는다 — 전국 사용자에겐 80KB를 안 내려준다. */
+export function useRegionalVerdicts(enabled: boolean): RegionalPayload {
+  const [m, setM] = useState<RegionalPayload>({ regions: {}, windowDays: null });
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    if (!regionalCache) regionalCache = fetchRegional();
+    regionalCache.then((x) => alive && setM(x));
+    return () => {
+      alive = false;
+    };
+  }, [enabled]);
+  return m;
+}

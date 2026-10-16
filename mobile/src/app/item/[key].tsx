@@ -13,6 +13,7 @@ import {
   fetchEcoSeasonalBaseline,
   fetchMarketPrices,
   fetchSeries,
+  fetchRegionalSeries,
   judge,
   labelOf,
   stripUnitParen,
@@ -25,8 +26,11 @@ import Head from 'expo-router/head';
 import { SEO_BUILD_DAY, SEO_BY_KEY, SEO_ITEMS, type SeoItem } from '../../seo.gen';
 import { usePrecomputedSeries } from '../../api/series';
 import { pickFresher } from '../../api/pickFresher';
-import { useVerdicts, useVerdictsDate } from '../../api/verdicts';
+import { useVerdicts, useVerdictsDate, useRegionalVerdicts } from '../../api/verdicts';
+import { useRegion } from '../../store/region';
+import { NATIONWIDE } from '../../data/regions';
 import { EmptyState } from '../../components/igb/EmptyState';
+import { RegionNote } from '../../components/igb/RegionNote';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { Tabs } from '../../components/igb/Tabs';
 import { Tooltip } from '../../components/igb/Tooltip';
@@ -264,17 +268,20 @@ export default function ItemDetailScreen() {
   const [market, setMarket] = useState<Market>('retail');
   const [chart28, setChart28] = useState<SeriesPoint[] | null>(null); // 28일 — 차트 표시용. 가벼워 빠름(~3s)
   const [yearSeries, setYearSeries] = useState<SeriesPoint[] | null>(null); // 365일 — 최근1년 평균·연간 흐름 폴백. verdicts 없을 때만(무거움 ≈27s).
+  const [regionalChart, setRegionalChart] = useState<SeriesPoint[] | null>(null); // 지역 선택 시 '최근 시세'의 그 도시 시계열(라이브)
   const [markets, setMarkets] = useState<MarketPrice[] | null>(null);
   const [wsItem, setWsItem] = useState<PriceItem | null | undefined>(undefined);
   const [eco, setEco] = useState<EcoData | null | undefined>(undefined);
   const [ecoBaseline, setEcoBaseline] = useState<{ avg: number; count: number } | null | undefined>(undefined); // 친환경 '이맘때 평균'(최근 2년). undefined=로딩, null=데이터없음
 
   // 품목이 바뀌면 도매·유기농 상태 초기화 — 안 하면 이전 품목의 옛 화면이 남아 잠깐 뜬다(#5).
+  // 지역이 바뀔 때도 — 유기농을 그 도시 것으로 다시 받아야 한다.
+  const { region } = useRegion();
   useEffect(() => {
     setWsItem(undefined);
     setEco(undefined);
     setEcoBaseline(undefined);
-  }, [key]);
+  }, [key, region]);
 
   // 축산(500)은 KAMIS가 도매를 아예 조사하지 않는데, 빈 응답이나 에러 대신 '소매 응답을 그대로' 돌려준다.
   // 2026-08-20 확인: 축산 17행 전부 cls=01과 가격·단위가 완전히 동일했다
@@ -310,16 +317,17 @@ export default function ItemDetailScreen() {
   );
   useEffect(() => {
     if (market !== 'eco' || eco !== undefined || !item) return;
-    fetchEco(item, ecoAllowItemLevel)
+    fetchEco(item, ecoAllowItemLevel, region !== NATIONWIDE ? region : undefined)
       .then(setEco)
       .catch(() => setEco(null));
     fetchEcoSeasonalBaseline(item, ecoAllowItemLevel)
       .then(setEcoBaseline)
       .catch(() => setEcoBaseline(null));
-  }, [market, eco, item, ecoAllowItemLevel]);
+  }, [market, eco, item, ecoAllowItemLevel, region]);
 
   const verdicts = useVerdicts();
   const verdictsDate = useVerdictsDate();
+  const { regions: regional, windowDays } = useRegionalVerdicts(region !== NATIONWIDE);
   const rawActive = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
   // 라이브 사다리가 주말을 건너뛰어 일주일 전 값을 줄 때가 있다 → 더 최신인 쪽을 고른다.
   // 왜·언제 그런지는 api/pickFresher.ts 헤더에 실측과 함께 적어 두었다.
@@ -517,6 +525,55 @@ export default function ItemDetailScreen() {
   //   · 도매: 사전계산이 없는 축산·유제품 6개(소·돼지·수입소·수입돼지·계란·우유)
   //   · 소매: KAMIS가 평년(dpr7)을 안 주는 품종 — 2026-09-21에 도매와 같은 규칙으로 맞췄다.
   const signalHidden = !recReady && active?.today != null;
+
+  // ── 지역 덮기 — 전국이 아니고 그 도시 값이 있으면 오늘가·판정·기준선을 그 지역 값으로.
+  // 평년은 전국 고정이라 지역 기준선은 '그 지역 최근 평균'. 지역 데이터 없으면 전국 그대로.
+  //  · 소매: 사전계산(verdicts-regional.json) — 홈 카드와 같은 숫자여야 하므로.
+  //  · 도매: 홈에 안 나와 사전계산이 없다. 아래 차트용 그 도시 28일 시계열에서 바로 계산한다
+  //    (빌드 스크립트와 같은 정의: 최신 조사가 vs 창 평균). KAMIS 도매는 5개 도시만 조사한다.
+  const regWanted = region !== NATIONWIDE && market !== 'eco';
+  const rv = regWanted && market === 'retail' ? regional[region]?.[vKey] : undefined;
+  const fetchRegChart = regWanted && (market === 'wholesale' || (!!rv && rv.today != null));
+  const wsRv = useMemo(() => {
+    if (market !== 'wholesale' || !regionalChart?.length) return undefined;
+    const prices = regionalChart.map((p) => p.price);
+    return { today: prices[prices.length - 1], recentAvg: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) };
+  }, [market, regionalChart]);
+  const rr = market === 'wholesale' ? wsRv : rv;
+  const regOn = !!rr && rr.today != null;
+  const dToday = regOn ? rr!.today : active?.today ?? null;
+  const dBaseline = regOn ? rr!.recentAvg : baseline;
+  const dBaseLabel = regOn ? `지난 ${windowDays ?? 28}일 평균` : '이맘때 평균';
+  const dBuy = regOn ? evalBuy(rr!.today!, rr!.recentAvg) : buy;
+  const dLevel: SignalLevel = dBuy ? dBuy.level : displayLevel;
+  const dRecReady = regOn ? dBuy != null : recReady;
+  const dSignalHidden = regOn ? !dRecReady && rr!.today != null : signalHidden;
+  // 그 도시가 이 품목의 소매 가격을 조사하지 않으면 — 말없이 바꾸면 전국 값을 그 도시 값으로 믿는다(2026-10-16 지적).
+  // 홈 '전국' 묶음과 같은 기준(소매 일반, 지역 파일)이라 홈에서 배너 아래 있던 품목은 상세에서도 똑같이 뜬다.
+  // 소매/도매 탭 위에 두어 어느 탭에서든 보인다(Figma 1211:3105 '지역X').
+  // [2026-10-16 실측] 소매 미조사면 유기농도 늘 미조사, 도매는 3건만 예외(대구 망고(수입), 대전 쌀 20kg·쥬키니)
+  // — 그 3건은 도매 탭이 그 도시 값인데 배너가 남는다. 나중에 처리하기로 함.
+  // ponytail: 지역 파일 요청이 실패해도 windowDays가 없어 안 뜬다. 품목 행만 빠진 경우만 '조사 안 함'으로 읽는다.
+  const regionNote =
+    region !== NATIONWIDE && windowDays != null && regional[region]?.[vKey]?.today == null
+      ? `${region}에선 이 품목의 가격을 조사하지 않아, 전국 평균을 보여드려요.`
+      : null;
+
+  // 지역 '최근 시세' 차트 — 그 도시 시계열을 라이브로 받는다(28일). 전국 경로는 그대로 둔다.
+  useEffect(() => {
+    if (!fetchRegChart || !active) {
+      setRegionalChart(null);
+      return;
+    }
+    let alive = true;
+    setRegionalChart(null);
+    fetchRegionalSeries(active, region, windowDays ?? 28, cls)
+      .then((s) => alive && setRegionalChart(s))
+      .catch(() => alive && setRegionalChart([]));
+    return () => {
+      alive = false;
+    };
+  }, [fetchRegChart, region, active?.itemCode, active?.kindCode, cls, windowDays]);
   // chartReady = 1년 차트 준비 완료(로딩 중이면 스켈레톤). 1년 실패 시 28일 폴백도 chartDisplay가 처리.
   const chartReady = chartDisplay != null;
   // 데이터가 없는 탭은 아예 안 그린다 — 눌렀을 때 빈 안내문만 뜨면 버그처럼 보인다.
@@ -541,11 +598,32 @@ export default function ItemDetailScreen() {
     () => active?.surveyDate ?? latestSurveyDate(market === 'eco' ? eco?.series : chartDisplay),
     [active, market, eco, chartDisplay],
   );
+  // 지역이면 지역 차트(라이브)로, 아니면 기존 전국 차트. 오늘가 앵커도 지역 오늘가로.
+  // 도매는 오늘가가 곧 그 시계열의 마지막 점이라 앵커하지 않는다 — 하면 전국 조사일로 날짜가 바뀐다.
+  const chartFinal = regOn
+    ? regionalChart
+      ? market === 'wholesale'
+        ? regionalChart.slice(-28)
+        : anchor(regionalChart.slice(-28), dToday, surveyDate)
+      : null
+    : chartDisplay;
+  const chartReadyFinal = regOn ? regionalChart != null : chartReady;
+
   // 유기농·무농약 '이맘때 평균'(최근 2년) 대비 신호 — 일반의 평년 대비와 같은 방식(이맘때 평균이 기준).
+  // 지역 유기농은 그 도시 '지난 N일 평균'이 기준 — 지역엔 과거 연도 자료가 없어 2년 '이맘때 평균'을 못 만든다.
+  // 주 1회 발행이라 28일이면 3~4점. 2점 미만이면 기준선·신호를 숨긴다.
+  const ecoRegBase = useMemo(() => {
+    if (!eco?.city) return null;
+    const cut = new Date();
+    cut.setDate(cut.getDate() - (windowDays ?? 28));
+    const cutKey = `${cut.getFullYear()}${String(cut.getMonth() + 1).padStart(2, '0')}/${String(cut.getDate()).padStart(2, '0')}`;
+    const ps = eco.series.filter((p) => `${p.year ?? ''}${p.date}` >= cutKey).map((p) => p.price);
+    return ps.length >= 2 ? { avg: Math.round(ps.reduce((a, b) => a + b, 0) / ps.length), count: ps.length } : null;
+  }, [eco, windowDays]);
+  const ecoBase = eco?.city ? ecoRegBase : ecoBaseline;
+  const ecoBaseLabel = eco?.city ? `지난 ${windowDays ?? 28}일 평균` : '이맘때 평균';
   const ecoSeasonalPct =
-    eco && ecoBaseline && eco.latest != null
-      ? Math.round(((eco.latest - ecoBaseline.avg) / ecoBaseline.avg) * 100)
-      : null;
+    eco && ecoBase && eco.latest != null ? Math.round(((eco.latest - ecoBase.avg) / ecoBase.avg) * 100) : null;
   const ecoLevel: SignalLevel =
     ecoSeasonalPct == null ? 'fair' : ecoSeasonalPct < 0 ? 'cheap' : ecoSeasonalPct > 0 ? 'expensive' : 'fair';
   if (!item) {
@@ -587,6 +665,7 @@ export default function ItemDetailScreen() {
         />
       </GlassHeader>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topH }]}>
+        {regionNote && <RegionNote bleed text={regionNote} />}
         {/* 소매/도매 — 헤더 바로 아래 풀폭 밑줄 탭(content 밖). 헤어라인 full-bleed + 탭 16 인셋 */}
         <View style={styles.marketTabs}>
           {/* 풀블리드 하단 디바이더 — Figma처럼 밑줄 바 '뒤'에 깔린다(활성 바가 자기 칸에서 디바이더를 덮음). */}
@@ -652,7 +731,7 @@ export default function ItemDetailScreen() {
                       <Text style={styles.heroName} numberOfLines={1}>
                         {item.itemName}
                       </Text>
-                      {ecoBaseline && ecoSeasonalPct != null && (
+                      {ecoBase && ecoSeasonalPct != null && (
                         <SignalChip
                           level={ecoLevel}
                           label={
@@ -700,31 +779,31 @@ export default function ItemDetailScreen() {
                     <Text style={styles.heroName} numberOfLines={1}>
                       {heroName}
                     </Text>
-                    {recReady ? (
+                    {dRecReady ? (
                       <SignalChip
-                        level={displayLevel}
+                        level={dLevel}
                         label={
-                          displayLevel === 'cheap'
-                            ? isTopDiscount && market === 'retail'
+                          dLevel === 'cheap'
+                            ? isTopDiscount && market === 'retail' && region === NATIONWIDE
                               ? '할인율 1위'
                               : '저렴해요'
-                            : displayLevel === 'fair'
+                            : dLevel === 'fair'
                               ? '평소 수준이에요'
                               : '비싼 편이에요'
                         }
                       />
-                    ) : signalHidden ? null : (
+                    ) : dSignalHidden ? null : (
                       <Skeleton style={styles.skelChip} />
                     )}
                   </View>
                   <View style={styles.heroPriceBlock}>
                     <Text style={styles.price}>
-                      {won(active.today)}원
+                      {won(dToday)}원
                       <Text style={styles.unit}> / {active.unit}</Text>
                     </Text>
-                    {perUnitCaption(active.itemCode, active.today, active.unit) ? (
+                    {perUnitCaption(active.itemCode, dToday, active.unit) ? (
                       <Text style={styles.heroSub}>
-                        {perUnitCaption(active.itemCode, active.today, active.unit)}
+                        {perUnitCaption(active.itemCode, dToday, active.unit)}
                       </Text>
                     ) : null}
                   </View>
@@ -740,11 +819,13 @@ export default function ItemDetailScreen() {
             <View style={styles.chartCard}>
               <View style={styles.chartLabelRow}>
                 <Text style={styles.chartTitle}>최근 시세</Text>
-                {ecoBaseline && (
-                  <Text style={styles.chartBaseline}>이맘때 평균 {won(ecoBaseline.avg)}원</Text>
+                {ecoBase && (
+                  <Text style={styles.chartBaseline}>
+                    {ecoBaseLabel} {won(ecoBase.avg)}원
+                  </Text>
                 )}
               </View>
-              <Sparkline series={eco.series} baseline={ecoBaseline?.avg ?? null} level={ecoLevel} />
+              <Sparkline series={eco.series} baseline={ecoBase?.avg ?? null} level={ecoLevel} />
             </View>
             <BuySection markets={eco.markets} reference={eco.latest} />
             <ShopSection itemCode={itemKey(item)} itemName={item.itemName} market="eco" />
@@ -761,18 +842,18 @@ export default function ItemDetailScreen() {
               <View style={styles.chartCard}>
                 <View style={styles.chartLabelRow}>
                   <Text style={styles.chartTitle}>최근 시세</Text>
-                  {baseline != null && (
-                    <Text style={styles.chartBaseline}>이맘때 평균 {won(baseline)}원</Text>
+                  {dBaseline != null && (
+                    <Text style={styles.chartBaseline}>{dBaseLabel} {won(dBaseline)}원</Text>
                   )}
                 </View>
-                {/* 차트 데이터(28일 도착) 전엔 스켈레톤. 색은 이미 확정된 추천(displayLevel)을 따른다 */}
-                {!chartReady ? (
+                {/* 차트 데이터 도착 전엔 스켈레톤. 색은 이미 확정된 추천(dLevel)을 따른다 */}
+                {!chartReadyFinal ? (
                   <Skeleton style={styles.skelChart} />
                 ) : (
                   <Sparkline
-                    series={chartDisplay!}
-                    baseline={baseline}
-                    level={recReady ? displayLevel : 'fair'}
+                    series={chartFinal!}
+                    baseline={dBaseline}
+                    level={dRecReady ? dLevel : 'fair'}
                   />
                 )}
                 {/* 날짜축 아래 — '연간 가격 흐름'의 캡션과 같은 자리·같은 스타일.
@@ -790,7 +871,7 @@ export default function ItemDetailScreen() {
               />
             </View>
 
-            <BuySection markets={markets} reference={active.today} />
+            <BuySection markets={markets} reference={dToday ?? active.today} />
 
             {/* 도매 탭엔 쿠팡 섹션을 붙이지 않는다 — 도매가는 가락시장 경락가(유통 마진 이전)라
                 소매가인 쿠팡 상품과 비교 축이 다르고, 조사 단위(10kg·1상자)도 상품 규격과 대응이 안 된다.

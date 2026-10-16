@@ -16,12 +16,16 @@ import {
 } from 'react-native';
 import Reanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { cheapestPerCut, PriceItem, won } from '../../api/kamis';
-import { useVerdicts } from '../../api/verdicts';
+import { useVerdicts, useRegionalVerdicts, type Verdict, type RegionalVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
+import { RegionSheet } from '../../components/igb/RegionSheet';
+import { RegionNote } from '../../components/igb/RegionNote';
+import { useRegion } from '../../store/region';
+import { NATIONWIDE } from '../../data/regions';
 import { SEO_ITEMS } from '../../seo.gen';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
@@ -30,7 +34,45 @@ import { colors, font, radius, signal, SignalLevel, spacing, type } from '../../
 import { OG_DEFAULT_IMAGE } from '../../og';
 import { PrivacyLink } from '../../components/igb/PrivacyLink';
 
-const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
+const CHIP_LABEL = {cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
+
+/**
+ * 한 품목의 '표시 뷰' — 전국/지역에 따라 오늘가·판정·비교기준이 달라진다.
+ * 전국: 오늘 vs 평년('이맘때 평균'). 지역: 오늘 vs 그 지역 최근 평균('최근 평균').
+ * 지역 데이터가 없으면 전국으로 폴백(화면이 깨지지 않게).
+ */
+type ItemView = {
+  today: number | null;
+  level: SignalLevel | null;
+  basePrice: number | null;
+  baseLabel: string;
+  pct: number | null;
+  /** 지역을 골랐는데 그 도시가 이 품목을 조사하지 않아 전국 값으로 대신했다. */
+  nationwide?: boolean;
+};
+function itemView(i: PriceItem, region: string, regional: RegionalVerdicts, verdicts: Record<string, Verdict>): ItemView {
+  const key = itemKey(i);
+  // 도시마다 조사 품목이 다르다(2026-10-16 실측: 춘천은 취청오이·가시오이를 안 하고 쥬키니는 9/2부터 멈춤).
+  // 지역 파일이 아직 안 왔으면(regional[region] 없음) 전국 화면 그대로 — 전 품목에 '전국'이 깜빡이지 않게.
+  let nationwide = false;
+  if (region !== NATIONWIDE && regional[region]) {
+    const rv = regional[region][key];
+    if (rv && rv.today != null) {
+      const pct = rv.recentAvg ? Math.round(((rv.today - rv.recentAvg) / rv.recentAvg) * 100) : null;
+      // 홈 히어로는 '최근 평균'만 — 일수(28일)는 상세 차트에서만 표기.
+      return { today: rv.today, level: rv.level, basePrice: rv.recentAvg, baseLabel: '최근 평균', pct };
+    }
+    nationwide = true; // 그 도시 미조사 → 전국 폴백
+  }
+  return {
+    nationwide,
+    today: i.today,
+    level: verdicts[key]?.level ?? i.level,
+    basePrice: i.normal,
+    baseLabel: '이맘때 평균',
+    pct: i.vsNormalPct ?? null,
+  };
+}
 
 /**
  * 품목 썸네일 — 웹은 순수 <img>. expo-image는 JS 실행 후에만 DOM에 이미지를 만들어
@@ -95,10 +137,11 @@ function PriceChevron() {
 // (전부 BEST면 정보가 0 → 할인율로 카드끼리 구별. 상세 종합판정은 cheap 게이팅이라 모순 안 남)
 
 /** Figma hero-verdict-card 1:1 — level은 사전계산(평년+최근1년) 우선, 없으면 item.level(평년) */
-function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceItem; level: SignalLevel; animatePrice?: boolean }) {
+function HeroVerdictCard({ item, view, animatePrice = false }: { item: PriceItem; view: ItemView; animatePrice?: boolean }) {
+  const level = view.level ?? 'fair';
   const c = signal[level];
-  const shownPrice = useCountUp(item.today, animatePrice);
-  const pct = Math.abs(item.vsNormalPct ?? 0);
+  const shownPrice = useCountUp(view.today, animatePrice);
+  const pct = Math.abs(view.pct ?? 0);
   // 숫자와 판정어 사이는 줄바꿈 안 되는 공백(NBSP).
   // 일반 공백이면 '40% / 싸요'처럼 떨어진다 — word-break: keep-all은 단어 안만 묶고
   // 어절 사이는 그대로 끊기 때문이다(2026-08-25 제보).
@@ -130,7 +173,7 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
           그냥 흐르게 두면 폭에 맞춰 알아서 나뉩다. */}
       <Text style={styles.verdict}>
         오늘은 {item.itemName}
-        {subjectParticle(item.itemName)} 이맘때 평균보다{' '}
+        {subjectParticle(item.itemName)} {view.baseLabel}보다{' '}
         <Text style={{ color: c.main, textDecorationLine: 'underline' }}>{verdictTail}</Text>
       </Text>
 
@@ -147,7 +190,7 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
           </View>
           <View>
             <Text style={styles.captionSecondary}>{spec}</Text>
-            <Text style={styles.captionSecondary}>이맘때 평균 {won(item.normal)}원</Text>
+            <Text style={styles.captionSecondary}>{view.baseLabel} {won(view.basePrice)}원</Text>
           </View>
         </View>
       </View>
@@ -156,9 +199,9 @@ function HeroVerdictCard({ item, level, animatePrice = false }: { item: PriceIte
 }
 
 /** Figma thumbnail-card 1:1 — 사진(placeholder) + xs solid 칩(%·변동없음) + 품명/규격/가격 */
-function ThumbnailCard({ item, width }: { item: PriceItem; width?: number }) {
-  // 칩 색은 표시한 평년 할인율(%)과 같은 기준으로 묶는다 — 숫자와 색이 따로 놀지 않게(-10%→싸/초록, +53%→비싸/빨강).
-  const pct = item.vsNormalPct ?? 0;
+function ThumbnailCard({ item, view, width }: { item: PriceItem; view: ItemView; width?: number }) {
+  // 칩 색은 표시한 할인율(%)과 같은 기준으로 묶는다 — 숫자와 색이 따로 놀지 않게(-10%→싸/초록, +53%→비싸/빨강).
+  const pct = view.pct ?? 0;
   const pctLevel: SignalLevel = pct <= -1 ? 'cheap' : pct >= 1 ? 'expensive' : 'fair';
   return (
     <Pressable
@@ -182,7 +225,7 @@ function ThumbnailCard({ item, width }: { item: PriceItem; width?: number }) {
           {item.itemName}
         </Text>
         <Text style={styles.thumbPrice} numberOfLines={1}>
-          {won(item.today)}원<Text style={styles.thumbUnit}> / {item.unit}</Text>
+          {won(view.today)}원<Text style={styles.thumbUnit}> / {item.unit}</Text>
         </Text>
       </View>
     </Pressable>
@@ -200,6 +243,10 @@ export default function HomeScreen() {
   // 표시 신호 = 사전계산 level(두 기준) 우선, 없으면 item.level(평년)
   // 주목할 시세 섹션 인라인 펼침 — 별도 화면 없이 섹션이 아래로 쌓이고 홈 스크롤로 본다
   const [expanded, setExpanded] = useState(false);
+  const [regionOpen, setRegionOpen] = useState(false);
+  const { region } = useRegion();
+  // 지역 판정 — 전국이 아닐 때만 받는다. 선택 도시의 오늘가·판정·최근평균으로 화면을 덮는다.
+  const { regions: regional } = useRegionalVerdicts(region !== NATIONWIDE);
   // 3열 그리드는 컨테이너 폭을 측정해 열 너비를 채운다(고정 %는 480 등에서 우측 여백이 남음).
   const [gridW, setGridW] = useState(0);
   const colW = gridW > 0 ? Math.floor((gridW - spacing.s3 * 2) / 3) : undefined;
@@ -208,7 +255,8 @@ export default function HomeScreen() {
   // 하이드레이션 때 100px 통째로 밀려 CLS 0.288이 나왔다(2026-09-03 PSI). onLayout이 보정.
   const [topH, setTopH] = useState(100);
 
-  const lvlOf = (i: PriceItem) => verdicts[itemKey(i)]?.level ?? i.level;
+  const viewOf = (i: PriceItem) => itemView(i, region, regional, verdicts);
+  const lvlOf = (i: PriceItem) => viewOf(i).level;
 
   // 진입 연출 게이트 — 스피너를 실제로 본 첫 도착 1회만. 캐시 즉시 페인트·당겨서 새로고침·펼침엔 연출 없음.
   const reduced = useReducedMotion();
@@ -225,19 +273,30 @@ export default function HomeScreen() {
     () =>
       // 고기는 부위마다 등급·원산지 중 오늘 가장 싼 하나만 — 나머지는 상세의 토글로 본다.
       cheapestPerCut(items)
-        .filter((i) => i.today != null && i.vsNormalPct != null && lvlOf(i) != null)
+        .filter((i) => {
+          const v = viewOf(i);
+          return v.today != null && v.pct != null && v.level != null;
+        })
         .sort((a, b) => {
-          const d = ORDER[lvlOf(a)!] - ORDER[lvlOf(b)!];
-          return d !== 0 ? d : (a.vsNormalPct ?? 0) - (b.vsNormalPct ?? 0);
+          const va = viewOf(a);
+          const vb = viewOf(b);
+          // 전국 폴백 품목은 맨 뒤로 — 그 %는 전국 평년 대비라 도시 '최근 평균' 대비와 같은 줄에 세울 수 없다.
+          const n = Number(!!va.nationwide) - Number(!!vb.nationwide);
+          if (n !== 0) return n;
+          const d = ORDER[va.level!] - ORDER[vb.level!];
+          return d !== 0 ? d : (va.pct ?? 0) - (vb.pct ?? 0);
         }),
-    [items, verdicts],
+    [items, verdicts, region, regional],
   );
-  const movers = useMemo(() => ranked.filter((i) => lvlOf(i) === 'cheap'), [ranked, verdicts]);
+  // 히어로·접힌 주목할 시세는 '이 도시에서 싼 것' 자리라 그 도시가 조사한 품목만. 펼친 전체 목록엔 다 나온다.
+  const local = useMemo(() => ranked.filter((i) => !viewOf(i).nationwide), [ranked, region, regional]);
+  const movers = useMemo(() => local.filter((i) => lvlOf(i) === 'cheap'), [local, region, regional]);
   const hero = movers[0] ?? null; // 가장 싼 BEST 품목
   const allRest = useMemo(() => ranked.filter((i) => i !== hero), [ranked, hero]);
   const deals = useMemo(() => movers.filter((i) => i !== hero), [movers, hero]);
   // 접힘: 주목할 시세(BEST) 6개 / 펼침: 전체 품목.
-  const notable = expanded ? allRest : (deals.length ? deals : allRest).slice(0, 6);
+  const notable = expanded ? allRest : (deals.length ? deals : local.filter((i) => i !== hero)).slice(0, 6);
+  const firstNationwide = notable.findIndex((i) => viewOf(i).nationwide);
 
   return (
     <View style={styles.screen}>
@@ -273,11 +332,31 @@ export default function HomeScreen() {
           <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
             <Wordmark />
           </View>
+          <Pressable
+            onPress={() => setRegionOpen(true)}
+            hitSlop={6}
+            style={styles.regionPill}
+            accessibilityRole="button"
+            accessibilityLabel={`지역 ${region}, 변경하기`}
+          >
+            {/* 메인헤더 location 컴포넌트의 map-pin/fill 아이콘(Figma 1099:7802에서 export) */}
+            <Svg width={15} height={18} viewBox="0 0 14 17">
+              <Path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M7 0C8.85652 0 10.6374 0.73705 11.9502 2.0498C13.2629 3.36256 14 5.14348 14 7C14 9.2095 12.793 11.3412 11.5439 12.9824C10.2716 14.6541 8.82718 15.9825 8.10449 16.6064C8.08748 16.6211 8.06972 16.6349 8.05176 16.6484C7.74852 16.8765 7.3794 17 7 17C6.6206 17 6.25148 16.8765 5.94824 16.6484C5.93028 16.6349 5.91252 16.6211 5.89551 16.6064C5.17282 15.9825 3.72835 14.6541 2.45605 12.9824C1.20697 11.3412 0 9.2095 0 7C0 5.14348 0.73705 3.36256 2.0498 2.0498C3.36256 0.73705 5.14348 0 7 0ZM7 4.75C5.75736 4.75 4.75 5.75736 4.75 7C4.75 8.24264 5.75736 9.25 7 9.25C8.24264 9.25 9.25 8.24264 9.25 7C9.25 5.75736 8.24264 4.75 7 4.75Z"
+                fill={colors.textPrimary}
+              />
+            </Svg>
+            <Text style={styles.regionText}>{region}</Text>
+          </Pressable>
         </View>
         <View style={styles.searchWrap}>
           <SearchField editable={false} onPress={() => router.push('/search')} />
         </View>
       </GlassHeader>
+
+      <RegionSheet visible={regionOpen} onClose={() => setRegionOpen(false)} />
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: topH }]}
@@ -294,10 +373,10 @@ export default function HomeScreen() {
             {hero &&
               (animateEntrance ? (
                 <Reanimated.View entering={FadeInDown.duration(300)}>
-                  <HeroVerdictCard item={hero} level={lvlOf(hero)} animatePrice />
+                  <HeroVerdictCard item={hero} view={viewOf(hero)} animatePrice />
                 </Reanimated.View>
               ) : (
-                <HeroVerdictCard item={hero} level={lvlOf(hero)} />
+                <HeroVerdictCard item={hero} view={viewOf(hero)} />
               ))}
 
             {notable.length > 0 && (
@@ -307,15 +386,21 @@ export default function HomeScreen() {
                   style={styles.grid}
                   onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
                 >
-                  {notable.map((i, n) =>
-                    animateEntrance ? (
-                      <Reanimated.View key={itemKey(i)} entering={FadeInDown.duration(300).delay(60 + n * 40)}>
-                        <ThumbnailCard item={i} width={colW} />
-                      </Reanimated.View>
-                    ) : (
-                      <ThumbnailCard key={itemKey(i)} item={i} width={colW} />
-                    ),
-                  )}
+                  {notable.map((i, n) => (
+                    <React.Fragment key={itemKey(i)}>
+                      {/* 전국 폴백 품목은 맨 뒤에 모여 있다 — 그 묶음 바로 위에 한 번만 안내. Figma 1193:8791 */}
+                      {n === firstNationwide && (
+                        <RegionNote text={`${region}에선 아래 품목들의 가격을 조사하지 않아,\n전국 평균을 보여드려요.`} />
+                      )}
+                      {animateEntrance ? (
+                        <Reanimated.View entering={FadeInDown.duration(300).delay(60 + n * 40)}>
+                          <ThumbnailCard item={i} view={viewOf(i)} width={colW} />
+                        </Reanimated.View>
+                      ) : (
+                        <ThumbnailCard item={i} view={viewOf(i)} width={colW} />
+                      )}
+                    </React.Fragment>
+                  ))}
                 </View>
                 <Pressable
                   style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.85 }]}
@@ -359,7 +444,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgSecondary },
-  searchWrap: { paddingHorizontal: spacing.s4, paddingBottom: spacing.s2 },
+  // Figma content-01(853:4131): 검색필드 상·하·좌우 16 패딩
+  searchWrap: { padding: spacing.s4 },
   header: {
     height: 44,
     flexDirection: 'row',
@@ -368,6 +454,14 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.s4,
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  regionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s1,
+    // Figma location: 내부 패딩 0, 우측 여백은 헤더 거터(앱 기존 거터 16과 맞춤)
+    paddingRight: spacing.s4,
+  },
+  regionText: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary },
   scroll: { paddingBottom: 140 },
   content01: { padding: spacing.s4, backgroundColor: colors.bgCanvas },
   content02: {
