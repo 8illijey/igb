@@ -29,7 +29,18 @@ registerHooks({
 const { findItem } = await import('../src/recipes.ts');
 const { PRICE_SNAPSHOT: items } = await import('../src/snapshot.gen.ts');
 
-const key = (name) => { const i = findItem(items, name); return i ? `${i.itemCode}-${i.kindCode} ${i.itemName}` : '없음'; };
+const key = (name, raw) => { const i = findItem(items, name, raw); return i ? `${i.itemCode}-${i.kindCode} ${i.itemName}` : '없음'; };
+const nameOf = (name, raw) => findItem(items, name, raw)?.itemName ?? '없음';
+
+// 2026-10-16: 레시피 고기는 원문 부위로 고른다. 원문이 없으면 설도 1+(가장 비싼 안심 1++가 아니다).
+assert.equal(nameOf('소고기'), '한우 설도 1+등급');
+assert.equal(nameOf('소고기', '쇠고기등심'), '한우 등심 1+등급');
+assert.equal(nameOf('소고기', '소고기(살치살'), '한우 등심 1+등급');
+assert.equal(nameOf('소고기', '소고기 우둔살'), '한우 설도 1+등급');
+assert.equal(nameOf('소고기', '떡갈비 : 다진소고기'), '한우 설도 1+등급'); // '갈비'에 먼저 걸리지 않는다
+assert.equal(nameOf('소고기', '양지머리'), '한우 양지 1+등급');
+assert.equal(nameOf('돼지고기', '돼지고기 삼겹살'), '돼지고기 삼겹살');
+assert.equal(nameOf('돼지고기', '다진 돼지고기'), '돼지고기 앞다리');
 
 // 핵심 회귀: 대파는 대파다. 양파가 아니다.
 assert.equal(key('대파'), '246-00 대파');

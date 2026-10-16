@@ -387,15 +387,17 @@ async function fetchByIngredient(env: Env, token: string): Promise<any[]> {
 
 /** 식약처 row 1개 → 앱 레시피 객체. cheapSet/expensiveSet으로 cheapCount·hasExpensive 계산(목록 정렬·필터용). */
 function buildRecipe(r: any, cheapSet: Set<string>, expensiveSet: Set<string>) {
-  const tracked = new Map<string, string>(); // 표준토큰 → 분량
+  const tracked = new Map<string, { amount: string; raw: string }>(); // 표준토큰 → 분량·원문 이름
   const condiments: { name: string; amount: string }[] = [];
   for (const p of parseParts(String(r.RCP_PARTS_DTLS ?? ''))) {
     const tok = trackedToken(p.name);
     if (tok) {
-      if (!tracked.has(tok)) tracked.set(tok, p.amount);
+      if (!tracked.has(tok)) tracked.set(tok, { amount: p.amount, raw: p.name });
     } else condiments.push(p);
   }
-  const ingredients = [...tracked].map(([name, amount]) => ({ name, amount }));
+  // raw = 식약처 원문 재료명('쇠고기등심', '소고기 우둔살', '다진소고기'). 토큰('소고기')만 넘기면
+  // 앱이 부위를 몰라 모든 소고기를 한 품목에 붙였다(2026-10-16) — 앱이 raw로 부위·등급 품목을 고른다.
+  const ingredients = [...tracked].map(([name, v]) => ({ name, amount: v.amount, raw: v.raw }));
   const steps: string[] = [];
   const stepImages: string[] = [];
   for (const k of STEP_KEYS) {
