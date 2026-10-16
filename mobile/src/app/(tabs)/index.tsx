@@ -23,6 +23,7 @@ import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
 import { RegionSheet } from '../../components/igb/RegionSheet';
+import { RegionNote } from '../../components/igb/RegionNote';
 import { useRegion } from '../../store/region';
 import { NATIONWIDE } from '../../data/regions';
 import { SEO_ITEMS } from '../../seo.gen';
@@ -33,7 +34,7 @@ import { colors, font, radius, signal, SignalLevel, spacing, type } from '../../
 import { OG_DEFAULT_IMAGE } from '../../og';
 import { PrivacyLink } from '../../components/igb/PrivacyLink';
 
-const CHIP_LABEL = { cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
+const CHIP_LABEL = {cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
 
 /**
  * 한 품목의 '표시 뷰' — 전국/지역에 따라 오늘가·판정·비교기준이 달라진다.
@@ -46,19 +47,25 @@ type ItemView = {
   basePrice: number | null;
   baseLabel: string;
   pct: number | null;
+  /** 지역을 골랐는데 그 도시가 이 품목을 조사하지 않아 전국 값으로 대신했다. */
+  nationwide?: boolean;
 };
 function itemView(i: PriceItem, region: string, regional: RegionalVerdicts, verdicts: Record<string, Verdict>): ItemView {
   const key = itemKey(i);
-  if (region !== NATIONWIDE) {
-    const rv = regional[region]?.[key];
+  // 도시마다 조사 품목이 다르다(2026-10-16 실측: 춘천은 취청오이·가시오이를 안 하고 쥬키니는 9/2부터 멈춤).
+  // 지역 파일이 아직 안 왔으면(regional[region] 없음) 전국 화면 그대로 — 전 품목에 '전국'이 깜빡이지 않게.
+  let nationwide = false;
+  if (region !== NATIONWIDE && regional[region]) {
+    const rv = regional[region][key];
     if (rv && rv.today != null) {
       const pct = rv.recentAvg ? Math.round(((rv.today - rv.recentAvg) / rv.recentAvg) * 100) : null;
       // 홈 히어로는 '최근 평균'만 — 일수(28일)는 상세 차트에서만 표기.
       return { today: rv.today, level: rv.level, basePrice: rv.recentAvg, baseLabel: '최근 평균', pct };
     }
-    // 지역 판정 없음 → 전국 폴백
+    nationwide = true; // 그 도시 미조사 → 전국 폴백
   }
   return {
+    nationwide,
     today: i.today,
     level: verdicts[key]?.level ?? i.level,
     basePrice: i.normal,
@@ -272,17 +279,23 @@ export default function HomeScreen() {
         .sort((a, b) => {
           const va = viewOf(a);
           const vb = viewOf(b);
+          // 전국 폴백 품목은 맨 뒤로 — 그 %는 전국 평년 대비라 도시 '최근 평균' 대비와 같은 줄에 세울 수 없다.
+          const n = Number(!!va.nationwide) - Number(!!vb.nationwide);
+          if (n !== 0) return n;
           const d = ORDER[va.level!] - ORDER[vb.level!];
           return d !== 0 ? d : (va.pct ?? 0) - (vb.pct ?? 0);
         }),
     [items, verdicts, region, regional],
   );
-  const movers = useMemo(() => ranked.filter((i) => lvlOf(i) === 'cheap'), [ranked, region, regional]);
+  // 히어로·접힌 주목할 시세는 '이 도시에서 싼 것' 자리라 그 도시가 조사한 품목만. 펼친 전체 목록엔 다 나온다.
+  const local = useMemo(() => ranked.filter((i) => !viewOf(i).nationwide), [ranked, region, regional]);
+  const movers = useMemo(() => local.filter((i) => lvlOf(i) === 'cheap'), [local, region, regional]);
   const hero = movers[0] ?? null; // 가장 싼 BEST 품목
   const allRest = useMemo(() => ranked.filter((i) => i !== hero), [ranked, hero]);
   const deals = useMemo(() => movers.filter((i) => i !== hero), [movers, hero]);
   // 접힘: 주목할 시세(BEST) 6개 / 펼침: 전체 품목.
-  const notable = expanded ? allRest : (deals.length ? deals : allRest).slice(0, 6);
+  const notable = expanded ? allRest : (deals.length ? deals : local.filter((i) => i !== hero)).slice(0, 6);
+  const firstNationwide = notable.findIndex((i) => viewOf(i).nationwide);
 
   return (
     <View style={styles.screen}>
@@ -372,15 +385,21 @@ export default function HomeScreen() {
                   style={styles.grid}
                   onLayout={(e) => setGridW(e.nativeEvent.layout.width)}
                 >
-                  {notable.map((i, n) =>
-                    animateEntrance ? (
-                      <Reanimated.View key={itemKey(i)} entering={FadeInDown.duration(300).delay(60 + n * 40)}>
+                  {notable.map((i, n) => (
+                    <React.Fragment key={itemKey(i)}>
+                      {/* 전국 폴백 품목은 맨 뒤에 모여 있다 — 그 묶음 바로 위에 한 번만 안내. Figma 1193:8791 */}
+                      {n === firstNationwide && (
+                        <RegionNote text={`${region}에선 아래 품목들의 가격을 조사하지 않아,\n전국 평균을 보여드려요.`} />
+                      )}
+                      {animateEntrance ? (
+                        <Reanimated.View entering={FadeInDown.duration(300).delay(60 + n * 40)}>
+                          <ThumbnailCard item={i} view={viewOf(i)} width={colW} />
+                        </Reanimated.View>
+                      ) : (
                         <ThumbnailCard item={i} view={viewOf(i)} width={colW} />
-                      </Reanimated.View>
-                    ) : (
-                      <ThumbnailCard key={itemKey(i)} item={i} view={viewOf(i)} width={colW} />
-                    ),
-                  )}
+                      )}
+                    </React.Fragment>
+                  ))}
                 </View>
                 <Pressable
                   style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.85 }]}

@@ -29,6 +29,7 @@ import { useVerdicts, useVerdictsDate, useRegionalVerdicts } from '../../api/ver
 import { useRegion } from '../../store/region';
 import { NATIONWIDE } from '../../data/regions';
 import { EmptyState } from '../../components/igb/EmptyState';
+import { RegionNote } from '../../components/igb/RegionNote';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { Tabs } from '../../components/igb/Tabs';
 import { Tooltip } from '../../components/igb/Tooltip';
@@ -540,6 +541,16 @@ export default function ItemDetailScreen() {
   const dLevel: SignalLevel = dBuy ? dBuy.level : displayLevel;
   const dRecReady = regOn ? dBuy != null : recReady;
   const dSignalHidden = regOn ? !dRecReady && rr!.today != null : signalHidden;
+  // 그 도시가 이 품목의 소매 가격을 조사하지 않으면 — 말없이 바꾸면 전국 값을 그 도시 값으로 믿는다(2026-10-16 지적).
+  // 홈 '전국' 묶음과 같은 기준(소매 일반, 지역 파일)이라 홈에서 배너 아래 있던 품목은 상세에서도 똑같이 뜬다.
+  // 소매/도매 탭 위에 두어 어느 탭에서든 보인다(Figma 1211:3105 '지역X').
+  // [2026-10-16 실측] 소매 미조사면 유기농도 늘 미조사, 도매는 3건만 예외(대구 망고(수입), 대전 쌀 20kg·쥬키니)
+  // — 그 3건은 도매 탭이 그 도시 값인데 배너가 남는다. 나중에 처리하기로 함.
+  // ponytail: 지역 파일 요청이 실패해도 windowDays가 없어 안 뜬다. 품목 행만 빠진 경우만 '조사 안 함'으로 읽는다.
+  const regionNote =
+    region !== NATIONWIDE && windowDays != null && regional[region]?.[vKey]?.today == null
+      ? `${region}에선 이 품목의 가격을 조사하지 않아, 전국 평균을 보여드려요.`
+      : null;
 
   // 지역 '최근 시세' 차트 — 그 도시 시계열을 라이브로 받는다(28일). 전국 경로는 그대로 둔다.
   useEffect(() => {
@@ -636,6 +647,7 @@ export default function ItemDetailScreen() {
         <Header title={item.itemName || seo?.name || ''} fav={isFavorite(favKey)} onFav={() => toggle(favKey)} />
       </GlassHeader>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topH }]}>
+        {regionNote && <RegionNote bleed text={regionNote} />}
         {/* 소매/도매 — 헤더 바로 아래 풀폭 밑줄 탭(content 밖). 헤어라인 full-bleed + 탭 16 인셋 */}
         <View style={styles.marketTabs}>
           {/* 풀블리드 하단 디바이더 — Figma처럼 밑줄 바 '뒤'에 깔린다(활성 바가 자기 칸에서 디바이더를 덮음). */}
@@ -741,7 +753,7 @@ export default function ItemDetailScreen() {
                         level={dLevel}
                         label={
                           dLevel === 'cheap'
-                            ? isTopDiscount && market === 'retail' && !regOn
+                            ? isTopDiscount && market === 'retail' && region === NATIONWIDE
                               ? '할인율 1위'
                               : '저렴해요'
                             : dLevel === 'fair'
