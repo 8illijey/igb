@@ -175,16 +175,18 @@ function HeroVerdictCard({ item, view, animatePrice = false }: { item: PriceItem
         <Text style={styles.captionGrey}>오늘 · KAMIS 소매</Text>
       </View>
 
-      {/* Figma: 평가문구는 카드 상단 풀폭, '…평균보다' / '46% 싸요' 두 줄.
-          판정어는 '\n'이 아니라 별도 블록으로 내린다 — 한 Text 안에서 '보다 \n'으로 끊으면
-          좁은 화면에서 줄 끝 공백이 한 번 더 접혀 '평균보다 / (빈줄) / 39% 싸요'가 됐다(2026-08-24 아이폰 제보).
-          앞 문장은 길면 폭에 맞춰 알아서 접힌다. */}
+      {/* 두 줄 고정: '오늘은 [품목]가' / '이맘때 평균보다 N% 싸요' (2026-10-17 사용자 지정).
+          줄은 '\n'이 아니라 별도 블록으로 나눈다 — 한 Text 안에서 '\n'으로 끊으면
+          좁은 화면에서 줄 끝 공백이 한 번 더 접혀 빈 줄이 생겼다(2026-08-24 아이폰 제보). */}
       <View>
         <Text style={styles.verdict}>
           오늘은 {item.itemName}
-          {subjectParticle(item.itemName)} {view.baseLabel}보다
+          {subjectParticle(item.itemName)}
         </Text>
-        <Text style={[styles.verdict, { color: c.main, textDecorationLine: 'underline' }]}>{verdictTail}</Text>
+        <Text style={styles.verdict}>
+          {view.baseLabel}보다{' '}
+          <Text style={{ color: c.main, textDecorationLine: 'underline' }}>{verdictTail}</Text>
+        </Text>
       </View>
 
       <View style={styles.heroMediaRow}>
