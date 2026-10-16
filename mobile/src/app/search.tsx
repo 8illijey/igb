@@ -28,7 +28,19 @@ export default function SearchScreen() {
   const results = useMemo(() => {
     const q = query.trim();
     if (!q) return [];
-    return items.filter((i) => i.itemName.includes(q) || i.kindName.includes(q));
+    // 한우는 이름에 '소고기'가 없고(kamis.ts NAME_FIX), 수입 소고기는 '수입' 대신 원산지가 붙는다
+    // ('호주산 소고기 갈비'). '소고기'·'수입 소고기'로 찾아도 나오게.
+    const hanwoo = q.replace(/소고기|쇠고기/, '한우');
+    // '호주산 소고기 갈비' → '수입 소고기 갈비'(KAMIS 원래 이름)로도 맞춰 본다.
+    const kamisName = (i: (typeof items)[number]) =>
+      i.itemCode === '4401' ? `수입 ${i.itemName.split(' ').slice(1).join(' ')}` : i.itemName;
+    return items.filter(
+      (i) =>
+        i.itemName.includes(q) ||
+        i.kindName.includes(q) ||
+        i.itemName.includes(hanwoo) ||
+        kamisName(i).includes(q),
+    );
   }, [items, query]);
 
   // 인기 품목 TOP 10 — 조회수(클릭량) 많은 순. 데이터 부족분은 큐레이션 인기 품목으로 채움.

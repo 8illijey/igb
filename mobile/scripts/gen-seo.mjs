@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = 'https://igeobissa.com';
 
-const { fetchAllCategories } = await import(path.join(ROOT, 'src/api/kamis.ts'));
+const { fetchAllCategories, itemKeyOf } = await import(path.join(ROOT, 'src/api/kamis.ts'));
 const { recipeSlug } = await import(path.join(ROOT, 'src/recipeSlug.ts'));
 
 const items = await fetchAllCategories();
@@ -95,7 +95,7 @@ function normalMonthsOf(key) {
 // 매일 verdicts CI가 이 스크립트를 돌리고 커밋 → Vercel 재배포라 제목의 가격도 매일 갱신된다.
 const rows = items
   .map((i) => {
-    const key = `${i.itemCode}-${i.kindCode}`;
+    const key = itemKeyOf(i);
     const v = verdicts[key] ?? {};
     const valid = (Array.isArray(v.months) ? v.months : [])
       .map((m, idx) => ({ m, idx }))
@@ -131,7 +131,7 @@ const rows = items
 // level을 들고 있으면 hydration 후 verdicts 도착 시 히어로·그리드가 재배열돼 LCP가
 // 그 시점으로 재측정된다(2026-09-03 PSI 17s, CLS 0.129). 같은 level을 미리 굽는다.
 const snapItems = items.map((i) => {
-  const v = verdicts[`${i.itemCode}-${i.kindCode}`];
+  const v = verdicts[itemKeyOf(i)];
   return v?.level ? { ...i, level: v.level } : i;
 });
 writeFileSync(

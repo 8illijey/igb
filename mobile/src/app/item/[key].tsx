@@ -254,6 +254,12 @@ export default function ItemDetailScreen() {
     return itemKey(top) === key;
   }, [items, key]);
 
+  // 같은 부위의 다른 등급(한우 1++/1+/1) — 등급 품목이 아니면 자기 하나뿐이라 섹션이 안 뜬다.
+  const gradeSiblings = useMemo(
+    () => (item ? items.filter((i) => i.itemCode === item.itemCode && i.kindCode === item.kindCode) : []),
+    [items, item],
+  );
+
   const [market, setMarket] = useState<Market>('retail');
   const [chart28, setChart28] = useState<SeriesPoint[] | null>(null); // 28일 — 차트 표시용. 가벼워 빠름(~3s)
   const [yearSeries, setYearSeries] = useState<SeriesPoint[] | null>(null); // 365일 — 최근1년 평균·연간 흐름 폴백. verdicts 없을 때만(무거움 ≈27s).
@@ -515,10 +521,15 @@ export default function ItemDetailScreen() {
   // 데이터가 없는 탭은 아예 안 그린다 — 눌렀을 때 빈 안내문만 뜨면 버그처럼 보인다.
   // 플래그가 없는 구본 verdicts(배포 과도기)에선 undefined라 예전처럼 둘 다 보여준다.
   // 보고 있는 탭은 절대 숨기지 않는다(숨기면 돌아갈 길이 없다).
-  const showWholesaleTab = market === 'wholesale' || (verdicts[vKey]?.hasWholesale ?? true);
-  const showEcoTab = market === 'eco' || (verdicts[vKey]?.hasEco ?? true);
+  // 탭 유무는 등급이 아니라 부위의 속성이다 — 등급 키(4301-22-02)에 기록이 없으면 첫 등급 키(4301-22) 것을 따른다.
+  // 안 그러면 새 등급만 '도매' 탭이 떠서 누르면 빈 안내만 나온다(2026-10-16).
+  const tabVerdict = verdicts[vKey] ?? (item ? verdicts[`${item.itemCode}-${item.kindCode}`] : undefined);
+  const showWholesaleTab = market === 'wholesale' || (tabVerdict?.hasWholesale ?? true);
+  const showEcoTab = market === 'eco' || (tabVerdict?.hasEco ?? true);
   /** 일반/유기농 토글을 실제로 그리는지 — hero 상단 패딩도 이 값을 따른다(간격 어긋남 방지). */
   const showEcoToggle = market !== 'wholesale' && showEcoTab;
+  /** 등급 토글 — 같은 부위에 등급(원산지)이 여럿일 때만. 도매 탭에서도 유지한다(등급은 시장과 별개 축). */
+  const showGradeToggle = gradeSiblings.length > 1;
   // 푸터 '기준일' = 지금 화면에 뜬 가격이 실제로 조사된 날.
   //
   // 예전엔 차트(series.json)의 마지막 점을 썼는데, 그건 CI가 하루 한 번 만드는 값이고
@@ -590,7 +601,17 @@ export default function ItemDetailScreen() {
             예전엔 이 조건이 market==='wholesale'로만 걸려 있어, 유기농 데이터가 없어
             토글을 숨긴 소매 화면만 간격이 즐어들었다(2026-08-20 사용자 지적).
             렌더 조건과 패딩 조건을 한 변수로 묶어 다시 어긋나지 않게 한다. */}
-        <View style={[styles.content01, !showEcoToggle && { paddingTop: spacing.s5 }]}>
+        <View style={[styles.content01, !showEcoToggle && !showGradeToggle && { paddingTop: spacing.s5 }]}>
+          {/* 등급(원산지) 토글 — 일반/유기농과 같은 pill. 소매/도매 탭과 따로 둬서 나중에 축산 도매가 생겨도
+              두 축이 섞이지 않게 한다(2026-10-16 예지님 요청). */}
+          {showGradeToggle && (
+            <Tabs
+              variant="pill"
+              value={itemKey(item)}
+              onChange={(k) => router.replace(`/item/${k}`)}
+              options={gradeSiblings.map((s) => ({ value: itemKey(s), label: gradeLabel(s) }))}
+            />
+          )}
           {showEcoToggle && (
             <Tabs
               variant="pill"
@@ -1137,6 +1158,12 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
       </Text>
     </View>
   );
+}
+
+/** 등급 탭 라벨 — 한우는 이름 끝('한우 등심 1++등급' → '1++등급'), 수입 소고기는 맨 앞('호주산 소고기 갈비' → '호주산'). */
+function gradeLabel(s: PriceItem): string {
+  const words = s.itemName.split(' ');
+  return (s.itemCode === '4401' ? words[0] : words[words.length - 1]) ?? s.itemName;
 }
 
 /** main-header type=detail — back + 제목 + 관심(heart). 하트 상호작용은 FavoriteHeart 공용. */

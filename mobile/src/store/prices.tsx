@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { fetchAllCategories, PriceItem } from '../api/kamis';
+import { fetchAllCategories, itemKeyOf, PriceItem } from '../api/kamis';
 import { PRICE_SNAPSHOT } from '../snapshot.gen';
 
 // 가격 목록 캐시 — 첫 로드는 KAMIS를 최대 4~28콜(주말 백필) 치므로 10초+. 이전 결과를 즉시 그려
@@ -12,7 +12,7 @@ interface PricesState {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  /** itemCode-kindCode 로 단건 조회 (정확 일치) */
+  /** itemKey(itemCode-kindCode[-rankCode])로 단건 조회 (정확 일치) */
   find: (key: string) => PriceItem | undefined;
   /**
    * 저장된 키(즐겨찾기 등) 해석 — 정확 일치 우선, 없으면 같은 itemCode가 유일할 때(채소·과일)
@@ -24,8 +24,7 @@ interface PricesState {
 
 const Ctx = createContext<PricesState | null>(null);
 
-export const itemKey = (i: Pick<PriceItem, 'itemCode' | 'kindCode'>) =>
-  `${i.itemCode}-${i.kindCode}`;
+export const itemKey = itemKeyOf;
 
 export function PricesProvider({ children }: { children: React.ReactNode }) {
   // 초기값 = 빌드 시점 스냅샷(매일 CI가 갱신) — SSG 정적 HTML에 실제 카드가 담기고(LCP 대책),

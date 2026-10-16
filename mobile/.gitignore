@@ -32,6 +32,8 @@ yarn-error.*
 
 # local env files
 .env*.local
+# 축산물품질평가원 API 키(공공데이터포털) — 로컬 확인용. 공개 저장소라 절대 올리지 않는다.
+ekape-key.txt
 
 # typescript
 *.tsbuildinfo
