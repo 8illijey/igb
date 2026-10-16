@@ -236,7 +236,7 @@ export default function ItemDetailScreen() {
 
   // 인기 품목 신호 — 이 상세를 열 때마다 itemCode 조회수 +1 (검색 화면 '인기 품목 TOP')
   useEffect(() => {
-    if (item) bumpPopularity(item.itemCode);
+    if (item) bumpPopularity(itemKey(item));
   }, [item?.itemCode]);
 
   // 즐겨찾기 키 정합 — 대표 단위가 매일 바뀌어도 이 품목을 가리키는 '저장된 키'가 있으면 그걸 토글한다.

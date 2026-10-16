@@ -8,7 +8,7 @@ import { EmptyState } from '../components/igb/EmptyState';
 import { GlassHeader } from '../components/igb/GlassHeader';
 import { PriceListRow } from '../components/igb/PriceListRow';
 import { SearchField } from '../components/igb/SearchField';
-import { cheapestPerCut, PriceItem } from '../api/kamis';
+import { PriceItem } from '../api/kamis';
 import { usePopularity } from '../store/popularity';
 import { itemKey, usePrices } from '../store/prices';
 import { useRecentSearches } from '../store/recentSearches';
@@ -47,13 +47,14 @@ export default function SearchScreen() {
 
   // 인기 품목 TOP 10 — 조회수(클릭량) 많은 순. 데이터 부족분은 큐레이션 인기 품목으로 채움.
   const top10 = useMemo(() => {
-    const live = cheapestPerCut(items).filter((i) => i.today != null);
+    // 품목(등급·원산지까지) 하나 단위로 센다 — itemCode로 세면 한우 하나를 열어도 한우 15개가 같이 오른다.
+    const live = items.filter((i) => i.today != null);
     const clicked = live
-      .filter((i) => (counts[i.itemCode] ?? 0) > 0)
-      .sort((a, b) => (counts[b.itemCode] ?? 0) - (counts[a.itemCode] ?? 0));
+      .filter((i) => (counts[itemKey(i)] ?? 0) > 0)
+      .sort((a, b) => (counts[itemKey(b)] ?? 0) - (counts[itemKey(a)] ?? 0));
     if (clicked.length >= 10) return clicked.slice(0, 10);
-    const seen = new Set(clicked.map((i) => i.itemCode));
-    const curated = POPULAR_NAMES.map((n) => live.find((i) => i.itemName.includes(n) && !seen.has(i.itemCode))).filter(
+    const seen = new Set(clicked.map((i) => itemKey(i)));
+    const curated = POPULAR_NAMES.map((n) => live.find((i) => i.itemName.includes(n) && !seen.has(itemKey(i)))).filter(
       (i): i is PriceItem => i != null,
     );
     return [...clicked, ...curated].slice(0, 10);
