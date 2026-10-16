@@ -8,7 +8,7 @@ import { EmptyState } from '../components/igb/EmptyState';
 import { GlassHeader } from '../components/igb/GlassHeader';
 import { PriceListRow } from '../components/igb/PriceListRow';
 import { SearchField } from '../components/igb/SearchField';
-import { PriceItem } from '../api/kamis';
+import { cheapestPerCut, PriceItem } from '../api/kamis';
 import { usePopularity } from '../store/popularity';
 import { itemKey, usePrices } from '../store/prices';
 import { useRecentSearches } from '../store/recentSearches';
@@ -34,18 +34,21 @@ export default function SearchScreen() {
     // '호주산 소고기 갈비' → '수입 소고기 갈비'(KAMIS 원래 이름)로도 맞춰 본다.
     const kamisName = (i: (typeof items)[number]) =>
       i.itemCode === '4401' ? `수입 ${i.itemName.split(' ').slice(1).join(' ')}` : i.itemName;
-    return items.filter(
-      (i) =>
-        i.itemName.includes(q) ||
-        i.kindName.includes(q) ||
-        i.itemName.includes(hanwoo) ||
-        kamisName(i).includes(q),
+    // 고르고 나서 부위마다 가장 싼 하나만 — '1++'로 찾으면 1++만 남은 상태에서 고르므로 1++이 나온다.
+    return cheapestPerCut(
+      items.filter(
+        (i) =>
+          i.itemName.includes(q) ||
+          i.kindName.includes(q) ||
+          i.itemName.includes(hanwoo) ||
+          kamisName(i).includes(q),
+      ),
     );
   }, [items, query]);
 
   // 인기 품목 TOP 10 — 조회수(클릭량) 많은 순. 데이터 부족분은 큐레이션 인기 품목으로 채움.
   const top10 = useMemo(() => {
-    const live = items.filter((i) => i.today != null);
+    const live = cheapestPerCut(items).filter((i) => i.today != null);
     const clicked = live
       .filter((i) => (counts[i.itemCode] ?? 0) > 0)
       .sort((a, b) => (counts[b.itemCode] ?? 0) - (counts[a.itemCode] ?? 0));

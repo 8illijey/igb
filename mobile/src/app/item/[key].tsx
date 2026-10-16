@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  cutGroupOf,
   EcoData,
   fetchCategory,
   fetchEco,
@@ -254,11 +255,11 @@ export default function ItemDetailScreen() {
     return itemKey(top) === key;
   }, [items, key]);
 
-  // 같은 부위의 다른 등급(한우 1++/1+/1) — 등급 품목이 아니면 자기 하나뿐이라 섹션이 안 뜬다.
-  const gradeSiblings = useMemo(
-    () => (item ? items.filter((i) => i.itemCode === item.itemCode && i.kindCode === item.kindCode) : []),
-    [items, item],
-  );
+  // 같은 부위 묶음(한우 등급 + 수입 원산지, 국산·수입 삼겹살) — 묶음이 아니면 자기 하나뿐이라 토글이 안 뜬다.
+  const gradeSiblings = useMemo(() => {
+    const g = item ? cutGroupOf(item) : null;
+    return g ? items.filter((i) => cutGroupOf(i) === g) : [];
+  }, [items, item]);
 
   const [market, setMarket] = useState<Market>('retail');
   const [chart28, setChart28] = useState<SeriesPoint[] | null>(null); // 28일 — 차트 표시용. 가벼워 빠름(~3s)
@@ -605,12 +606,15 @@ export default function ItemDetailScreen() {
           {/* 등급(원산지) 토글 — 일반/유기농과 같은 pill. 소매/도매 탭과 따로 둬서 나중에 축산 도매가 생겨도
               두 축이 섞이지 않게 한다(2026-10-16 예지님 요청). */}
           {showGradeToggle && (
-            <Tabs
-              variant="pill"
-              value={itemKey(item)}
-              onChange={(k) => router.replace(`/item/${k}`)}
-              options={gradeSiblings.map((s) => ({ value: itemKey(s), label: gradeLabel(s) }))}
-            />
+            // 갈비는 5개(한우 3등급 + 미국산·호주산)라 좁은 화면에서 넘친다 — 가로로 밀어 본다.
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Tabs
+                variant="pill"
+                value={itemKey(item)}
+                onChange={(k) => router.replace(`/item/${k}`)}
+                options={gradeSiblings.map((s) => ({ value: itemKey(s), label: gradeLabel(s) }))}
+              />
+            </ScrollView>
           )}
           {showEcoToggle && (
             <Tabs
@@ -1160,8 +1164,14 @@ function BuySection({ markets, reference }: { markets: MarketPrice[] | null; ref
   );
 }
 
-/** 등급 탭 라벨 — 한우는 이름 끝('한우 등심 1++등급' → '1++등급'), 수입 소고기는 맨 앞('호주산 소고기 갈비' → '호주산'). */
+/**
+ * 등급 토글 라벨. 한우는 이름 끝('한우 등심 1++등급' → '1++등급'), 수입 소고기는 맨 앞('호주산 소고기 갈비' → '호주산'),
+ * 삼겹살은 국산/수입. 갈비 묶음에 '한우'를 붙이면 5개가 한 줄을 넘어 선택된 칸이 화면 밖으로 밀린다
+ * — 등급이 붙는 건 한우뿐이라 '1++등급'만으로 구분된다.
+ */
 function gradeLabel(s: PriceItem): string {
+  if (s.itemCode === '4304') return '국산';
+  if (s.itemCode === '4402') return '수입';
   const words = s.itemName.split(' ');
   return (s.itemCode === '4401' ? words[0] : words[words.length - 1]) ?? s.itemName;
 }

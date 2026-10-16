@@ -115,6 +115,32 @@ export function itemKeyOf(i: Pick<PriceItem, 'itemCode' | 'kindCode' | 'rankCode
   return (GRADED[i.itemCode]?.indexOf(i.rankCode) ?? 0) > 0 ? `${base}-${i.rankCode}` : base;
 }
 
+/**
+ * 같은 부위 묶음 — 소(한우·수입)와 돼지(국산·수입)를 부위 이름으로 묶는다('소:갈비', '돼지:삼겹살').
+ * 홈·검색은 묶음마다 오늘 가장 싼 하나만, 상세는 묶음 전체를 토글로 보여준다(2026-10-16 예지님 결정).
+ * 묶음이 아닌 품목은 null.
+ */
+const CUT_ANIMAL: Record<string, string> = { '4301': '소', '4401': '소', '4304': '돼지', '4402': '돼지' };
+export function cutGroupOf(i: Pick<PriceItem, 'itemCode' | 'kindName'>): string | null {
+  const animal = CUT_ANIMAL[i.itemCode];
+  return animal ? `${animal}:${stripUnitParen(i.kindName)}` : null;
+}
+
+/** 부위 묶음마다 오늘 가장 싼 하나만 남긴다. 묶음 밖 품목과 목록 순서는 그대로. 값이 전부 없으면 첫 줄을 남긴다. */
+export function cheapestPerCut<T extends PriceItem>(items: T[]): T[] {
+  const keep = new Map<string, T>();
+  for (const i of items) {
+    const g = cutGroupOf(i);
+    if (!g) continue;
+    const cur = keep.get(g);
+    if (!cur || (i.today != null && (cur.today == null || i.today < cur.today))) keep.set(g, i);
+  }
+  return items.filter((i) => {
+    const g = cutGroupOf(i);
+    return !g || keep.get(g) === i;
+  });
+}
+
 /** 등급 품목의 period API 등급 코드('1'·'2'·'3'). 등급 품목이 아니면 null. */
 export function periodRankOf(i: Pick<PriceItem, 'itemCode' | 'rankCode'>): string | null {
   const idx = GRADED[i.itemCode]?.indexOf(i.rankCode) ?? -1;
