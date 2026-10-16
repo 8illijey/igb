@@ -502,6 +502,19 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
       series[itemKeyOf(it)] = { ...(sr.length ? { r: sr } : {}), ...(sw.length ? { w: sw } : {}) };
     }
 
+    // 평년(dpr7)이 없는 품목의 대체 기준 — 전국 지난 28일 평균. 지역 판정(build-verdicts-regional)과 같은
+    // 정의(오늘 기준 달력 28일 창)라 홈·상세가 '지난 28일 평균'으로 같은 말을 한다.
+    // [2026-10-16 실측] 가지·부추·키위·현미 등 8개가 평년 없이 오늘가만 왔다(이력이 9월부터라 추정).
+    // 평년이 있는 품목엔 안 싣는다 — 그 품목의 기준은 여전히 평년이다.
+    let recent28Avg = null;
+    if (it.normal == null && sr.length) {
+      const cut = new Date();
+      cut.setDate(cut.getDate() - 28);
+      const cutKey = cut.toISOString().slice(0, 10);
+      const win = sr.filter(([d]) => d >= cutKey).map(([, p]) => p);
+      if (win.length) recent28Avg = Math.round(win.reduce((a, b) => a + b, 0) / win.length);
+    }
+
     const key = itemKeyOf(it);
     out[key] = {
       hasWholesale: hasWholesaleFor(key),
@@ -514,6 +527,7 @@ const monthlyFrom = (sums, cnts) => sums.map((s, m) => (cnts[m] > 0 ? Math.round
       spanVarieties,
       ...(variety ? { variety, thisMonthVarieties } : {}),
       ...(wholesaleRecentAvg != null ? { wholesaleRecentAvg, wholesaleMonths } : {}),
+      ...(recent28Avg != null ? { recent28Avg } : {}),
     };
     done += 1;
     if (done % 10 === 0) console.log(`  ${done}/${reps.length}`);

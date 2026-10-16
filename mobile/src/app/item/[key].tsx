@@ -499,8 +499,11 @@ export default function ItemDetailScreen() {
   // 고치려던 것과 같은 종류의 오류라, 기준이 없으면 신호를 안 내는 쪽을 택한다.
   const wholesaleBaseline =
     market === 'wholesale' ? verdicts[vKey]?.wholesaleMonths?.[new Date().getMonth()] ?? null : null;
-  /** 차트 기준선·라벨의 '이맘때 평균'. 소매는 KAMIS 평년, 도매는 위 사전계산값. */
-  const baseline = market === 'wholesale' ? wholesaleBaseline : active?.normal ?? null;
+  // 소매에 평년이 없으면 전국 지난 28일 평균으로 판정한다(2026-10-16) — 홈 카드와 같은 값(verdicts.recent28Avg).
+  // 평년이 있는 품목엔 이 값이 안 실리므로 그 품목들은 그대로 평년 기준이다.
+  const retailR28 = market === 'retail' && active?.normal == null ? verdicts[vKey]?.recent28Avg ?? null : null;
+  /** 차트 기준선·라벨의 '이맘때 평균'. 소매는 KAMIS 평년(없으면 지난 28일 평균), 도매는 위 사전계산값. */
+  const baseline = market === 'wholesale' ? wholesaleBaseline : active?.normal ?? retailR28;
   // 기준값이 없으면 buy=null → 칩을 아예 안 띄운다(signalHidden). 소매·도매 동일.
   const buy =
     active?.today == null
@@ -509,7 +512,7 @@ export default function ItemDetailScreen() {
         ? wholesaleBaseline != null
           ? evalBuy(active.today, wholesaleBaseline)
           : null
-        : evalBuy(active.today, active.normal);
+        : evalBuy(active.today, active.normal ?? retailR28);
   const displayLevel: SignalLevel = buy ? buy.level : 'fair';
   const recReady = buy != null;
   // 기준값이 없는 경우 — 로딩이 아니라 '판단을 안 함'이니 스켈레톤 대신 아무것도 안 보인다.
@@ -536,7 +539,7 @@ export default function ItemDetailScreen() {
   const regOn = !!rr && rr.today != null;
   const dToday = regOn ? rr!.today : active?.today ?? null;
   const dBaseline = regOn ? rr!.recentAvg : baseline;
-  const dBaseLabel = regOn ? `지난 ${windowDays ?? 28}일 평균` : '이맘때 평균';
+  const dBaseLabel = regOn ? `지난 ${windowDays ?? 28}일 평균` : retailR28 != null ? '지난 28일 평균' : '이맘때 평균';
   const dBuy = regOn ? evalBuy(rr!.today!, rr!.recentAvg) : buy;
   const dLevel: SignalLevel = dBuy ? dBuy.level : displayLevel;
   const dRecReady = regOn ? dBuy != null : recReady;
@@ -869,13 +872,6 @@ export default function ItemDetailScreen() {
             {/* 검색엔진용 요약 문단은 제거(2026-09-03) — 사전 렌더로 본문이 이미 품목별
                 실데이터로 풍부해져 중복 재서술이 됐다. 고유 정보였던 '가장 싼/비싼 달'은
                 AnnualFlow 캡션으로 병합. */}
-            {/* '가격이 오르는 시기'(2026-09-11) — 위 삭제와 다르다. AnnualFlow는 최근 1년,
-                이건 5년 평년이라 해마다 안 흔들리는 계절 패턴이고 화면 어디에도 없는 숫자다.
-                쿠팡 아래에 두는 이유: 판단·제휴가 수익 지점이라 그 위에 글을 두면 스크롤 이탈이
-                는다. 크롤러는 위치를 안 가린다. 평년은 소매 조사라 도매 탭엔 안 붙인다. */}
-            {market !== 'wholesale' && seo?.normalMonths && (
-              <PriceSeasonSection name={item.itemName} unit={item.unit} months={seo.normalMonths} />
-            )}
             <Text style={styles.source}>자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}</Text>
           </View>
         ) : null}
@@ -927,50 +923,6 @@ function seoBodyText(seo: SeoItem): string {
     parts.push(`${seo.seasonMonths.join('·')}월에 주로 조사되는 제철 품목이에요.`);
   parts.push('최근 1년 추이와 연간 가격 흐름, 소매·도매 가격도 함께 볼 수 있어요.');
   return parts.join(' ');
-}
-
-/**
- * '가격이 오르는 시기' 문장 — 5년 평년 월별값만으로 만든다.
- * 출하량 데이터가 없으므로 인과('출하가 줄어서')는 말하지 않고 관측된 가격 패턴만 사실로 전한다.
- * 문장마다 이 품목만의 숫자가 들어가야 한다 — 전 품목 공용 문장은 얇은 중복 문서가 된다(2026-09-03 교훈).
- */
-export function priceSeasonText(name: string, unit: string, months: (number | null)[], thisMonth: number): string[] {
-  const valid = months.map((m, i) => ({ m, i })).filter((x): x is { m: number; i: number } => x.m != null && x.m > 0);
-  if (valid.length < 12) return []; // 연중 품목만 — 빈 달이 있으면 '가장 싼 달'이 허구가 된다
-  const min = valid.reduce((a, b) => (b.m < a.m ? b : a));
-  const max = valid.reduce((a, b) => (b.m > a.m ? b : a));
-  const p = topicParticle(name);
-  const spread = Math.round(((max.m - min.m) / min.m) * 100);
-  const out = [
-    `최근 5년 평년 기준 ${name}${p} ${MONTHS[min.i]}월이 가장 싸고(${unit} ${won(min.m)}원), ${MONTHS[max.i]}월이 가장 비싸요(${won(max.m)}원).`,
-  ];
-  if (spread < 8) {
-    out.push(`가장 비싼 달과 싼 달의 차이가 ${spread}%로, 연중 가격이 비교적 안정적인 품목이에요.`);
-  } else {
-    out.push(`가장 비싼 달은 가장 싼 달보다 ${spread}% 높아요.`);
-    // 달 사이 상승폭이 가장 큰 구간 = '오르는 시기'. 12월→1월도 이어 본다.
-    const rise = months
-      .map((m, i) => ({ i, pct: m != null && months[(i + 11) % 12] != null ? (m - months[(i + 11) % 12]!) / months[(i + 11) % 12]! : -Infinity }))
-      .reduce((a, b) => (b.pct > a.pct ? b : a));
-    if (rise.pct > 0)
-      out.push(`한 달 사이 가장 크게 오르는 때는 ${MONTHS[(rise.i + 11) % 12]}월에서 ${MONTHS[rise.i]}월로 넘어갈 때로, 평년 기준 ${Math.round(rise.pct * 100)}% 올라요.`);
-  }
-  const rank = valid.filter((x) => x.m < months[thisMonth]!).length + 1;
-  out.push(`이번 달(${MONTHS[thisMonth]}월) 평년 가격은 ${won(months[thisMonth]!)}원으로, 1년 중 ${rank}번째로 싼 달이에요.`);
-  return out;
-}
-
-function PriceSeasonSection({ name, unit, months }: { name: string; unit: string; months: (number | null)[] }) {
-  const lines = priceSeasonText(name, unit, months, new Date().getMonth());
-  if (lines.length === 0) return null;
-  return (
-    <View style={styles.flowCard}>
-      <Text role="heading" aria-level={2} style={styles.sectionTitle}>
-        {name} 가격이 오르는 시기
-      </Text>
-      <Text style={styles.seoBody}>{lines.join(' ')}</Text>
-    </View>
-  );
 }
 
 /** 스켈레톤 — 펄스(opacity) 애니메이션. children을 주면 그 묶음 전체가 한 단위로 펄스(차트 실루엣 등). */
