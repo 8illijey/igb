@@ -16,6 +16,8 @@ export interface Verdict {
   /** 도매(cls=02) 최근 1년 평균 + 연간 흐름 — 상세 도매 탭이 365일 기기 호출 없이 즉시 쓰도록. */
   wholesaleRecentAvg?: number | null;
   wholesaleMonths?: (number | null)[];
+  /** 전국 지난 28일 평균 — 평년이 없는 품목에만 실린다. 그 품목의 홈·상세 판정 기준. */
+  recent28Avg?: number;
   /** 연간 흐름이 여러 계절 품종(봄·여름·가을·월동)에 걸쳐 있음 — 안내 표시용 */
   spanVarieties?: boolean;
   /**

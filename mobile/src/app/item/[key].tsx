@@ -499,8 +499,11 @@ export default function ItemDetailScreen() {
   // 고치려던 것과 같은 종류의 오류라, 기준이 없으면 신호를 안 내는 쪽을 택한다.
   const wholesaleBaseline =
     market === 'wholesale' ? verdicts[vKey]?.wholesaleMonths?.[new Date().getMonth()] ?? null : null;
-  /** 차트 기준선·라벨의 '이맘때 평균'. 소매는 KAMIS 평년, 도매는 위 사전계산값. */
-  const baseline = market === 'wholesale' ? wholesaleBaseline : active?.normal ?? null;
+  // 소매에 평년이 없으면 전국 지난 28일 평균으로 판정한다(2026-10-16) — 홈 카드와 같은 값(verdicts.recent28Avg).
+  // 평년이 있는 품목엔 이 값이 안 실리므로 그 품목들은 그대로 평년 기준이다.
+  const retailR28 = market === 'retail' && active?.normal == null ? verdicts[vKey]?.recent28Avg ?? null : null;
+  /** 차트 기준선·라벨의 '이맘때 평균'. 소매는 KAMIS 평년(없으면 지난 28일 평균), 도매는 위 사전계산값. */
+  const baseline = market === 'wholesale' ? wholesaleBaseline : active?.normal ?? retailR28;
   // 기준값이 없으면 buy=null → 칩을 아예 안 띄운다(signalHidden). 소매·도매 동일.
   const buy =
     active?.today == null
@@ -509,7 +512,7 @@ export default function ItemDetailScreen() {
         ? wholesaleBaseline != null
           ? evalBuy(active.today, wholesaleBaseline)
           : null
-        : evalBuy(active.today, active.normal);
+        : evalBuy(active.today, active.normal ?? retailR28);
   const displayLevel: SignalLevel = buy ? buy.level : 'fair';
   const recReady = buy != null;
   // 기준값이 없는 경우 — 로딩이 아니라 '판단을 안 함'이니 스켈레톤 대신 아무것도 안 보인다.
@@ -536,7 +539,7 @@ export default function ItemDetailScreen() {
   const regOn = !!rr && rr.today != null;
   const dToday = regOn ? rr!.today : active?.today ?? null;
   const dBaseline = regOn ? rr!.recentAvg : baseline;
-  const dBaseLabel = regOn ? `지난 ${windowDays ?? 28}일 평균` : '이맘때 평균';
+  const dBaseLabel = regOn ? `지난 ${windowDays ?? 28}일 평균` : retailR28 != null ? '지난 28일 평균' : '이맘때 평균';
   const dBuy = regOn ? evalBuy(rr!.today!, rr!.recentAvg) : buy;
   const dLevel: SignalLevel = dBuy ? dBuy.level : displayLevel;
   const dRecReady = regOn ? dBuy != null : recReady;
