@@ -115,6 +115,7 @@ async function fetchReps() {
 
 // ── 지역별 시계열 (p_countycode 생략 = 전 도시) ──
 let maxRows = 0;
+let failedReqs = 0; // 재시도까지 다 실패한 요청 — 빈 응답과 구분해 로그로 남긴다
 async function fetchRegionalRows(item, cls = '01') {
   const end = new Date();
   const s = new Date(); s.setDate(end.getDate() - WINDOW_DAYS);
@@ -129,7 +130,7 @@ async function fetchRegionalRows(item, cls = '01') {
     try {
       const rows = (await (await fetchT(url)).json())?.data?.item ?? [];
       if (Array.isArray(rows) && rows.length) { if (rows.length > maxRows) maxRows = rows.length; return rows; }
-    } catch {}
+    } catch { failedReqs += 1; }
   }
   return [];
 }
@@ -295,7 +296,28 @@ async function addMeat(regions, knownKeys) {
   if (maxRows >= 1000) console.warn(`⚠ 응답이 ${maxRows}행 — 1000 상한에 근접/도달. WINDOW_DAYS를 줄여라(일부 도시 잘림 가능).`);
 
   const filled = Object.values(regions).reduce((n, m) => n + Object.keys(m).length, 0);
+  const emptyItems = reps.filter((it) => !Object.values(regions).some((m) => m[`${it.itemCode}-${it.kindCode}`])).length;
+  console.log(`  지역 판정 ${filled}건 (고기 제외) · 실패 요청 ${failedReqs}회 · 도시값 없는 품목 ${emptyItems}/${reps.length}`);
   if (filled === 0) { console.error('지역 판정 0건 — KAMIS 응답 확인. 기존 파일 보존.'); process.exit(1); }
+
+  // 급감 가드 — 기존 파일의 고기 외 판정 수(도시 합계)보다 MIN_KEEP_RATIO 미만으로 줄면 쓰지 않는다.
+  // [2026-10-17 기록] 00:22 KST 강제 재실행 때 KAMIS 요청이 거의 다 빈손으로 와서
+  //   합계 2,026건 → 632건(쌀 2종과 고기만 남음)짜리 파일이 커밋·배포됐다. 40분 뒤 재실행은 정상. 요청 실패를 []로 삼키고
+  //   0건일 때만 막던 게 원인이다. 평소 회차 간 변동은 품목 몇 개 수준이라 70%면 넉넉하다.
+  //   고기(s 필드가 있는 항목)는 축산물품질평가원·미러 출처라 비교에서 뺀다 — 여기 filled도 addMeat 전 값.
+  // 품목이 실제로 크게 줄어 가드가 계속 걸리면: 로그의 '도시값 없는 품목'을 KAMIS에 직접 확인하고,
+  //   정상이면 public/verdicts-regional.json을 지운 뒤 한 번 돌린다(기존 파일이 없으면 비교 안 함).
+  const MIN_KEEP_RATIO = 0.7;
+  let prevFilled = 0;
+  try {
+    const prev = JSON.parse(fs.readFileSync(new URL('../public/verdicts-regional.json', import.meta.url), 'utf8'));
+    for (const m of Object.values(prev.regions ?? {})) prevFilled += Object.values(m).filter((v) => !v.s).length;
+  } catch {}
+  if (prevFilled && filled < prevFilled * MIN_KEEP_RATIO) {
+    console.error(`⚠ 지역 판정 급감 — 고기 제외 ${filled}건 < 기존 ${prevFilled}건의 ${MIN_KEEP_RATIO * 100}%. ` +
+      `KAMIS 일시 장애로 보고 기존 파일 보존.`);
+    process.exit(1);
+  }
 
   // 고기는 KAMIS가 도시별로 안 준다 — 축산물품질평가원 시·도 값으로 채운다. 실패해도 나머지는 그대로 낸다.
   const meatDates = await addMeat(regions, new Set(reps.map((r) => `${r.itemCode}-${r.kindCode}`))).catch((e) => {
