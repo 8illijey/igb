@@ -90,7 +90,8 @@ jobs:
         # kamis.ts는 워커 URL이 하드코딩돼 있어 KAMIS_PROXY가 필요 없다.
         run: node scripts/gen-seo.mjs
       # 지역(22개 조사도시) 판정 — 홈·상세의 지역 선택용. ~2분.
-      # 실패해도 전국 판정 갱신을 막지 않는다 — 스크립트는 0건이면 기존 파일을 그대로 두고 끝난다.
+      # 실패해도 전국 판정 갱신을 막지 않는다(continue-on-error) — 스크립트는 0건이거나 기존 파일 대비
+      # 70% 미만으로 급감하면 쓰지 않고 exit 1 → 아래 Commit은 기존 지역 파일 그대로 전국분만 커밋한다.
       - name: Build regional verdicts
         working-directory: mobile
         continue-on-error: true
