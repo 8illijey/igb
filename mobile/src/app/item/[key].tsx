@@ -578,7 +578,13 @@ export default function ItemDetailScreen() {
     <View style={styles.screen}>
       {seo && <SeoHead item={seo} today={active?.today ?? null} unit={active?.unit} />}
       <GlassHeader onHeight={setTopH}>
-        <Header title={item.itemName || seo?.name || ''} fav={isFavorite(favKey)} onFav={() => toggle(favKey)} />
+        {/* 등급·원산지 묶음이면 헤더는 부위 공통 이름 — 토글을 누를 때마다 바뀌면 화면 단계가 안 맞는다.
+            등급·원산지는 hero 이름(item.itemName)이 보여준다(2026-10-16 예지님 요청). */}
+        <Header
+          title={cutTitle(gradeSiblings) ?? (item.itemName || seo?.name || '')}
+          fav={isFavorite(favKey)}
+          onFav={() => toggle(favKey)}
+        />
       </GlassHeader>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topH }]}>
         {/* 소매/도매 — 헤더 바로 아래 풀폭 밑줄 탭(content 밖). 헤어라인 full-bleed + 탭 16 인셋 */}
@@ -1174,6 +1180,23 @@ function gradeLabel(s: PriceItem): string {
   if (s.itemCode === '4402') return '수입';
   const words = s.itemName.split(' ');
   return (s.itemCode === '4401' ? words[0] : words[words.length - 1]) ?? s.itemName;
+}
+
+/**
+ * 부위 묶음의 공통 이름(헤더용). 한우만이면 '한우 안심', 한우·수입이 섞이면 '소고기 갈비',
+ * 수입만이면 '수입 소고기 갈비살', 돼지는 '돼지고기 삼겹살'. 묶음이 아니면 null.
+ */
+function cutTitle(siblings: PriceItem[]): string | null {
+  if (siblings.length < 2) return null;
+  const codes = new Set(siblings.map((s) => s.itemCode));
+  const animal = codes.has('4301')
+    ? codes.size > 1
+      ? '소고기'
+      : '한우'
+    : codes.has('4401')
+      ? '수입 소고기'
+      : '돼지고기';
+  return `${animal} ${stripUnitParen(siblings[0].kindName)}`;
 }
 
 /** main-header type=detail — back + 제목 + 관심(heart). 하트 상호작용은 FavoriteHeart 공용. */
