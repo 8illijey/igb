@@ -53,6 +53,14 @@ const varietyName = (kindName: string, itemName: string) => {
   // 변종명이 이미 품목명을 포함/끝나면(대파·쪽파→파) 그대로. 아니면(봄→무) 붙인다.
   return !v || v === itemName ? itemName : v.endsWith(itemName) ? v : `${v}${itemName}`;
 };
+/** 고기 가격의 조사 기준 한 줄 — 한우는 1++ 안에서도 마블링 점수(7·8·9)로 값이 크게 갈린다. */
+const MEAT_BASIS_COMMON = '매장 냉장 판매가 평균이에요. 가게·손질·포장(냉동·대용량)에 따라 차이가 커요.';
+const MEAT_BASIS: Record<string, string> = {
+  '4301': '매장 냉장 판매가 평균이에요. 가게·손질, 1++ 안의 마블링 점수(7·8·9)에 따라 차이가 커요.',
+  '4304': MEAT_BASIS_COMMON,
+  '4401': MEAT_BASIS_COMMON,
+  '4402': MEAT_BASIS_COMMON,
+};
 const SKEL_BAR_H = [20, 28, 36, 24, 18, 40, 30, 44, 38, 26, 22, 16]; // 작년 흐름 스켈레톤 막대 실루엣
 
 // 영구 캐시 — 같은 날이면 새로고침해도 즉시(메모리 + AsyncStorage). 시계열·판매처 등 일 단위 데이터 공용.
@@ -797,6 +805,11 @@ export default function ItemDetailScreen() {
                   </View>
                 </View>
               </View>
+              {/* 고기는 조사 기준을 밝힌다 — 정육점·온라인 가격과 비교해 '틀렸다'고 읽힌다(2026-10-17 쓰레드 댓글:
+                  1+ 등심 12,000원 vs 평균 14,104원, 1++8 양지 16,800원 vs 1++ 평균 8,014원). */}
+              {market === 'retail' && MEAT_BASIS[active.itemCode] ? (
+                <Text style={styles.heroSub}>{MEAT_BASIS[active.itemCode]}</Text>
+              ) : null}
             </View>
           )}
         </View>

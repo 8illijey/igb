@@ -266,6 +266,18 @@
     '4401-82': [['호주'], ['미국']],
   };
 
+  /**
+   * 키('4301-22', '4301-22-02', 'eco:…')의 상품명이 그 등급·원산지 조건을 지키는지.
+   * 첫 등급은 키에 등급 코드가 없다(4301-22 = 1++). 등급 품목이 아니면 늘 통과.
+   */
+  function gradeOk(key, title) {
+    const [code, , rank] = key.replace(/^eco:/, '').split('-');
+    const r = rank ?? GRADED[code]?.[0];
+    const t = r && GRADE_TOKENS[`${code}-${r}`];
+    if (!t) return true;
+    return t[0].some((x) => title.includes(x)) && !t[1].some((x) => title.includes(x));
+  }
+
   // ── 유틸 ────────────────────────────────────────────────────────────────
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const fmtDate = (d) =>
@@ -591,13 +603,20 @@
     // 후보 0개를 줄 수도 있다. 그때마다 상세의 쿠팡 섹션이 사라지거나, 더 나쁘게는
     // 형제 품종 상품으로 폴백해 후지사과 페이지에 아오리사과가 붙었다.
     // 딥링크는 상품에 영구히 붙는 URL이라 어제 값을 그대로 두는 게 언제나 낫다.
+    // 단, 등급 품목은 이어받는 상품도 등급을 다시 본다 — 규칙이 생기기 전에 붙은 상품(1++ 페이지의 '1등급'
+    // 상품)이 '못 찾으면 어제 값' 때문에 계속 살아남았다(2026-10-17 한우 양지 1++). 다 걸러지면 비운다.
     let carried = 0;
+    let pruned = 0;
     for (const [k, v] of Object.entries(prev)) {
-      if (!data[k]) {
-        data[k] = v;
+      if (data[k]) continue;
+      const kept = (v || []).filter((p) => gradeOk(k, p.name || ''));
+      pruned += (v || []).length - kept.length;
+      if (kept.length) {
+        data[k] = kept;
         carried += 1;
       }
     }
+    if (pruned) log(`이어받은 상품 중 등급이 안 맞는 ${pruned}개는 뺐다`);
     if (carried) log(`이번 회차에 못 뽑은 ${carried}개 키는 직전 값 유지`);
 
     log(
