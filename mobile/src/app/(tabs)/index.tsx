@@ -26,7 +26,6 @@ import { RegionSheet } from '../../components/igb/RegionSheet';
 import { RegionNote } from '../../components/igb/RegionNote';
 import { useRegion } from '../../store/region';
 import { NATIONWIDE } from '../../data/regions';
-import { SEO_ITEMS } from '../../seo.gen';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
 import { subjectParticle } from '../../utils/korean';
@@ -49,6 +48,8 @@ type ItemView = {
   pct: number | null;
   /** 지역을 골랐는데 그 도시가 이 품목을 조사하지 않아 전국 값으로 대신했다. */
   nationwide?: boolean;
+  /** 평년이 없어 전국 지난 28일 평균으로 판정했다 — 평년 % 와 축이 달라 히어로('할인율 1위')엔 못 선다. */
+  r28?: boolean;
 };
 function itemView(i: PriceItem, region: string, regional: RegionalVerdicts, verdicts: Record<string, Verdict>): ItemView {
   const key = itemKey(i);
@@ -63,6 +64,13 @@ function itemView(i: PriceItem, region: string, regional: RegionalVerdicts, verd
       return { today: rv.today, level: rv.level, basePrice: rv.recentAvg, baseLabel: '최근 평균', pct };
     }
     nationwide = true; // 그 도시 미조사 → 전국 폴백
+  }
+  // 평년이 없으면 전국 지난 28일 평균으로 판정 — 상세와 같은 값·같은 ±1% 규칙(evalBuy).
+  const r28 = verdicts[key]?.recent28Avg;
+  if (i.normal == null && r28 && i.today != null) {
+    const pct = Math.round(((i.today - r28) / r28) * 100);
+    const level: SignalLevel = pct <= -1 ? 'cheap' : pct >= 1 ? 'expensive' : 'fair';
+    return { nationwide, r28: true, today: i.today, level, basePrice: r28, baseLabel: '최근 평균', pct };
   }
   return {
     nationwide,
@@ -156,10 +164,10 @@ function HeroVerdictCard({ item, view, animatePrice = false }: { item: PriceItem
   if (spec.startsWith('(') && spec.endsWith(')')) spec = spec.slice(1, -1);
   if (!spec) spec = item.unit;
   return (
+    <Link href={`/item/${itemKey(item)}`} asChild>
     <Pressable
-      style={({ pressed }) => [styles.heroCard, pressed && { opacity: 0.85 }]}
-      onPress={() => router.push(`/item/${itemKey(item)}`)}
-      accessibilityRole="button"
+      // 함수형 style은 쓰지 마라 — Link asChild가 웹에서 함수를 버려 카드 배경·여백이 통째로 빠진다(2026-10-17).
+      style={styles.heroCard}
       accessibilityLabel={`${item.itemName} 시세 자세히 보기`}
     >
       <View style={styles.heroTopRow}>
@@ -167,15 +175,19 @@ function HeroVerdictCard({ item, view, animatePrice = false }: { item: PriceItem
         <Text style={styles.captionGrey}>오늘 · KAMIS 소매</Text>
       </View>
 
-      {/* Figma: 평가문구는 카드 상단 풀폭.
-          줄바꿈을 강제하지 않는다 — 좀은 화면에선 앞 문장이 한 번 더 접혀
-          '평균보다 / (빈줄) / 39% 싸요'처럼 떨어졌다(2026-08-24 아이폰 제보).
-          그냥 흐르게 두면 폭에 맞춰 알아서 나뉩다. */}
-      <Text style={styles.verdict}>
-        오늘은 {item.itemName}
-        {subjectParticle(item.itemName)} {view.baseLabel}보다{' '}
-        <Text style={{ color: c.main, textDecorationLine: 'underline' }}>{verdictTail}</Text>
-      </Text>
+      {/* 두 줄 고정: '오늘은 [품목]가' / '이맘때 평균보다 N% 싸요' (2026-10-17 사용자 지정).
+          줄은 '\n'이 아니라 별도 블록으로 나눈다 — 한 Text 안에서 '\n'으로 끊으면
+          좁은 화면에서 줄 끝 공백이 한 번 더 접혀 빈 줄이 생겼다(2026-08-24 아이폰 제보). */}
+      <View>
+        <Text style={styles.verdict}>
+          오늘은 {item.itemName}
+          {subjectParticle(item.itemName)}
+        </Text>
+        <Text style={styles.verdict}>
+          {view.baseLabel}보다{' '}
+          <Text style={{ color: c.main, textDecorationLine: 'underline' }}>{verdictTail}</Text>
+        </Text>
+      </View>
 
       <View style={styles.heroMediaRow}>
         {/* Figma hero-verdict-card: 좌측 1:1 썸네일 (없으면 bgTertiary placeholder) */}
@@ -195,30 +207,33 @@ function HeroVerdictCard({ item, view, animatePrice = false }: { item: PriceItem
         </View>
       </View>
     </Pressable>
+    </Link>
   );
 }
 
 /** Figma thumbnail-card 1:1 — 사진(placeholder) + xs solid 칩(%·변동없음) + 품명/규격/가격 */
 function ThumbnailCard({ item, view, width }: { item: PriceItem; view: ItemView; width?: number }) {
   // 칩 색은 표시한 할인율(%)과 같은 기준으로 묶는다 — 숫자와 색이 따로 놀지 않게(-10%→싸/초록, +53%→비싸/빨강).
-  const pct = view.pct ?? 0;
-  const pctLevel: SignalLevel = pct <= -1 ? 'cheap' : pct >= 1 ? 'expensive' : 'fair';
+  // 비교 기준이 없으면(pct null) 칩을 안 단다 — 0으로 떨어뜨리면 근거 없이 '변동없음'이 뜬다.
+  const pct = view.pct;
+  const pctLevel: SignalLevel | null = pct == null ? null : pct <= -1 ? 'cheap' : pct >= 1 ? 'expensive' : 'fair';
+  // Link로 감싸 웹에선 <a href>가 된다 — 카드가 SSG(스냅샷)로도 그려지므로 크롤러가 이 링크로 상세를 찾는다.
   return (
-    <Pressable
-      style={[styles.thumbCard, width != null && { width }]}
-      onPress={() => router.push(`/item/${itemKey(item)}`)}
-    >
+    <Link href={`/item/${itemKey(item)}`} asChild>
+    <Pressable style={StyleSheet.flatten([styles.thumbCard, width != null && { width }])}>
       <View style={styles.thumbMedia}>
         <Thumb item={item} />
-        <View style={styles.thumbChip}>
-          {/* Figma: 화살표 + 무부호 %(fair는 '변동없음'). 방향은 화살표가 표기. */}
-          <SignalChip
-            level={pctLevel}
-            size="xs"
-            showArrow
-            label={pctLevel === 'fair' ? '변동없음' : `${Math.abs(pct)}%`}
-          />
-        </View>
+        {pctLevel != null && pct != null && (
+          <View style={styles.thumbChip}>
+            {/* Figma: 화살표 + 무부호 %(fair는 '변동없음'). 방향은 화살표가 표기. */}
+            <SignalChip
+              level={pctLevel}
+              size="xs"
+              showArrow
+              label={pctLevel === 'fair' ? '변동없음' : `${Math.abs(pct)}%`}
+            />
+          </View>
+        )}
       </View>
       <View>
         <Text style={styles.thumbName} numberOfLines={1}>
@@ -229,6 +244,7 @@ function ThumbnailCard({ item, view, width }: { item: PriceItem; view: ItemView;
         </Text>
       </View>
     </Pressable>
+    </Link>
   );
 }
 
@@ -241,8 +257,6 @@ export default function HomeScreen() {
   }, [items]);
   const verdicts = useVerdicts(); // 사전계산: 평년+최근1년 두 기준 판정 (있으면 우선)
   // 표시 신호 = 사전계산 level(두 기준) 우선, 없으면 item.level(평년)
-  // 주목할 시세 섹션 인라인 펼침 — 별도 화면 없이 섹션이 아래로 쌓이고 홈 스크롤로 본다
-  const [expanded, setExpanded] = useState(false);
   const [regionOpen, setRegionOpen] = useState(false);
   const { region } = useRegion();
   // 지역 판정 — 전국이 아닐 때만 받는다. 선택 도시의 오늘가·판정·최근평균으로 화면을 덮는다.
@@ -256,7 +270,10 @@ export default function HomeScreen() {
   const [topH, setTopH] = useState(100);
 
   const viewOf = (i: PriceItem) => itemView(i, region, regional, verdicts);
-  const lvlOf = (i: PriceItem) => viewOf(i).level;
+  // 판정 가능 = 비교 기준(평년·최근평균)이 있어 %가 나온다. KAMIS가 평년을 안 주는 품목(가지·부추·키위 등,
+  // 2026-10-16 실측 8개)은 전국 지난 28일 평균(itemView r28)으로 판정하고, 그것도 없으면 칩 없이 싣는다
+  // — 홈에서 빼면 사용자도 크롤러도 그 상세로 못 간다.
+  const judged = (v: ItemView) => v.pct != null && v.level != null;
 
   // 진입 연출 게이트 — 스피너를 실제로 본 첫 도착 1회만. 캐시 즉시 페인트·당겨서 새로고침·펼침엔 연출 없음.
   const reduced = useReducedMotion();
@@ -268,35 +285,36 @@ export default function HomeScreen() {
     if (animateEntrance) didAnimate.current = true;
   });
   const ORDER = { cheap: 0, fair: 1, expensive: 2 } as const;
-  // 전체 품목 — BEST(싸) → FAIR(적정) → WAIT(비싸) 순, 같은 등급 내 평년 대비 낮은 순.
+  // 전체 품목 — BEST(싸) → FAIR(적정) → WAIT(비싸) 순, 같은 등급 내 평년 대비 낮은 순. 판정 없는 품목은 그 뒤.
   const ranked = useMemo(
     () =>
       // 고기도 등급(1++·1+·1)·원산지별로 다 보여준다 — 부위별 최저가 하나로 묶었더니 한우가 늘 1등급만
       // 보였다(2026-10-16 예지님 결정으로 되돌림). 최저가 하나는 검색의 인기 TOP10에만 남는다.
       items
-        .filter((i) => {
-          const v = viewOf(i);
-          return v.today != null && v.pct != null && v.level != null;
-        })
+        .filter((i) => viewOf(i).today != null)
         .sort((a, b) => {
           const va = viewOf(a);
           const vb = viewOf(b);
           // 전국 폴백 품목은 맨 뒤로 — 그 %는 전국 평년 대비라 도시 '최근 평균' 대비와 같은 줄에 세울 수 없다.
           const n = Number(!!va.nationwide) - Number(!!vb.nationwide);
           if (n !== 0) return n;
+          const j = Number(!judged(va)) - Number(!judged(vb));
+          if (j !== 0) return j;
+          if (!judged(va)) return 0;
           const d = ORDER[va.level!] - ORDER[vb.level!];
           return d !== 0 ? d : (va.pct ?? 0) - (vb.pct ?? 0);
         }),
     [items, verdicts, region, regional],
   );
-  // 히어로·접힌 주목할 시세는 '이 도시에서 싼 것' 자리라 그 도시가 조사한 품목만. 펼친 전체 목록엔 다 나온다.
+  // 히어로는 '이 도시에서 싼 것' 자리라 그 도시가 조사한 품목만. 아래 목록엔 다 나온다.
   const local = useMemo(() => ranked.filter((i) => !viewOf(i).nationwide), [ranked, region, regional]);
-  const movers = useMemo(() => local.filter((i) => lvlOf(i) === 'cheap'), [local, region, regional]);
-  const hero = movers[0] ?? null; // 가장 싼 BEST 품목
-  const allRest = useMemo(() => ranked.filter((i) => i !== hero), [ranked, hero]);
-  const deals = useMemo(() => movers.filter((i) => i !== hero), [movers, hero]);
-  // 접힘: 주목할 시세(BEST) 6개 / 펼침: 전체 품목.
-  const notable = expanded ? allRest : (deals.length ? deals : local.filter((i) => i !== hero)).slice(0, 6);
+  const hero = useMemo(
+    () => local.find((i) => judged(viewOf(i)) && !viewOf(i).r28 && viewOf(i).level === 'cheap') ?? null,
+    [local, region, regional],
+  ); // 가장 싼 BEST 품목
+  // 전 품목을 접지 않고 다 보여준다(2026-10-16 결정 — '전체보기' 버튼과 하단 '전체 품목' 색인을 같이 뺐다).
+  // 카드가 <a href>라 정적 HTML에도 상세 링크가 품목 수만큼 남는다 — 색인이 하던 크롤 경로를 카드가 잇는다.
+  const notable = useMemo(() => ranked.filter((i) => i !== hero), [ranked, hero]);
   const firstNationwide = notable.findIndex((i) => viewOf(i).nationwide);
 
   return (
@@ -326,7 +344,8 @@ export default function HomeScreen() {
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
-      </Head>      {/* 상단 고정 글래스 — 워드마크 + 검색 입구. 콘텐츠가 아래로 스크롤되며 블러됨 */}
+      </Head>
+      {/* 상단 고정 글래스 — 워드마크 + 검색 입구. 콘텐츠가 아래로 스크롤되며 블러됨 */}
       <GlassHeader onHeight={setTopH}>
         <View style={styles.header}>
           {/* 워드마크는 SVG라 텍스트가 없다 — h1 태그 + aria-label로 시맨틱 제목을 준다(시각 변화 없음) */}
@@ -393,7 +412,8 @@ export default function HomeScreen() {
                       {n === firstNationwide && (
                         <RegionNote text={`${region}에선 아래 품목들의 가격을 조사하지 않아,\n전국 평균을 보여드려요.`} />
                       )}
-                      {animateEntrance ? (
+                      {/* 등장 연출은 첫 화면 3줄만 — 전 품목에 n*40ms를 주면 끝 카드가 몇 초 늦게 뜬다 */}
+                      {animateEntrance && n < 9 ? (
                         <Reanimated.View entering={FadeInDown.duration(300).delay(60 + n * 40)}>
                           <ThumbnailCard item={i} view={viewOf(i)} width={colW} />
                         </Reanimated.View>
@@ -403,12 +423,6 @@ export default function HomeScreen() {
                     </React.Fragment>
                   ))}
                 </View>
-                <Pressable
-                  style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.85 }]}
-                  onPress={() => setExpanded((v) => !v)}
-                >
-                  <Text style={styles.secondaryBtnLabel}>{expanded ? '접기' : '전체보기'}</Text>
-                </Pressable>
               </View>
             )}
 
@@ -423,20 +437,6 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* 전체 품목 색인 — 홈 정적 HTML에 상세로 가는 <a>가 0개라 네이버가 상세 82개를
-            하나도 수집하지 못했다(2026-09-03 진단). 카드 목록은 라이브 데이터 이후 JS가
-            그려서 크롤러에겐 없다. 로딩 분기 밖에 둬야 SSG에도 찍힌다. 사용자에게도
-            전 품목 바로가기로 쓸모가 있어 숨기지 않는다(숨긴 링크는 스팸 판정 위험). */}
-        <View style={styles.allItems}>
-          <Text style={styles.sectionTitle}>전체 품목</Text>
-          <View style={styles.allItemsWrap}>
-            {SEO_ITEMS.map((i) => (
-              <Link key={i.key} href={`/item/${i.key}`} style={styles.allItemsLink}>
-                {i.name}
-              </Link>
-            ))}
-          </View>
-        </View>
         </View>
       </ScrollView>
     </View>
@@ -497,10 +497,6 @@ const styles = StyleSheet.create({
     gap: spacing.s3,
   },
   sectionTitle: { ...type.size[17], ...type.w.semibold, color: colors.textPrimary } as const,
-  // 전체 품목 색인 — outerCard와 같은 카드 문법, 링크는 3차 텍스트 톤으로 낮게
-  allItems: { backgroundColor: colors.bgElevated, borderRadius: radius.l, padding: spacing.s4, gap: spacing.s3 },
-  allItemsWrap: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.s3, rowGap: spacing.s2 },
-  allItemsLink: { ...type.size[13], ...type.w.regular, color: colors.textTertiary } as const,
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.s3 },
   // flexGrow 금지 — 마지막 줄 1~2개일 때 칸이 늘어나지 않고 3칸 너비 유지
   thumbCard: { width: '30.5%', gap: spacing.s2 },
@@ -514,15 +510,5 @@ const styles = StyleSheet.create({
   thumbName: { ...type.size[13], ...type.w.semibold, color: colors.textPrimary } as const,
   thumbPrice: { ...type.size[15], ...type.w.semibold, color: colors.priceNumber } as const,
   thumbUnit: { ...type.size[13], ...type.w.regular, color: colors.priceUnit } as const,
-  secondaryBtn: {
-    height: 40,
-    borderRadius: radius.s,
-    backgroundColor: colors.bgSecondary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s2,
-  },
-  secondaryBtnLabel: { ...type.size[15], ...type.w.semibold, color: colors.textPrimary } as const,
   source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center' } as const,
 });
