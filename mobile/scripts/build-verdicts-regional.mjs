@@ -13,7 +13,11 @@
 //   도매·유기농 지역값은 여기서 안 만든다 — 상세에만 나와서 상세가 그 도시 시계열을 라이브로 받아 계산한다.
 //
 // 산출물: mobile/public/verdicts-regional.json
-//   { date, windowDays, regions: { "<도시명>": { "<itemCode-kindCode>": { level, today, recentAvg } } } }
+//   { date, windowDays, dates, regions: { "<도시명>": { "<itemCode-kindCode>": { level, today, recentAvg, s } } } }
+//   s = 그 도시의 일별 가격열(dates와 같은 순서, 조사 없는 날 null) — 상세 '최근 시세' 차트용.
+//   [2026-10-19] 전 품목에 싣는다. 전엔 고기만 실었고 나머지는 상세가 KAMIS를 라이브로 불렀는데,
+//   KAMIS가 멈추면 워커가 미러로 폴백하고 미러엔 도시별 행이 없어(평균만) 지역 차트가 통째로 비었다.
+//   지금도 그런지: npm run check-live ('워커 주입(미러 변환)'이면 KAMIS 불통).
 //   앱: 지역≠전국일 때 이 파일을 읽어 홈·상세의 판정과 '오늘 가격'을 그 도시 값으로 덮는다.
 //   파일/도시/품목이 없으면 기존 전국 verdicts로 자동 폴백(깨지지 않음).
 //
@@ -151,6 +155,7 @@ async function fetchRegionalRows(item, cls = '01') {
 // 기준은 다른 품목과 같다 — 그 지역 오늘가 vs 지난 WINDOW_DAYS일 평균. 축평원의 지역 '평년'은 KAMIS 평년과
 // 숫자가 달라(등심 1+ 11,929 vs 11,646) 한 앱에 섞으면 같은 말에 다른 숫자가 된다. 그래서 쓰지 않는다.
 // 산출: regions[도시][키] = { level, today, recentAvg, s: 가격열, sido?: 빌려 쓴 시·도 } + meatDates(가격열의 날짜).
+//   meatDates는 중간값이다 — 끝에서 전 품목 공통 dates 축으로 다시 맞춰 내보낸다.
 //   s는 상세 '최근 시세' 차트용 — 고기는 KAMIS에서 그 도시 시계열을 라이브로 받을 수 없다.
 const MIRROR_BASE = 'https://apis.data.go.kr/B552845/perRegion/price';
 const MIRROR_SIDO = {
@@ -266,11 +271,12 @@ async function addMeat(regions, knownKeys) {
 
   const regions = {}; // cityName → { itemKey → {level,today,recentAvg} }
   for (const c of CITIES) regions[c] = {};
+  const daily = new Map(); // regions의 항목 객체 → { 'YYYY-MM-DD': [합, 개수] } — 끝에서 가격열 s로 편다
   let done = 0;
   for (const it of reps) {
     const key = `${it.itemCode}-${it.kindCode}`;
     const rows = await fetchRegionalRows(it);
-    // countyname 별로 { 최신가(today), 가격합/개수(recentAvg) }
+    // countyname 별로 { 최신가(today), 가격합/개수(recentAvg), 일별 합/개수(차트) }
     const byCity = new Map();
     for (const r of rows) {
       const city = String(r.countyname ?? '');
@@ -278,15 +284,22 @@ async function addMeat(regions, knownKeys) {
       const p = parsePrice(r.price);
       if (p == null) continue;
       const day = String(r.regday ?? '');
-      const cur = byCity.get(city) ?? { sum: 0, n: 0, latestDay: '', today: null };
+      const cur = byCity.get(city) ?? { sum: 0, n: 0, latestDay: '', today: null, days: {} };
       cur.sum += p; cur.n += 1;
       if (day >= cur.latestDay) { cur.latestDay = day; cur.today = p; }
+      // 한 도시에 시장이 여럿이면 같은 날 행이 여럿이다 — 그날 평균으로 한 점
+      if (r.yyyy) {
+        const d = (cur.days[`${r.yyyy}-${day.replace('/', '-')}`] ??= [0, 0]);
+        d[0] += p; d[1] += 1;
+      }
       byCity.set(city, cur);
     }
     for (const [city, v] of byCity) {
       const recentAvg = Math.round(v.sum / v.n);
       const level = judge(v.today, recentAvg);
-      if (level) regions[city][key] = { level, today: v.today, recentAvg };
+      if (!level) continue;
+      regions[city][key] = { level, today: v.today, recentAvg };
+      daily.set(regions[city][key], v.days);
     }
     done += 1;
     if (done % 15 === 0) console.log(`  ${done}/${reps.length} (최대 응답 ${maxRows}행)`);
@@ -304,14 +317,16 @@ async function addMeat(regions, knownKeys) {
   // [2026-10-17 기록] 00:22 KST 강제 재실행 때 KAMIS 요청이 거의 다 빈손으로 와서
   //   합계 2,026건 → 632건(쌀 2종과 고기만 남음)짜리 파일이 커밋·배포됐다. 40분 뒤 재실행은 정상. 요청 실패를 []로 삼키고
   //   0건일 때만 막던 게 원인이다. 평소 회차 간 변동은 품목 몇 개 수준이라 70%면 넉넉하다.
-  //   고기(s 필드가 있는 항목)는 축산물품질평가원·미러 출처라 비교에서 뺀다 — 여기 filled도 addMeat 전 값.
+  //   고기는 축산물품질평가원·미러 출처라 비교에서 뺀다 — 여기 filled도 addMeat 전 값.
+  //   고기 판별은 품목코드 자릿수로 한다(축산 500번대는 4자리: 4301·9901…, 나머지는 3자리).
+  //   [2026-10-19] 예전엔 's 필드 유무'로 갈랐는데, 이제 전 품목이 s를 가져서 그 기준은 못 쓴다.
   // 품목이 실제로 크게 줄어 가드가 계속 걸리면: 로그의 '도시값 없는 품목'을 KAMIS에 직접 확인하고,
   //   정상이면 public/verdicts-regional.json을 지운 뒤 한 번 돌린다(기존 파일이 없으면 비교 안 함).
   const MIN_KEEP_RATIO = 0.7;
   let prevFilled = 0;
   try {
     const prev = JSON.parse(fs.readFileSync(new URL('../public/verdicts-regional.json', import.meta.url), 'utf8'));
-    for (const m of Object.values(prev.regions ?? {})) prevFilled += Object.values(m).filter((v) => !v.s).length;
+    for (const m of Object.values(prev.regions ?? {})) prevFilled += Object.keys(m).filter((k) => k.split('-')[0].length !== 4).length;
   } catch {}
   if (prevFilled && filled < prevFilled * MIN_KEEP_RATIO) {
     console.error(`⚠ 지역 판정 급감 — 고기 제외 ${filled}건 < 기존 ${prevFilled}건의 ${MIN_KEEP_RATIO * 100}%. ` +
@@ -325,10 +340,20 @@ async function addMeat(regions, knownKeys) {
     return null;
   });
 
-  const payload = {
-    generatedAt: new Date().toISOString(), date: priceDate, windowDays: WINDOW_DAYS, regions,
-    ...(meatDates ? { meatDates } : {}),
-  };
+  // 가격열을 한 날짜축(dates)에 맞춘다 — 고기(addMeat가 meatDates 기준으로 s를 만들어 둠)와 나머지를 합친 축.
+  const allDates = new Set(meatDates ?? []);
+  for (const days of daily.values()) for (const d of Object.keys(days)) allDates.add(d);
+  const dates = [...allDates].sort();
+  const meatIdx = new Map((meatDates ?? []).map((d, i) => [d, i]));
+  for (const m of Object.values(regions)) {
+    for (const v of Object.values(m)) {
+      const days = daily.get(v);
+      if (days) v.s = dates.map((d) => (days[d] ? Math.round(days[d][0] / days[d][1]) : null));
+      else if (v.s) v.s = dates.map((d) => (meatIdx.has(d) ? v.s[meatIdx.get(d)] : null));
+    }
+  }
+
+  const payload = { generatedAt: new Date().toISOString(), date: priceDate, windowDays: WINDOW_DAYS, dates, regions };
   const dir = new URL('../public/', import.meta.url);
   fs.mkdirSync(dir, { recursive: true });
   const out = path.join(dir.pathname, 'verdicts-regional.json');

@@ -115,8 +115,9 @@ export interface RegionalVerdict {
   /** 그 지역 최근 N일(windowDays) 평균 — 판정·표시 기준선 */
   recentAvg: number | null;
   /**
-   * 고기만 — 축산물품질평가원 시·도 값(2026-10-16). KAMIS가 고기를 도시별로 안 줘서 상세 차트용 가격열을
-   * 같이 싣는다(날짜는 payload.meatDates와 같은 순서, 조사 없는 날은 null).
+   * 그 도시의 일별 가격열 — 상세 '최근 시세' 차트용(날짜는 payload.dates와 같은 순서, 조사 없는 날은 null).
+   * 고기는 KAMIS가 도시별로 안 줘서 처음부터 실었고(2026-10-16), 나머지 품목도 2026-10-19부터 싣는다 —
+   * KAMIS가 멈추면 워커가 미러로 폴백하는데 미러엔 도시별 행이 없어 라이브 지역 차트가 비었다.
    */
   s?: (number | null)[];
   /** 그 도시가 아니라 속한 시·도 값을 빌려 썼을 때 그 이름(수원 → '경기'). */
@@ -136,8 +137,8 @@ const REGIONAL_URLS = [
 export interface RegionalPayload {
   regions: RegionalVerdicts;
   windowDays: number | null;
-  /** 고기 가격열(s)의 날짜(YYYY-MM-DD). 고기 지역값이 없는 파일이면 null. */
-  meatDates: string[] | null;
+  /** 가격열(s)의 날짜(YYYY-MM-DD). 가격열이 없는 파일이면 null. */
+  dates: string[] | null;
 }
 
 async function fetchRegional(): Promise<RegionalPayload> {
@@ -151,21 +152,22 @@ async function fetchRegional(): Promise<RegionalPayload> {
         return {
           regions,
           windowDays: typeof j?.windowDays === 'number' ? j.windowDays : null,
-          meatDates: Array.isArray(j?.meatDates) ? (j.meatDates as string[]) : null,
+          // 구본 파일(2026-10-19 이전)은 고기 가격열만 있고 날짜 이름이 meatDates다
+          dates: Array.isArray(j?.dates ?? j?.meatDates) ? ((j.dates ?? j.meatDates) as string[]) : null,
         };
       }
     } catch {
       // 다음 소스로
     }
   }
-  return { regions: {}, windowDays: null, meatDates: null };
+  return { regions: {}, windowDays: null, dates: null };
 }
 
 let regionalCache: Promise<RegionalPayload> | null = null;
 
-/** 지역 판정. enabled=false(전국)면 받지 않는다 — 전국 사용자에겐 80KB를 안 내려준다. */
+/** 지역 판정. enabled=false(전국)면 받지 않는다 — 전국 사용자에겐 지역 파일(가격열 포함)을 안 내려준다. */
 export function useRegionalVerdicts(enabled: boolean): RegionalPayload {
-  const [m, setM] = useState<RegionalPayload>({ regions: {}, windowDays: null, meatDates: null });
+  const [m, setM] = useState<RegionalPayload>({ regions: {}, windowDays: null, dates: null });
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
