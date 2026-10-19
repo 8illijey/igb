@@ -328,7 +328,7 @@ export default function ItemDetailScreen() {
 
   const verdicts = useVerdicts();
   const verdictsDate = useVerdictsDate();
-  const { regions: regional, windowDays, meatDates } = useRegionalVerdicts(region !== NATIONWIDE);
+  const { regions: regional, windowDays, dates: regDates } = useRegionalVerdicts(region !== NATIONWIDE);
   const rawActive = market === 'wholesale' ? wsItem : market === 'retail' ? item : null;
   // 라이브 사다리가 주말을 건너뛰어 일주일 전 값을 줄 때가 있다 → 더 최신인 쪽을 고른다.
   // 왜·언제 그런지는 api/pickFresher.ts 헤더에 실측과 함께 적어 두었다.
@@ -566,16 +566,18 @@ export default function ItemDetailScreen() {
         regRow?.sido
         ? `${region}${topicParticle(region)} ${regRow.sido} 평균 가격을 보여드려요.`
         : null;
-  // 고기 지역 차트는 지역 파일에 미리 담겨 있다 — KAMIS는 고기 도시 시계열을 안 줘서 라이브로 못 받는다.
+  // 소매 지역 차트는 지역 파일에 미리 담긴 가격열을 먼저 쓴다 — 판정(today·recentAvg)과 같은 빌드라 기준선과
+  // 차트가 어긋나지 않고, KAMIS가 멈춰도 뜬다(2026-10-19: 미러 폴백엔 도시별 행이 없어 라이브 차트가 비었다).
+  // 고기는 KAMIS가 도시 시계열을 아예 안 줘서 이 길뿐이다. 가격열이 없는 구본 파일·품목만 아래 라이브로 받는다.
   const preRegChart = useMemo<SeriesPoint[] | null>(() => {
-    if (market !== 'retail' || !rv?.s || !meatDates) return null;
-    return meatDates.flatMap((d, i) => {
+    if (market !== 'retail' || !rv?.s || !regDates) return null;
+    return regDates.flatMap((d, i) => {
       const price = rv.s![i];
       return price == null ? [] : [{ date: d.slice(5).replace('-', '/'), year: d.slice(0, 4), price }];
     });
-  }, [market, rv, meatDates]);
+  }, [market, rv, regDates]);
 
-  // 지역 '최근 시세' 차트 — 그 도시 시계열을 라이브로 받는다(28일). 전국 경로는 그대로 둔다.
+  // 지역 '최근 시세' 차트 — 미리 담긴 가격열이 없을 때만 그 도시 시계열을 라이브로 받는다(28일). 전국 경로는 그대로 둔다.
   useEffect(() => {
     if (!fetchRegChart || !active) {
       setRegionalChart(null);
