@@ -138,7 +138,10 @@ const TERM_RULES: [RegExp, string[]][] = [
   [/오이$/, ['오이']],
   [/상추$/, ['상추']],
   [/감귤$/, ['귤', '감귤']],
-  [/^알배기배추$/, ['배추', '알배추']],
+  // 레시피 원문은 '알배추'라 쓴다 — 검색어·제목 대조는 그 말로. 재료 대조는 ingredientName이 '알배기배추'로 갈라 준다.
+  [/^알배기배추$/, ['알배추', '알배기배추']],
+  // 원문은 '얼갈이 배추'(띄어 씀)·'얼갈이'로 쓴다 — '얼갈이배추'로 물으면 식약처가 못 찾는다.
+  [/^얼갈이배추$/, ['얼갈이', '얼갈이배추']],
   [/고춧가루$/, ['고춧가루']],
   [/^깐마늘/, ['마늘', '깐마늘']],
   [/방울토마토$/, ['방울토마토']],
@@ -159,10 +162,15 @@ const grams = (amount: string) => Number(/(\d+(?:\.\d+)?)\s*(?:g|ml|㎖)/i.exec(
  */
 export function mainScore(r: Recipe, terms: string[]): number {
   const all = [...r.ingredients, ...r.condiments];
-  const mine = all.find((i) => terms.includes(i.name) || (i.raw != null && terms.includes(i.raw)));
+  const mine = all.find((i) => {
+    const n = ingredientName(i);
+    return n != null && (terms.includes(n) || (i.raw != null && terms.includes(i.raw)));
+  });
   if (!mine) return 0;
   const title = TITLE_NOISE.filter((w) => !terms.includes(w)).reduce((t, w) => t.replaceAll(w, ''), r.title);
-  if (terms.some((t) => title.includes(t))) return 2;
+  // 원문이 품종을 갈랐으면(알배추) 워커 이름(배추)으로도 제목을 본다 — '배추겉절이'의 재료가 알배추다.
+  const split = ingredientName(mine) !== mine.name; // 쪽파(워커 이름 '대파') 같은 경우엔 쓰지 않는다
+  if ([...terms, ...(split ? [mine.name] : [])].some((t) => title.includes(t))) return 2;
   const total = all.reduce((s, i) => s + grams(i.amount), 0);
   const share = total ? grams(mine.amount) / total : 0;
   return share >= 0.15 ? share : 0;
@@ -299,6 +307,24 @@ const CUT_RULES: Record<string, [RegExp, string][]> = {
 const TITLE_RULES: Record<string, [RegExp, string][]> = {
   소고기: [[/스테이크/, '한우 등심 1+등급']],
 };
+/**
+ * 워커가 하나로 묶은 재료를 원문으로 다시 가른다. null = 시세 품목이 아님.
+ * 워커는 '배추'가 든 재료를 모두 '배추'로 태깅한다(2026-10-22 실측: 원문 알배추 9·얼갈이배추 2·배추김치 3개가
+ * 전부 배추). 그래서 알배추 레시피에 배추(1포기) 시세가 붙고, 배추 상세에 김치양배추볶음이 떴다.
+ */
+const VARIETY_RULES: Record<string, [RegExp, string | null][]> = {
+  배추: [
+    [/김치/, null], // 배추김치는 가공품 — 생배추 시세로 매기지 않는다
+    [/알배추|알배기/, '알배기배추'],
+    [/얼갈이|단배추/, '얼갈이배추'], // 단배추 = 얼갈이의 다른 이름(경상도)
+  ],
+};
+/** 재료의 실제 시세 품목명 — 원문으로 품종을 가르고, 규칙이 없으면 워커가 준 이름. null = 시세 품목 아님. */
+export function ingredientName(i: { name: string; raw?: string }): string | null {
+  const rule = i.raw ? VARIETY_RULES[i.name]?.find(([re]) => re.test(i.raw!)) : undefined;
+  return rule ? rule[1] : i.name;
+}
+
 function cutTarget(name: string, raw: string | undefined, title: string | undefined): string | null {
   const byRaw = raw ? CUT_RULES[name]?.find(([re]) => re.test(raw))?.[1] : undefined;
   return byRaw ?? (title ? TITLE_RULES[name]?.find(([re]) => re.test(title))?.[1] : undefined) ?? null;
@@ -331,6 +357,10 @@ export function findItem(
    *  2026-10-22 부산: 샤인머스켓 '싸요' 상세에서 연 레시피가 포도를 캠벨얼리 '비싸요'로 보여줬다. */
   prefer?: PriceItem,
 ): PriceItem | undefined {
+  const variety = ingredientName({ name, raw });
+  if (variety == null) return undefined;
+  // 원문이 품종을 정했으면('알배추'→알배기배추) 그 품목 그대로 — 보던 품종으로 바꾸지 않는다.
+  if (variety !== name) return items.find((i) => i.itemName === variety && i.level != null);
   const hit = findItemRaw(items, name, raw, title);
   // 원문이 부위를 정했으면('다진소고기'→설도) 그대로 — 등심 상세에서 열었다고 다짐육을 등심값으로 매기면 틀린다.
   if (cutTarget(name, raw, title)) return hit;

@@ -91,7 +91,13 @@ export default function RecipeDetailScreen() {
     () => recipe?.ingredients.map((ing) => ({ ...ing, item: findItem(items, ing.name, ing.raw, recipe.title, viewing) })) ?? [],
     [recipe, items, viewing],
   );
-  const cheapCount = matched.filter((m) => m.item?.level === 'cheap').length;
+  // 가격이 붙는 재료 전부 — 조미료로 분류된 사과·포도·보리도 아래 재료 줄엔 가격이 나오니 같이 센다.
+  // 예전엔 ingredients 개수만 봐서 '포도청 보리 수단'이 가격이 다 보이는데도 '불러오는 중'이었다(2026-10-22).
+  const priced = [
+    ...matched,
+    ...(recipe?.condiments ?? []).map((c) => ({ ...c, item: findItem(items, c.name, undefined, undefined, viewing) })),
+  ].filter((m) => m.item != null);
+  const cheapCount = priced.filter((m) => m.item?.level === 'cheap').length;
 
   if (!recipe) {
     // 목록을 아직 못 받았거나(SSG·첫 로드) 로테이션에서 빠진 레시피.
@@ -138,11 +144,10 @@ export default function RecipeDetailScreen() {
               <FavoriteHeart fav={fav} onToggle={() => toggle(favKey)} style={styles.favBtn} />
             </View>
           </View>
-          <Text style={styles.meta}>
-            {matched.length > 0
-              ? `재료 ${matched.length}개 중 ${cheapCount}개가 ${baseLabel}보다\u00A0싸요`
-              : '재료 시세를 불러오는 중이에요'}
-          </Text>
+          {/* 시세는 첫 렌더부터 있다(스냅숏) — 가격 붙은 재료가 없으면 '불러오는 중'이 아니라 줄을 숨긴다. */}
+          {priced.length > 0 && (
+            <Text style={styles.meta}>{`재료 ${priced.length}개 중 ${cheapCount}개가 ${baseLabel}보다\u00A0싸요`}</Text>
+          )}
 
           {/* 재료모음 사진 (있을 때만) */}
           {recipeImage(recipe.title, 'ingredients') != null && (

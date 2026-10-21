@@ -46,7 +46,8 @@ export default function RecipesScreen() {
   const cards = useMemo(() => {
     const base = results ?? recipeList;
     const all = base.map((r) => {
-      const matched = r.ingredients
+      // 조미료로 분류된 사과·포도·보리도 가격이 있으면 센다 — 상세의 재료 줄과 같은 기준.
+      const matched = [...r.ingredients, ...r.condiments]
         .map((ing) => ({ name: ing.name, item: findItem(items, ing.name, ing.raw, r.title) }))
         .filter((m) => m.item != null);
       const cheapCount = matched.filter((m) => m.item!.level === 'cheap').length;
@@ -140,13 +141,14 @@ export default function RecipesScreen() {
                   />
                 ))}
               </View>
-              <Text style={styles.caption}>
-                {r.matched.length > 0
-                  ? r.cheapCount > 0
+              {/* 가격 붙은 재료가 없으면 줄을 숨긴다 — 예전 '재료 시세를 불러오는 중이에요'는 로딩이 아니라 미매칭이라 영영 안 사라졌다. */}
+              {r.matched.length > 0 && (
+                <Text style={styles.caption}>
+                  {r.cheapCount > 0
                     ? `재료 ${r.matched.length}개 중 ${r.cheapCount}개가 ${baseLabel}보다\u00A0싸요`
-                    : '지금 담으면 무난한 가격이에요'
-                  : '재료 시세를 불러오는 중이에요'}
-              </Text>
+                    : '지금 담으면 무난한 가격이에요'}
+                </Text>
+              )}
             </View>
           </Pressable>
         ))}

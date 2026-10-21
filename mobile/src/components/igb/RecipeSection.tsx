@@ -3,7 +3,7 @@ import { router, type Href } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { track } from '../../analytics';
-import { findItem, recipeHero, recipeSlug, recipeTerms, setViewedRecipes, useItemRecipes } from '../../recipes';
+import { findItem, ingredientName, recipeHero, recipeSlug, recipeTerms, setViewedRecipes, useItemRecipes } from '../../recipes';
 import { useDisplayItems } from '../../store/itemView';
 import { itemKey } from '../../store/prices';
 import { colors, radius, spacing, type } from '../../theme/tokens';
@@ -61,7 +61,7 @@ export function RecipeSection({ itemName, itemCode }: { itemName: string; itemCo
                 {/* 이 품목을 맨 앞에 — 사과·깻잎은 시세 추적 재료(ingredients)가 아니라 목록에 안 나와
                     '연두부 토마토 / 두부 · 방울토마토'처럼 품목과 무관해 보였다(2026-10-19). */}
                 <Text style={styles.caption} numberOfLines={1}>
-                  {[term, ...r.ingredients.map((i) => i.name).filter((n) => !terms.includes(n))].join(' · ')}
+                  {[term, ...r.ingredients.map(ingredientName).filter((n): n is string => n != null && !terms.includes(n))].join(' · ')}
                 </Text>
               </View>
             </Pressable>
