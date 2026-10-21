@@ -8,7 +8,7 @@ import { FavoritesProvider } from '../store/favorites';
 import { PricesProvider } from '../store/prices';
 import { RecentSearchesProvider } from '../store/recentSearches';
 import { RegionProvider } from '../store/region';
-import { colors } from '../theme/tokens';
+import { colors, palette } from '../theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -46,7 +46,7 @@ export default function RootLayout() {
         <RecentSearchesProvider>
         <RegionProvider>
         <StatusBar style="dark" />
-        {/* 웹: 바깥 여백(gutter) 옅은 회색 + 폰 폭(min 375 / max 480) 흰 프레임 가운데. 네이티브는 기기 폭 그대로. */}
+        {/* 웹: 바깥 여백(gutter) 회색→흰 그라데이션 + 폰 폭(min 375 / max 480) 흰 프레임 가운데. 네이티브는 기기 폭 그대로. */}
         <View style={styles.gutter}>
           <View style={styles.appFrame}>
             <Stack
@@ -74,7 +74,16 @@ const styles = StyleSheet.create({
   gutter: {
     flex: 1,
     backgroundColor: colors.bgSecondary,
-    ...Platform.select({ web: { alignItems: 'center' }, default: {} }),
+    ...Platform.select({
+      web: {
+        alignItems: 'center',
+        // [2026-10-22] 피그마 IGB Design System '웹 바깥 배경' 섹션(node 1236:3139) 값 그대로.
+        // bg-tertiary → white, 위→아래. 시작점이 화면 위 바깥(-38.2%)이라 맨 위는 이미 살짝 밝아진 #e7ebee로 보이고
+        // 맨 아래에서 흰색이 된다. backgroundColor는 그라데이션 미지원 환경 폴백.
+        backgroundImage: `linear-gradient(to bottom, ${colors.bgTertiary} -38.2%, ${palette.white} 100%)`,
+      } as object,
+      default: {},
+    }),
   },
   appFrame: {
     flex: 1,
