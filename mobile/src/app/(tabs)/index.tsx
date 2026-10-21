@@ -16,15 +16,16 @@ import {
 } from 'react-native';
 import Reanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { PriceItem, won } from '../../api/kamis';
-import { useVerdicts, useRegionalVerdicts, type Verdict, type RegionalVerdicts } from '../../api/verdicts';
+import { useVerdicts, useRegionalVerdicts } from '../../api/verdicts';
 import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
-import { RegionSheet } from '../../components/igb/RegionSheet';
+import { RegionPill } from '../../components/igb/RegionPill';
 import { RegionNote } from '../../components/igb/RegionNote';
 import { useRegion } from '../../store/region';
+import { itemView, type ItemView } from '../../store/itemView';
 import { NATIONWIDE } from '../../data/regions';
 import { itemKey, usePrices } from '../../store/prices';
 import { thumbFor } from '../../thumbnails';
@@ -34,53 +35,6 @@ import { OG_DEFAULT_IMAGE } from '../../og';
 import { PrivacyLink } from '../../components/igb/PrivacyLink';
 
 const CHIP_LABEL = {cheap: '할인율 1위', fair: '평소 수준이에요', expensive: '비싼 편이에요' } as const;
-
-/**
- * 한 품목의 '표시 뷰' — 전국/지역에 따라 오늘가·판정·비교기준이 달라진다.
- * 전국: 오늘 vs 평년('이맘때 평균'). 지역: 오늘 vs 그 지역 최근 평균('최근 평균').
- * 지역 데이터가 없으면 전국으로 폴백(화면이 깨지지 않게).
- */
-type ItemView = {
-  today: number | null;
-  level: SignalLevel | null;
-  basePrice: number | null;
-  baseLabel: string;
-  pct: number | null;
-  /** 지역을 골랐는데 그 도시가 이 품목을 조사하지 않아 전국 값으로 대신했다. */
-  nationwide?: boolean;
-  /** 평년이 없어 전국 지난 28일 평균으로 판정했다 — 평년 % 와 축이 달라 히어로('할인율 1위')엔 못 선다. */
-  r28?: boolean;
-};
-function itemView(i: PriceItem, region: string, regional: RegionalVerdicts, verdicts: Record<string, Verdict>): ItemView {
-  const key = itemKey(i);
-  // 도시마다 조사 품목이 다르다(2026-10-16 실측: 춘천은 취청오이·가시오이를 안 하고 쥬키니는 9/2부터 멈춤).
-  // 지역 파일이 아직 안 왔으면(regional[region] 없음) 전국 화면 그대로 — 전 품목에 '전국'이 깜빡이지 않게.
-  let nationwide = false;
-  if (region !== NATIONWIDE && regional[region]) {
-    const rv = regional[region][key];
-    if (rv && rv.today != null) {
-      const pct = rv.recentAvg ? Math.round(((rv.today - rv.recentAvg) / rv.recentAvg) * 100) : null;
-      // 홈 히어로는 '최근 평균'만 — 일수(28일)는 상세 차트에서만 표기.
-      return { today: rv.today, level: rv.level, basePrice: rv.recentAvg, baseLabel: '최근 평균', pct };
-    }
-    nationwide = true; // 그 도시 미조사 → 전국 폴백
-  }
-  // 평년이 없으면 전국 지난 28일 평균으로 판정 — 상세와 같은 값·같은 ±1% 규칙(evalBuy).
-  const r28 = verdicts[key]?.recent28Avg;
-  if (i.normal == null && r28 && i.today != null) {
-    const pct = Math.round(((i.today - r28) / r28) * 100);
-    const level: SignalLevel = pct <= -1 ? 'cheap' : pct >= 1 ? 'expensive' : 'fair';
-    return { nationwide, r28: true, today: i.today, level, basePrice: r28, baseLabel: '최근 평균', pct };
-  }
-  return {
-    nationwide,
-    today: i.today,
-    level: verdicts[key]?.level ?? i.level,
-    basePrice: i.normal,
-    baseLabel: '이맘때 평균',
-    pct: i.vsNormalPct ?? null,
-  };
-}
 
 /**
  * 품목 썸네일 — 웹은 순수 <img>. expo-image는 JS 실행 후에만 DOM에 이미지를 만들어
@@ -257,7 +211,6 @@ export default function HomeScreen() {
   }, [items]);
   const verdicts = useVerdicts(); // 사전계산: 평년+최근1년 두 기준 판정 (있으면 우선)
   // 표시 신호 = 사전계산 level(두 기준) 우선, 없으면 item.level(평년)
-  const [regionOpen, setRegionOpen] = useState(false);
   const { region } = useRegion();
   // 지역 판정 — 전국이 아닐 때만 받는다. 선택 도시의 오늘가·판정·최근평균으로 화면을 덮는다.
   const { regions: regional } = useRegionalVerdicts(region !== NATIONWIDE);
@@ -352,31 +305,13 @@ export default function HomeScreen() {
           <View role="heading" aria-level={1} aria-label="이거비싸 — 오늘 장보기 시세">
             <Wordmark />
           </View>
-          <Pressable
-            onPress={() => setRegionOpen(true)}
-            hitSlop={6}
-            style={styles.regionPill}
-            accessibilityRole="button"
-            accessibilityLabel={`지역 ${region}, 변경하기`}
-          >
-            {/* 메인헤더 location 컴포넌트의 map-pin/fill 아이콘(Figma 1099:7802에서 export) */}
-            <Svg width={15} height={18} viewBox="0 0 14 17">
-              <Path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M7 0C8.85652 0 10.6374 0.73705 11.9502 2.0498C13.2629 3.36256 14 5.14348 14 7C14 9.2095 12.793 11.3412 11.5439 12.9824C10.2716 14.6541 8.82718 15.9825 8.10449 16.6064C8.08748 16.6211 8.06972 16.6349 8.05176 16.6484C7.74852 16.8765 7.3794 17 7 17C6.6206 17 6.25148 16.8765 5.94824 16.6484C5.93028 16.6349 5.91252 16.6211 5.89551 16.6064C5.17282 15.9825 3.72835 14.6541 2.45605 12.9824C1.20697 11.3412 0 9.2095 0 7C0 5.14348 0.73705 3.36256 2.0498 2.0498C3.36256 0.73705 5.14348 0 7 0ZM7 4.75C5.75736 4.75 4.75 5.75736 4.75 7C4.75 8.24264 5.75736 9.25 7 9.25C8.24264 9.25 9.25 8.24264 9.25 7C9.25 5.75736 8.24264 4.75 7 4.75Z"
-                fill={colors.textPrimary}
-              />
-            </Svg>
-            <Text style={styles.regionText}>{region}</Text>
-          </Pressable>
+          <RegionPill />
         </View>
         <View style={styles.searchWrap}>
           <SearchField editable={false} onPress={() => router.push('/search')} />
         </View>
       </GlassHeader>
 
-      <RegionSheet visible={regionOpen} onClose={() => setRegionOpen(false)} />
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: topH }]}
