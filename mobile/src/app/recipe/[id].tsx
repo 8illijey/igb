@@ -12,7 +12,9 @@ import { SignalChip } from '../../components/igb/SignalChip';
 import {
   Ingredient,
   Recipe,
+  fetchRecipeBySlug,
   fetchRecipeByTitle,
+  findViewedRecipeBySlug,
   findItem,
   findRecipeBySlug,
   getViewedRecipe,
@@ -25,7 +27,8 @@ import {
 import { SEO_RECIPES } from '../../seo.gen';
 import { portionPrice } from '../../portion';
 import { useFavorites } from '../../store/favorites';
-import { itemKey, usePrices } from '../../store/prices';
+import { itemKey } from '../../store/prices';
+import { useDisplayItems } from '../../store/itemView';
 import { colors, radius, spacing, type } from '../../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../../og';
 
@@ -43,8 +46,11 @@ export async function generateStaticParams(): Promise<{ id: string }[]> {
 }
 
 export default function RecipeDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { items } = usePrices();
+  // from = 레시피를 연 품목 상세의 키 — 재료 '포도'를 그 품종으로 판정한다(findItem prefer, 2026-10-22).
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  // 홈과 같은 판정·지역 가격(2026-10-22) — 재료별 금액도 고른 도시 가격으로 계산된다.
+  const { items, baseLabel } = useDisplayItems();
+  const viewing = from ? items.find((i) => itemKey(i) === from) : undefined;
   // 목록/검색 화면이 보여준 '현재 목록'을 인덱스로 참조. 없으면(딥링크 등) 기본 목록 폴백.
   const fallback = useRecipes();
   // 주소는 제목 슬러그가 기본이고, 예전 순번 주소(/recipe/0)도 계속 받는다 —
@@ -52,7 +58,7 @@ export default function RecipeDetailScreen() {
   const isIndex = /^\d+$/.test(String(id ?? ''));
   const listed = isIndex
     ? (getViewedRecipe(Number(id)) ?? fallback[Number(id)])
-    : findRecipeBySlug(fallback, String(id ?? ''));
+    : (findRecipeBySlug(fallback, String(id ?? '')) ?? findViewedRecipeBySlug(String(id ?? '')));
   // 빌드 시점 목록의 제목 — 정적 HTML(SSG)에는 워커 응답이 없어 recipe가 비는데,
   // 그때도 <title>과 본문에 제목이 박혀야 검색엔진이 읽는다(2026-08-26).
   const seoTitle = useMemo(() => {
@@ -64,13 +70,14 @@ export default function RecipeDetailScreen() {
   // 그 레시피가 빠진다. 검색으로 들어온 사람이 빈 페이지를 보지 않게 한다(2026-08-26).
   const [remote, setRemote] = useState<Recipe | null>(null);
   useEffect(() => {
-    if (listed || !seoTitle) return;
+    // 빌드 목록에도 없으면(품목 상세에서 연 레시피를 새로고침·공유) 슬러그로 복원한다.
+    if (listed || isIndex || !id) return;
     let alive = true;
-    fetchRecipeByTitle(seoTitle).then((r) => alive && setRemote(r));
+    (seoTitle ? fetchRecipeByTitle(seoTitle) : fetchRecipeBySlug(String(id))).then((r) => alive && setRemote(r));
     return () => {
       alive = false;
     };
-  }, [listed, seoTitle]);
+  }, [listed, seoTitle, isIndex, id]);
   const recipe = listed ?? remote ?? undefined;
   const pageTitle = recipe?.title ?? seoTitle;
   const { isFavorite, toggle } = useFavorites();
@@ -81,8 +88,8 @@ export default function RecipeDetailScreen() {
   const [topH, setTopH] = useState(0);
 
   const matched = useMemo(
-    () => recipe?.ingredients.map((ing) => ({ ...ing, item: findItem(items, ing.name, ing.raw, recipe.title) })) ?? [],
-    [recipe, items],
+    () => recipe?.ingredients.map((ing) => ({ ...ing, item: findItem(items, ing.name, ing.raw, recipe.title, viewing) })) ?? [],
+    [recipe, items, viewing],
   );
   const cheapCount = matched.filter((m) => m.item?.level === 'cheap').length;
 
@@ -133,7 +140,7 @@ export default function RecipeDetailScreen() {
           </View>
           <Text style={styles.meta}>
             {matched.length > 0
-              ? `재료 ${matched.length}개 중 ${cheapCount}개가 이맘때 평균보다\u00A0싸요`
+              ? `재료 ${matched.length}개 중 ${cheapCount}개가 ${baseLabel}보다\u00A0싸요`
               : '재료 시세를 불러오는 중이에요'}
           </Text>
 
@@ -155,7 +162,7 @@ export default function RecipeDetailScreen() {
               <IngredientRow key={m.name} ing={m} item={m.item} />
             ))}
             {recipe.condiments.map((c) => (
-              <IngredientRow key={c.name} ing={c} item={findItem(items, c.name)} silent />
+              <IngredientRow key={c.name} ing={c} item={findItem(items, c.name, undefined, undefined, viewing)} silent />
             ))}
           </View>
 
@@ -206,13 +213,17 @@ function IngredientRow({ ing, item, silent }: { ing: Ingredient; item?: PriceIte
     >
       <View style={styles.rowLeft}>
         <Text style={styles.ingName}>{ing.name}</Text>
-        <Text style={styles.ingAmount}>{ing.amount}</Text>
+        {/* 재료명과 시세 품목이 다르면 어느 품종·부위 기준인지 밝힌다 — '포도'만 보고 홈의 다른 품종 신호와 비교해 모순으로 읽혔다(2026-10-22). */}
+        <Text style={styles.ingAmount}>
+          {item.itemName !== ing.name ? `${ing.amount} · ${item.itemName} 기준` : ing.amount}
+        </Text>
       </View>
       <View style={styles.rowRight}>
         <SignalChip level={item.level!} size="s" label={LEVEL_WORD[item.level!]} />
         {/* 들어가는 분량만큼의 가격. 환산 불가하면 단위 시세로 폴백. (물결 ≈ 제거 — 디자인) */}
         <Text style={styles.ingPrice}>
-          {portion != null ? `${won(portion)}원` : `${won(item.today)}원`}
+          {/* 환산이 안 되면 조사 단위를 붙인다 — 단위 없이 '2,205원'만 두면 '무 2g의 값'으로 읽혔다(2026-10-22). */}
+          {portion != null ? `${won(portion)}원` : item.today != null ? `${won(item.today)}원 / ${item.unit}` : ''}
         </Text>
         <ChevronRight size={20} color={colors.textTertiary} strokeWidth={2} />
       </View>

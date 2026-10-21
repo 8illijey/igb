@@ -43,6 +43,7 @@ import { subjectParticle, topicParticle, withParticle } from '../../utils/korean
 import { colors, palette, radius, signal, SignalLevel, spacing, type } from '../../theme/tokens';
 import { FavoriteHeart } from '../../components/igb/FavoriteHeart';
 import { ShopSection } from '../../components/igb/ShopSection';
+import { RecipeSection } from '../../components/igb/RecipeSection';
 
 type Market = 'retail' | 'eco' | 'wholesale';
 
@@ -837,6 +838,7 @@ export default function ItemDetailScreen() {
             </View>
             <BuySection markets={eco.markets} reference={eco.latest} />
             <ShopSection itemCode={itemKey(item)} itemName={item.itemName} market="eco" />
+            <RecipeSection itemName={item.itemName} itemCode={itemKey(item)} />
             <Text style={styles.source}>
               자료 출처 · KAMIS{surveyDate ? ` ${surveyDate} 기준` : ''}
               {'\n'}유기농·무농약은 주 1회 화요일에 업데이트
@@ -885,6 +887,9 @@ export default function ItemDetailScreen() {
                 소매가인 쿠팡 상품과 비교 축이 다르고, 조사 단위(10kg·1상자)도 상품 규격과 대응이 안 된다.
                 "도매가로 살 수 있다"는 오해를 만드느니 안 보여주는 게 정직하다. */}
             {market !== 'wholesale' && <ShopSection itemCode={itemKey(item)} itemName={item.itemName} />}
+
+            {/* 레시피는 쿠팡 아래 — 유일한 수익 섹션을 밀어내지 않게. 요리는 시장 구분과 무관해 도매 탭에도 둔다. */}
+            <RecipeSection itemName={item.itemName} itemCode={itemKey(item)} />
 
             {/* 검색엔진용 요약 문단은 제거(2026-09-03) — 사전 렌더로 본문이 이미 품목별
                 실데이터로 풍부해져 중복 재서술이 됐다. 고유 정보였던 '가장 싼/비싼 달'은
