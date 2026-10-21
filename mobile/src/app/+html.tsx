@@ -90,6 +90,10 @@ const GA_ID = 'G-TV6GZBZXQ4';
  * (이미 활성인 'Internal Traffic' 데이터 필터가 걸러낸다).
  * Clarity는 아예 로드를 건너뛰다 — 생렸다 멈추는 것보다 짧고 확실하다.
  *
+ * 운영 도메인(igeobissa.com) 밖에서 열리면 플래그와 상관없이 내부로 본다(2026-10-21).
+ * Clarity 최근 30일 1위 방문자가 localhost 개발 서버 세션이었다 — localhost는
+ * origin이 달라 localStorage 플래그도 따로라서 새고 있었다. 프리뷰 배포·LAN IP도 같은 이유.
+ *
  * localStorage는 사생모드·쿠키차단에서 throw할 수 있어 전부 try로 감싼다.
  * 실패하면 '내부 아님'으로 보는 게 안전하다(수집되는 쪽이 기본값).
  */
@@ -101,6 +105,8 @@ const INTERNAL_FLAG_JS = `
     if (q === '1') localStorage.setItem(KEY, '1');
     else if (q === '0') localStorage.removeItem(KEY);
   } catch (e) {}
+  var h = location.hostname;
+  if (h !== 'igeobissa.com' && h !== 'www.igeobissa.com') { window.__igbInternal = true; return; }
   try { window.__igbInternal = localStorage.getItem(KEY) === '1'; }
   catch (e) { window.__igbInternal = false; }
 })();
