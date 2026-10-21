@@ -31,7 +31,7 @@ interface Props {
   height?: number;
 }
 
-/** 최근 추이 라인 + 평균 기준선 + 오늘 시세 툴팁. 가로 드래그(스크럽)로 특정 날짜 시세 조회(주식차트식). */
+/** 최근 추이 라인 + 평균 기준선 + 오늘 시세 툴팁. 탭하거나 가로로 드래그(스크럽)해 특정 날짜 시세 조회(주식차트식). */
 export function Sparkline({ series, baseline, level, height = 140 }: Props) {
   const [width, setWidth] = React.useState(0);
   const [sel, setSel] = React.useState<number | null>(null); // 스크럽 선택 인덱스
@@ -86,19 +86,43 @@ export function Sparkline({ series, baseline, level, height = 140 }: Props) {
     selRef.current = null;
     setSel(null);
   };
-  // 가로 드래그만 캡처 → 세로 스크롤은 부모로 통과. 손 떼면 '오늘'로 복귀.
+  // 탭 = 그 날짜 고정 표시, 가로 드래그 = 스크럽(손 떼면 '오늘'로 복귀).
+  // [2026-10-21] 예전엔 드래그만 받아서 탭이 아무 반응 없었다 — Clarity가 이 차트 탭을
+  // '반응 없는 클릭(dead click)'으로 잡았다(쪽파·양파 세션). 그래서 터치 시작부터 받되,
+  // 세로로 움직이면 스크롤에 넘긴다(웹은 브라우저 스크롤, 네이티브는 ScrollView가 terminate).
+  const moved = React.useRef(false);
+  const tapAt = (lx: number) => {
+    const i = idxFromX(lx);
+    // 오늘 점이나 이미 고른 점을 다시 누르면 '오늘'로 되돌린다(토글).
+    const next = i === geom.current.n - 1 || selRef.current === i ? null : i;
+    if (next != null && Platform.OS !== 'web') Haptics.selectionAsync();
+    selRef.current = next;
+    setSel(next);
+  };
   const pan = React.useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > Math.abs(g.dy) && Math.abs(g.dx) > 4,
-        onPanResponderGrant: (e) => {
+        onPanResponderGrant: () => {
           killHint();
-          scrubTo(e.nativeEvent.locationX);
+          moved.current = false;
         },
-        onPanResponderMove: (e) => scrubTo(e.nativeEvent.locationX),
-        onPanResponderRelease: scrubEnd,
-        onPanResponderTerminate: scrubEnd,
+        onPanResponderMove: (e, g) => {
+          if (!moved.current && Math.abs(g.dx) > 4 && Math.abs(g.dx) > Math.abs(g.dy)) moved.current = true;
+          if (moved.current) scrubTo(e.nativeEvent.locationX);
+        },
+        onPanResponderRelease: (e, g) => {
+          // 거의 안 움직였을 때만 탭. 세로로 끌다 놓은 건(데스크톱 마우스 등) 아무것도 안 한다.
+          if (moved.current) scrubEnd();
+          else if (Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10) tapAt(e.nativeEvent.locationX);
+          moved.current = false;
+        },
+        // 스크롤에 뺏기면: 드래그 중이었으면 오늘로, 탭 고정 상태는 그대로 둔다.
+        onPanResponderTerminate: () => {
+          if (moved.current) scrubEnd();
+          moved.current = false;
+        },
       }),
     [],
   );
