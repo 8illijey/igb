@@ -8,6 +8,8 @@ import { EmptyState } from '../../components/igb/EmptyState';
 import { GlassHeader } from '../../components/igb/GlassHeader';
 import { PriceListRow } from '../../components/igb/PriceListRow';
 import { Wordmark } from '../../components/igb/Wordmark';
+import { RegionPill } from '../../components/igb/RegionPill';
+import { useDisplayItems } from '../../store/itemView';
 import { fetchRecipeByTitle, recipeHero, setViewedRecipes, useRecipes, type Recipe, recipeSlug } from '../../recipes';
 import { useFavorites } from '../../store/favorites';
 import { itemKey, usePrices } from '../../store/prices';
@@ -18,13 +20,22 @@ export default function FavoritesScreen() {
   const { resolve } = usePrices();
   const { keys } = useFavorites();
   const recipeList = useRecipes();
-  const [topH, setTopH] = useState(0);
+  // 초기값 44 = 헤더 행 높이. 0이면 SSG 콘텐츠가 하이드레이션 때 밀린다(홈 CLS 주석 참고). onLayout이 보정.
+  const [topH, setTopH] = useState(44);
+  // 홈과 같은 오늘가·판정(사전계산 verdicts + 고른 지역) — 원값을 쓰면 지역을 바꿔도 가격이 그대로였다(2026-10-22).
+  const { items: display } = useDisplayItems();
 
   // 저장된 키 → 오늘 품목. 정확 일치 없으면 같은 itemCode 대표로 폴백(대표 단위는 매일 바뀜).
   // recipe: 키는 itemCode 폴백에 안 걸리므로(품목 코드 아님) 자연히 제외된다.
   const favorites = useMemo(
-    () => keys.map((k) => resolve(k)).filter((i) => i != null),
-    [keys, resolve],
+    () => {
+      const byKey = new Map(display.map((i) => [itemKey(i), i]));
+      return keys
+        .map((k) => resolve(k))
+        .filter((i) => i != null)
+        .map((i) => byKey.get(itemKey(i!)) ?? i);
+    },
+    [keys, resolve, display],
   );
   // 관심 레시피 — 키 'recipe:{제목}'. 복원은 원천인 식약처 레시피 DB 라이브 재조회(주간 목록에 없어도 뜸).
   // 구버전 'recipe:{인덱스}' 키는 어떤 목록의 인덱스였는지 알 수 없어(오표시 원인) 표시하지 않는다.
@@ -73,12 +84,15 @@ export default function FavoritesScreen() {
       <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>
       <GlassHeader onHeight={setTopH}>
+        {/* 홈·레시피 탭과 같은 메인 헤더 — 관심 품목 가격도 고른 지역을 따른다(2026-10-22). */}
         <View style={styles.header}>
           <Wordmark />
+          <RegionPill />
         </View>
       </GlassHeader>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: topH }]}>
+      {/* paddingTop을 topH로만 주면 content의 16이 덮여 목록이 헤더에 붙었다 — 홈처럼 헤더 아래 16을 띄운다. */}
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: topH + spacing.s4 }]}>
         {isEmpty ? (
           <EmptyState
             icon={Heart}
