@@ -22,6 +22,12 @@ export function objectParticle(word: string): string {
   return hasBatchim(word) ? '을' : '를';
 }
 
+/** 도구격 조사 로/으로 — "양파로" / "계란으로" / "귤로"(ㄹ 받침은 '로') */
+export function byParticle(word: string): string {
+  const ch = word.trim().charCodeAt(word.trim().length - 1);
+  return hasBatchim(word) && (ch - 0xac00) % 28 !== 8 ? '으로' : '로';
+}
+
 /** 접속 조사 와/과 — "계란과" / "양파와" */
 export function withParticle(word: string): string {
   return hasBatchim(word) ? '과' : '와';

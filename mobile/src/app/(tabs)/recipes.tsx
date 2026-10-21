@@ -7,18 +7,21 @@ import { GlassHeader } from '../../components/igb/GlassHeader';
 import { SearchField } from '../../components/igb/SearchField';
 import { SignalChip } from '../../components/igb/SignalChip';
 import { Wordmark } from '../../components/igb/Wordmark';
-import { usePrices } from '../../store/prices';
+import { RegionPill } from '../../components/igb/RegionPill';
+import { useDisplayItems } from '../../store/itemView';
 import { Image } from 'expo-image';
-import { findItem, recipeHero, searchRecipes, setViewedRecipes, useRecipes, type Recipe, recipeSlug } from '../../recipes';
+import { findItem, recipeHero, searchRecipes, titleMatches, setViewedRecipes, useRecipes, type Recipe, recipeSlug } from '../../recipes';
 import { colors, font, radius, spacing, type } from '../../theme/tokens';
 import { OG_DEFAULT_IMAGE } from '../../og';
 
 const LEVEL_WORD = { cheap: '싸요', fair: '적당해요', expensive: '비싸요' } as const;
 
 export default function RecipesScreen() {
-  const { items } = usePrices();
+  // 홈과 같은 판정·지역 가격 — 원값(usePrices)을 쓰면 지역을 골라도 전국 신호가 나왔다(2026-10-22).
+  const { items, baseLabel } = useDisplayItems();
   const recipeList = useRecipes();
-  const [topH, setTopH] = useState(0);
+  // 초기값 = 홈과 같은 헤더(44)+검색 — 0이면 SSG 콘텐츠가 하이드레이션 때 밀린다(홈 CLS 주석 참고). onLayout이 보정.
+  const [topH, setTopH] = useState(100);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Recipe[] | null>(null); // null = 검색 안 함(기본 목록)
 
@@ -54,10 +57,15 @@ export default function RecipesScreen() {
     const byCheap = (arr: typeof all) =>
       arr.slice().sort((a, b) => b.cheapCount - a.cheapCount || exCount(a) - exCount(b));
     // 검색: 전부. 기본: 싼 재료 ≥1개인 것 우선, 하나도 없으면 전체(빈 목록 방지).
-    if (searching) return byCheap(all);
+    // 검색은 레시피명이 맞는 것 먼저 — '구운 주먹밥'을 쳤는데 재료만 맞는 레시피 뒤로 밀리지 않게. 그 안에선 싼 재료 순.
+    if (searching) {
+      const q = query.trim();
+      const sorted = byCheap(all);
+      return [...sorted.filter((c) => titleMatches(c, q)), ...sorted.filter((c) => !titleMatches(c, q))];
+    }
     const withCheap = all.filter((c) => c.cheapCount >= 1);
     return byCheap(withCheap.length ? withCheap : all);
-  }, [items, recipeList, results, searching]);
+  }, [items, recipeList, results, searching, query]);
 
   // 상세가 인덱스로 참조하는 '현재 목록'을 화면이 보여주는 순서와 일치시킨다.
   useEffect(() => {
@@ -81,17 +89,22 @@ export default function RecipesScreen() {
       <meta name="twitter:image" content={OG_DEFAULT_IMAGE} />
       </Head>
       <GlassHeader onHeight={setTopH}>
+        {/* 홈과 같은 메인 헤더 — 레시피 판정도 고른 지역 가격을 따른다(2026-10-22). */}
         <View style={styles.header}>
           <Wordmark />
+          <RegionPill />
+        </View>
+        {/* 검색창도 홈처럼 헤더 안(사방 16) — 본문 첫 줄에 두면 paddingTop이 topH로 덮여 헤더에 붙었다(2026-10-22). */}
+        <View style={styles.searchWrap}>
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            onClear={() => setQuery('')}
+            placeholder="감자, 두부, 계란…"
+          />
         </View>
       </GlassHeader>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: topH }]} keyboardShouldPersistTaps="handled">
-        <SearchField
-          value={query}
-          onChangeText={setQuery}
-          onClear={() => setQuery('')}
-          placeholder="감자, 두부, 계란…"
-        />
         {searching && cards.length === 0 ? (
           <EmptyState
             title={`'${query.trim()}' 검색 결과가 없어요`}
@@ -103,7 +116,7 @@ export default function RecipesScreen() {
         <Text style={styles.intro}>
           {searching
             ? `'${query.trim()}'(으)로 레시피 ${cards.length}개를 찾았어요`
-            : '이맘때 평균보다 싼 재료로 만들 수 있는 레시피를 골라봤어요'}
+            : `${baseLabel}보다 싼 재료로 만들 수 있는 레시피를 골라봤어요`}
         </Text>
         {cards.map((r, idx) => (
           <Pressable
@@ -130,7 +143,7 @@ export default function RecipesScreen() {
               <Text style={styles.caption}>
                 {r.matched.length > 0
                   ? r.cheapCount > 0
-                    ? `재료 ${r.matched.length}개 중 ${r.cheapCount}개가 이맘때 평균보다\u00A0싸요`
+                    ? `재료 ${r.matched.length}개 중 ${r.cheapCount}개가 ${baseLabel}보다\u00A0싸요`
                     : '지금 담으면 무난한 가격이에요'
                   : '재료 시세를 불러오는 중이에요'}
               </Text>
@@ -155,7 +168,8 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.s4,
   },
   iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: spacing.s4, gap: spacing.s3, paddingBottom: 140 },
+  searchWrap: { padding: spacing.s4 },
+  content:{ padding: spacing.s4, gap: spacing.s3, paddingBottom: 140 },
   source: { ...type.size[13], ...type.w.regular, color: colors.textTertiary, textAlign: 'center', marginTop: spacing.s2 } as const,
   title: { ...type.size[20], ...type.w.bold, color: colors.textPrimary } as const,
   intro: { ...type.size[15], ...type.w.regular, color: colors.textSecondary } as const,

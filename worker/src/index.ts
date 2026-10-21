@@ -125,6 +125,17 @@ function baselineOf(
   return typeof fb === 'number' && fb > 0 ? fb : null;
 }
 
+/**
+ * 미러 등급 코드 → KAMIS 원본 등급 코드. 순서는 앱 GRADED(mobile/src/api/kamis.ts)와 같아야 한다.
+ * [2026-10-19 실측] 미러는 한우를 1/2/3, 수입 소고기를 1(미국산)/2(호주산)로 준다. 원본은 01/02/03, 81/82.
+ * 그대로 넘기면 앱이 등급을 못 갈라 1++만 남고, 한우 1+·1등급과 호주산 12개 상세가 '불러오는 중'에서 멈췄다.
+ * 원본 형식으로 오면 표에 없어 그대로 통과한다.
+ */
+const MIRROR_GRADE: Record<string, Record<string, string>> = {
+  '4301': { '1': '01', '2': '02', '3': '03' },
+  '4401': { '1': '81', '2': '82' },
+};
+
 const DATAGO_PAGE = 1000;
 /** data.go.kr 한 페이지 조회. 실패 시 null. */
 async function datagoPage(key: string, cond: Record<string, string>, pageNo: number, extra: Record<string, string>): Promise<any[] | null> {
@@ -202,20 +213,29 @@ async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promi
       const k = `${r.item_cd}_${r.vrty_cd}_${r.grd_cd}`;
       (byKind.get(k) ?? byKind.set(k, []).get(k)!).push(r);
     }
+    const cls = sp.get('p_product_cls_code') ?? '01';
     const item: any[] = [];
     for (const list of byKind.values()) {
       list.sort((a, b) => String(b.exmn_ymd).localeCompare(String(a.exmn_ymd)));
       const top = list[0];
       const prices = list.map((r) => r.exmn_dd_avg_prc || '-');
+      const grades = MIRROR_GRADE[top.item_cd];
+      const rankCode = grades?.[top.grd_cd] ?? top.grd_cd;
+      const kindKey = `${top.item_cd}-${top.vrty_cd}`;
+      // 앱 itemKeyOf와 같은 키 — 첫 등급은 등급 코드를 안 붙인다(4301-22, 4301-22-02).
+      const gradeKey = grades && Object.values(grades).indexOf(rankCode) > 0 ? `${kindKey}-${rankCode}` : kindKey;
       // 평년(dpr7) = baselines의 오늘자 값. 원천 가격만으로 계산돼 순환이 없다.
-      const normal = baselineOf(base, verd, `${top.item_cd}-${top.vrty_cd}`, sp.get('p_product_cls_code') ?? '01');
+      // 단 baselines는 등급을 구분하지 않아 한우 1++·1+·1등급이 같은 평년을 받는다(2026-10-19 실측: 안심 세 등급 모두 16,022원).
+      // 등급 품목은 verdicts에 남은 등급별 공식 평년(KAMIS가 마지막으로 응답했을 때의 dpr7)을 먼저 쓴다.
+      const gradeNormal = grades && cls === '01' ? verd[gradeKey]?.normal : null;
+      const normal = typeof gradeNormal === 'number' && gradeNormal > 0 ? gradeNormal : baselineOf(base, verd, kindKey, cls);
       item.push({
         item_name: top.item_nm,
         item_code: top.item_cd,
         kind_name: top.vrty_nm,
         kind_code: top.vrty_cd,
         rank: top.grd_nm ?? '',
-        rank_code: top.grd_cd,
+        rank_code: rankCode,
         unit: top.unit_sz ? `${top.unit_sz}${top.unit}` : top.unit,
         // dpr1~4 = 최근 4개 조사일 사다리. dpr5(1개월)·6(1년)은 미러에 없어 비움.
         // dpr7(평년)은 verdicts에서 주입 — 앱 '평년 대비' 판정 복구.
@@ -257,10 +277,10 @@ async function fetchDatago(env: Env, action: string, sp: URLSearchParams): Promi
   };
   const kind = sp.get('p_kindcode');
   if (kind) cond['cond[vrty_cd::EQ]'] = kind;
-  if (isEco) {
-    const rank = sp.get('p_productrankcode'); // 07=유기농, 08=무농약
-    if (rank) cond['cond[grd_cd::EQ]'] = rank;
-  }
+  // 07=유기농, 08=무농약. 등급 품목(한우·수입 소고기)은 앱이 period 등급 1/2/3을 보내는데 미러 grd_cd와 같은 체계다
+  // (2026-10-19 실측). 안 거르면 1++·1+·1등급이 한 평균으로 섞인다. 농산물은 체계가 달라(04 vs 미러) 거르지 않는다.
+  const rank = sp.get('p_productrankcode');
+  if (rank && (isEco || MIRROR_GRADE[sp.get('p_itemcode') ?? ''])) cond['cond[grd_cd::EQ]'] = rank;
   const rows = await datagoQuery(env.DATAGO_KEY, cond);
   if (!rows) return null;
   const priced = rows.filter((r) => r.exmn_dd_avg_prc && r.exmn_dd_avg_prc !== '0'); // 0원 껍데기 행 제거
@@ -719,8 +739,11 @@ export default {
       const q = (url.searchParams.get('q') ?? '').trim();
       if (!q) return Response.json({ recipes: [] }, { headers: CORS });
       const data = await searchRecipes(env, q, url.searchParams.get('by') === 'title');
+      // 빈 결과는 캐시하지 않는다 — 식약처가 가끔 빈 응답을 주는데, 그걸 1시간 캐시해 브라우저가
+      // '양파홍초절임'·'구운주먹밥'을 계속 0건으로 봤다(2026-10-22 실측: 브라우저 저장본 0건, 새로 받으면 1·2건).
+      const cache = data.recipes.length ? 'public, max-age=3600' : 'no-store';
       return new Response(JSON.stringify(data), {
-        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=3600', ...CORS },
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': cache, ...CORS },
       });
     }
 
