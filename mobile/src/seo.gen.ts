@@ -23,7 +23,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "20kg",
     "price": 63298,
     "normal": 58464,
-    "minMonth": 8,
+    "minMonth": 7,
     "maxMonth": 11,
     "seasonMonths": null,
     "normalMonths": [
@@ -47,7 +47,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "20kg",
     "price": 63794,
     "normal": null,
-    "minMonth": 8,
+    "minMonth": 7,
     "maxMonth": 10,
     "seasonMonths": null,
     "normalMonths": null
@@ -59,7 +59,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 34796,
     "normal": 32145,
     "minMonth": 8,
-    "maxMonth": 3,
+    "maxMonth": 10,
     "seasonMonths": null,
     "normalMonths": [
       29690,
@@ -162,8 +162,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "500g",
     "price": 5057,
     "normal": 5295,
-    "minMonth": 5,
-    "maxMonth": 3,
+    "minMonth": 1,
+    "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
       5113,
@@ -234,7 +234,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 3819,
     "normal": 4662,
-    "minMonth": 11,
+    "minMonth": 9,
     "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
@@ -258,7 +258,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 336,
     "normal": 342,
-    "minMonth": 9,
+    "minMonth": 7,
     "maxMonth": 4,
     "seasonMonths": null,
     "normalMonths": [
@@ -329,7 +329,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 846,
     "normal": 1086,
     "minMonth": 4,
-    "maxMonth": 9,
+    "maxMonth": 8,
     "seasonMonths": null,
     "normalMonths": [
       794,
@@ -608,7 +608,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 2050,
     "normal": 2094,
     "minMonth": 7,
-    "maxMonth": 12,
+    "maxMonth": 10,
     "seasonMonths": null,
     "normalMonths": null
   },
@@ -619,7 +619,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 1845,
     "normal": 2313,
     "minMonth": 6,
-    "maxMonth": 9,
+    "maxMonth": 1,
     "seasonMonths": null,
     "normalMonths": null
   },
@@ -749,7 +749,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 1117,
     "normal": 1269,
-    "minMonth": 11,
+    "minMonth": 8,
     "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": [
@@ -894,7 +894,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 10561,
     "normal": 9982,
     "minMonth": 11,
-    "maxMonth": 4,
+    "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
       12222,
@@ -917,8 +917,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 30324,
     "normal": 32312,
-    "minMonth": 11,
-    "maxMonth": 6,
+    "minMonth": 12,
+    "maxMonth": 8,
     "seasonMonths": null,
     "normalMonths": [
       34155,
@@ -941,8 +941,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 13646,
     "normal": 12835,
-    "minMonth": 4,
-    "maxMonth": 1,
+    "minMonth": 1,
+    "maxMonth": 8,
     "seasonMonths": null,
     "normalMonths": [
       13029,
@@ -980,7 +980,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 1617,
     "normal": 1590,
-    "minMonth": 4,
+    "minMonth": 5,
     "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": [
@@ -1005,7 +1005,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 1395,
     "normal": 1491,
     "minMonth": 7,
-    "maxMonth": 1,
+    "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": [
       1524,
@@ -1115,7 +1115,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 11966,
     "normal": 10974,
-    "minMonth": 2,
+    "minMonth": 11,
     "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
@@ -1187,8 +1187,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "10개",
     "price": 18579,
     "normal": 26102,
-    "minMonth": 11,
-    "maxMonth": 3,
+    "minMonth": 10,
+    "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": [
       22677,
@@ -1222,8 +1222,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "10개",
     "price": 19324,
     "normal": null,
-    "minMonth": 8,
-    "maxMonth": 1,
+    "minMonth": 11,
+    "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": null
   },
@@ -1233,7 +1233,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "10개",
     "price": 24737,
     "normal": 28979,
-    "minMonth": 9,
+    "minMonth": 11,
     "maxMonth": 7,
     "seasonMonths": null,
     "normalMonths": [
@@ -1296,7 +1296,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "10개",
     "price": 3627,
     "normal": 3315,
-    "minMonth": 11,
+    "minMonth": 10,
     "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": null
@@ -1329,8 +1329,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 297,
     "normal": 324,
-    "minMonth": 8,
-    "maxMonth": 12,
+    "minMonth": 11,
+    "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": [
       287,
@@ -1353,7 +1353,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1개",
     "price": 7503,
     "normal": 7328,
-    "minMonth": 8,
+    "minMonth": 3,
     "maxMonth": 1,
     "seasonMonths": null,
     "normalMonths": [
@@ -1461,7 +1461,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 4949,
     "normal": 5587,
     "minMonth": 4,
-    "maxMonth": 12,
+    "maxMonth": 9,
     "seasonMonths": null,
     "normalMonths": [
       5771,
