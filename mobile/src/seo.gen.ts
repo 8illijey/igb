@@ -23,7 +23,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "20kg",
     "price": 64038,
     "normal": 55210,
-    "minMonth": 7,
+    "minMonth": 8,
     "maxMonth": 1,
     "seasonMonths": null,
     "normalMonths": [
@@ -72,7 +72,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 5387,
     "normal": 4214,
     "minMonth": 7,
-    "maxMonth": 5,
+    "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
       4383,
@@ -140,8 +140,8 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "500g",
     "price": 5221,
     "normal": 4998,
-    "minMonth": 4,
-    "maxMonth": 1,
+    "minMonth": 2,
+    "maxMonth": 11,
     "seasonMonths": null,
     "normalMonths": [
       5113,
@@ -716,7 +716,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "100g",
     "price": 1254,
     "normal": 994,
-    "minMonth": 8,
+    "minMonth": 11,
     "maxMonth": 2,
     "seasonMonths": null,
     "normalMonths": [
@@ -885,7 +885,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "price": 31344,
     "normal": 31174,
     "minMonth": 12,
-    "maxMonth": 8,
+    "maxMonth": 6,
     "seasonMonths": null,
     "normalMonths": [
       34155,
@@ -1188,7 +1188,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "name": "사과 시나노골드",
     "unit": "10개",
     "price": 16871,
-    "normal": 16922,
+    "normal": 18531,
     "minMonth": 11,
     "maxMonth": 2,
     "seasonMonths": null,
@@ -1439,7 +1439,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "name": "블루베리",
     "unit": "1kg",
     "price": 11248,
-    "normal": 11148,
+    "normal": 11649,
     "minMonth": null,
     "maxMonth": null,
     "seasonMonths": [
@@ -1726,7 +1726,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "name": "키위",
     "unit": "10개",
     "price": 15200,
-    "normal": 12590,
+    "normal": 13816,
     "minMonth": null,
     "maxMonth": null,
     "seasonMonths": [
