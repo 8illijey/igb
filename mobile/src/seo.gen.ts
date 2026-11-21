@@ -1200,7 +1200,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "10개",
     "price": 16300,
     "normal": null,
-    "minMonth": 11,
+    "minMonth": 8,
     "maxMonth": 12,
     "seasonMonths": null,
     "normalMonths": null
