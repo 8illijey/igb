@@ -1460,7 +1460,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-21",
     "name": "한우 안심 1++등급",
     "unit": "100g",
-    "price": 21504,
+    "price": 19865,
     "normal": 14994,
     "minMonth": 12,
     "maxMonth": 10,
@@ -1484,7 +1484,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-21-02",
     "name": "한우 안심 1+등급",
     "unit": "100g",
-    "price": 18819,
+    "price": 16777,
     "normal": 14442,
     "minMonth": 12,
     "maxMonth": 10,
@@ -1495,7 +1495,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-21-03",
     "name": "한우 안심 1등급",
     "unit": "100g",
-    "price": 17884,
+    "price": 16453,
     "normal": 13334,
     "minMonth": 12,
     "maxMonth": 10,
@@ -1506,7 +1506,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-22",
     "name": "한우 등심 1++등급",
     "unit": "100g",
-    "price": 17133,
+    "price": 16627,
     "normal": 13502,
     "minMonth": 12,
     "maxMonth": 10,
@@ -1530,7 +1530,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-22-02",
     "name": "한우 등심 1+등급",
     "unit": "100g",
-    "price": 14105,
+    "price": 13346,
     "normal": 12326,
     "minMonth": 1,
     "maxMonth": 10,
@@ -1541,7 +1541,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-22-03",
     "name": "한우 등심 1등급",
     "unit": "100g",
-    "price": 12624,
+    "price": 11514,
     "normal": 10153,
     "minMonth": 2,
     "maxMonth": 10,
@@ -1552,7 +1552,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-36",
     "name": "한우 설도 1++등급",
     "unit": "100g",
-    "price": 5885,
+    "price": 6135,
     "normal": 4689,
     "minMonth": 2,
     "maxMonth": 8,
@@ -1576,7 +1576,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-36-02",
     "name": "한우 설도 1+등급",
     "unit": "100g",
-    "price": 4619,
+    "price": 4905,
     "normal": 4684,
     "minMonth": 1,
     "maxMonth": 10,
@@ -1587,7 +1587,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-36-03",
     "name": "한우 설도 1등급",
     "unit": "100g",
-    "price": 4693,
+    "price": 4635,
     "normal": 4285,
     "minMonth": 12,
     "maxMonth": 10,
@@ -1598,7 +1598,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-40",
     "name": "한우 양지 1++등급",
     "unit": "100g",
-    "price": 8054,
+    "price": 7991,
     "normal": 6188,
     "minMonth": 12,
     "maxMonth": 10,
@@ -1622,7 +1622,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-40-02",
     "name": "한우 양지 1+등급",
     "unit": "100g",
-    "price": 7156,
+    "price": 6877,
     "normal": 6100,
     "minMonth": 9,
     "maxMonth": 10,
@@ -1633,7 +1633,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-40-03",
     "name": "한우 양지 1등급",
     "unit": "100g",
-    "price": 7652,
+    "price": 6876,
     "normal": 5637,
     "minMonth": 9,
     "maxMonth": 10,
@@ -1644,7 +1644,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-50",
     "name": "한우 갈비 1++등급",
     "unit": "100g",
-    "price": 14867,
+    "price": 9022,
     "normal": 9180,
     "minMonth": 4,
     "maxMonth": 8,
@@ -1668,7 +1668,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-50-02",
     "name": "한우 갈비 1+등급",
     "unit": "100g",
-    "price": 7882,
+    "price": 7401,
     "normal": 7196,
     "minMonth": 4,
     "maxMonth": 10,
@@ -1679,7 +1679,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4301-50-03",
     "name": "한우 갈비 1등급",
     "unit": "100g",
-    "price": 8365,
+    "price": 7004,
     "normal": 6646,
     "minMonth": 7,
     "maxMonth": 10,
@@ -1690,7 +1690,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-25",
     "name": "돼지고기 앞다리",
     "unit": "100g",
-    "price": 1637,
+    "price": 1523,
     "normal": 1414,
     "minMonth": 3,
     "maxMonth": 10,
@@ -1701,7 +1701,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-27",
     "name": "돼지고기 삼겹살",
     "unit": "100g",
-    "price": 2873,
+    "price": 2768,
     "normal": 2548,
     "minMonth": 3,
     "maxMonth": 9,
@@ -1712,7 +1712,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-28",
     "name": "돼지고기 갈비",
     "unit": "100g",
-    "price": 1552,
+    "price": 1493,
     "normal": 1450,
     "minMonth": 4,
     "maxMonth": 10,
@@ -1736,7 +1736,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4304-68",
     "name": "돼지고기 목심",
     "unit": "100g",
-    "price": 2679,
+    "price": 2568,
     "normal": 2370,
     "minMonth": 3,
     "maxMonth": 10,
@@ -1775,7 +1775,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4401-31",
     "name": "미국산 소고기 갈비",
     "unit": "100g",
-    "price": 4651,
+    "price": 4711,
     "normal": 4281,
     "minMonth": 9,
     "maxMonth": 11,
@@ -1799,7 +1799,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4401-31-82",
     "name": "호주산 소고기 갈비",
     "unit": "100g",
-    "price": 4597,
+    "price": 3950,
     "normal": 4241,
     "minMonth": 9,
     "maxMonth": 3,
@@ -1810,7 +1810,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4401-37",
     "name": "미국산 소고기 갈비살",
     "unit": "100g",
-    "price": 6462,
+    "price": 5968,
     "normal": 4545,
     "minMonth": 3,
     "maxMonth": 10,
@@ -1834,7 +1834,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4401-37-82",
     "name": "호주산 소고기 갈비살",
     "unit": "100g",
-    "price": 5242,
+    "price": 5306,
     "normal": 4950,
     "minMonth": 6,
     "maxMonth": 10,
@@ -1845,7 +1845,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "4402-27",
     "name": "수입 돼지고기 삼겹살",
     "unit": "100g",
-    "price": 1529,
+    "price": 1511,
     "normal": 1502,
     "minMonth": 10,
     "maxMonth": 7,
@@ -1866,43 +1866,34 @@ export const SEO_ITEMS: SeoItem[] = [
     ]
   },
   {
-    "key": "9901-02",
-    "name": "닭고기 육계9호",
+    "key": "9901-24",
+    "name": "닭고기 절단육",
     "unit": "1kg",
-    "price": 500,
-    "normal": null,
-    "minMonth": null,
-    "maxMonth": null,
+    "price": null,
+    "normal": 8417,
+    "minMonth": 10,
+    "maxMonth": 5,
     "seasonMonths": null,
-    "normalMonths": null
-  },
-  {
-    "key": "9901-04",
-    "name": "닭고기 육계11호",
-    "unit": "1kg",
-    "price": 414,
-    "normal": null,
-    "minMonth": null,
-    "maxMonth": null,
-    "seasonMonths": null,
-    "normalMonths": null
-  },
-  {
-    "key": "9901-05",
-    "name": "닭고기 육계12호",
-    "unit": "1kg",
-    "price": 533,
-    "normal": null,
-    "minMonth": null,
-    "maxMonth": null,
-    "seasonMonths": null,
-    "normalMonths": null
+    "normalMonths": [
+      8230,
+      8474,
+      8418,
+      8530,
+      8598,
+      8178,
+      8644,
+      8721,
+      9660,
+      8305,
+      8304,
+      8155
+    ]
   },
   {
     "key": "9901-99",
     "name": "닭고기 육계",
     "unit": "1kg",
-    "price": 4424,
+    "price": 5088,
     "normal": 5460,
     "minMonth": 10,
     "maxMonth": 5,
@@ -1926,7 +1917,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9903-21",
     "name": "계란 10구",
     "unit": "10구",
-    "price": 3898,
+    "price": 4020,
     "normal": 3495,
     "minMonth": 1,
     "maxMonth": 6,
@@ -1950,7 +1941,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9903-23",
     "name": "계란 30구",
     "unit": "30구",
-    "price": 6214,
+    "price": 7068,
     "normal": 6749,
     "minMonth": 2,
     "maxMonth": 6,
@@ -1974,7 +1965,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "key": "9908-01",
     "name": "우유",
     "unit": "1L",
-    "price": 2947,
+    "price": 2972,
     "normal": 2934,
     "minMonth": 5,
     "maxMonth": 9,
@@ -2007,123 +1998,123 @@ export interface SeoRecipe {
 }
 export const SEO_RECIPES: SeoRecipe[] = [
   {
-    "slug": "돼지고기-숙주덮밥",
-    "title": "돼지고기 숙주덮밥"
+    "slug": "닭가슴살-두부선",
+    "title": "닭가슴살 두부선"
   },
   {
-    "slug": "함박스테이크",
-    "title": "함박스테이크"
+    "slug": "닭고기채소스파게티",
+    "title": "닭고기채소스파게티"
   },
   {
-    "slug": "나가사키부대찌개",
-    "title": "나가사키부대찌개"
+    "slug": "파프리카볶음밥",
+    "title": "파프리카볶음밥"
   },
   {
-    "slug": "꽃밥",
-    "title": "꽃밥"
+    "slug": "닭고기라이스롤",
+    "title": "닭고기라이스롤"
   },
   {
-    "slug": "토마토두루치기",
-    "title": "토마토두루치기"
+    "slug": "수삼매운닭찜",
+    "title": "수삼매운닭찜"
   },
   {
-    "slug": "완자된장국",
-    "title": "완자된장국"
+    "slug": "닭고기또띠아",
+    "title": "닭고기또띠아"
   },
   {
-    "slug": "굴림만두된장국",
-    "title": "굴림만두된장국"
+    "slug": "카레탄두리치킨과-닭가슴살냉채",
+    "title": "카레탄두리치킨과 닭가슴살냉채"
   },
   {
-    "slug": "양배추감자전",
-    "title": "양배추감자전"
+    "slug": "닭고기월남쌈",
+    "title": "닭고기월남쌈"
   },
   {
-    "slug": "코코넛밀크카레",
-    "title": "코코넛밀크카레"
+    "slug": "카레닭-룰라이드",
+    "title": "카레닭 룰라이드"
   },
   {
-    "slug": "오색볶음면",
-    "title": "오색볶음면"
+    "slug": "닭강정",
+    "title": "닭강정"
   },
   {
-    "slug": "맥적구이",
-    "title": "맥적구이"
+    "slug": "초계탕과-사색곤약",
+    "title": "초계탕과 사색곤약"
   },
   {
-    "slug": "오렌지마리네이드-돼지고기",
-    "title": "오렌지마리네이드 돼지고기"
+    "slug": "양배추롤",
+    "title": "양배추롤"
   },
   {
-    "slug": "견과류통삼겹살찜",
-    "title": "견과류통삼겹살찜"
+    "slug": "백김치닭살샐러드",
+    "title": "백김치닭살샐러드"
   },
   {
-    "slug": "된장-두부찌개",
-    "title": "된장 두부찌개"
+    "slug": "삼계치킨롤",
+    "title": "삼계치킨롤"
   },
   {
-    "slug": "묵은지가지말이",
-    "title": "묵은지가지말이"
+    "slug": "머쉬룸-닭스테이크",
+    "title": "머쉬룸 닭스테이크"
   },
   {
-    "slug": "수박즙돼지목심구이",
-    "title": "수박즙돼지목심구이"
+    "slug": "치킨완자스프",
+    "title": "치킨완자스프"
   },
   {
-    "slug": "맑은부대찌개",
-    "title": "맑은부대찌개"
+    "slug": "닭고기스테이크",
+    "title": "닭고기스테이크"
   },
   {
-    "slug": "두유-마-떡갈비",
-    "title": "두유 마 떡갈비"
+    "slug": "세가지샐러드",
+    "title": "세가지샐러드"
   },
   {
-    "slug": "떡갈비와-미니잡곡밥",
-    "title": "떡갈비와 미니잡곡밥"
+    "slug": "닭고기-완자삼계죽",
+    "title": "닭고기 완자삼계죽"
   },
   {
-    "slug": "떡갈비주먹밥",
-    "title": "떡갈비주먹밥"
+    "slug": "감닭떡갈비",
+    "title": "감닭떡갈비"
   },
   {
-    "slug": "함초떡갈비",
-    "title": "함초떡갈비"
+    "slug": "미역볶음밥",
+    "title": "미역볶음밥"
   },
   {
-    "slug": "떡완자조림",
-    "title": "떡완자조림"
+    "slug": "닭가슴살청포묵비빔밥",
+    "title": "닭가슴살청포묵비빔밥"
   },
   {
-    "slug": "미니함박스테이크",
-    "title": "미니함박스테이크"
+    "slug": "닭고기볶음밥",
+    "title": "닭고기볶음밥"
   },
   {
-    "slug": "라이스버거떡갈비",
-    "title": "라이스버거떡갈비"
+    "slug": "깐풍파스타",
+    "title": "깐풍파스타"
   },
   {
-    "slug": "두부-카프리제",
-    "title": "두부 카프리제"
+    "slug": "양송이크림볶음밥",
+    "title": "양송이크림볶음밥"
   },
   {
-    "slug": "햄버거스테이크",
-    "title": "햄버거스테이크"
+    "slug": "둥지튀김",
+    "title": "둥지튀김"
   },
   {
-    "slug": "떡갈비찜",
-    "title": "떡갈비찜"
+    "slug": "호박잎삼계",
+    "title": "호박잎삼계"
   },
   {
-    "slug": "토마토돼지고기해장국",
-    "title": "토마토돼지고기해장국"
+    "slug": "룰룰랄라",
+    "title": "룰룰랄라"
   },
   {
-    "slug": "들깨된장육개장",
-    "title": "들깨된장육개장"
+    "slug": "초계탕",
+    "title": "초계탕"
   },
   {
-    "slug": "매실소스를-곁들인-돼지고기만두",
-    "title": "매실소스를 곁들인 돼지고기만두"
+    "slug": "봄옷을-입은-닭",
+    "title": "봄옷을 입은 닭"
   }
 ];
