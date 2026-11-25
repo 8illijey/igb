@@ -823,7 +823,7 @@ export const SEO_ITEMS: SeoItem[] = [
     "unit": "1kg",
     "price": 2544,
     "normal": 3290,
-    "minMonth": 4,
+    "minMonth": 11,
     "maxMonth": 12,
     "seasonMonths": null,
     "normalMonths": [
